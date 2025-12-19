@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Built binary
+ionoscloud-mcp
+
 # Test binary, built with `go test -c`
 *.test
 
