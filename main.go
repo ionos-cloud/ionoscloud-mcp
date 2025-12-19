@@ -293,6 +293,7 @@ func (s *Server) Run() error {
 
 		var req JSONRPCRequest
 		if err := json.Unmarshal(line, &req); err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to parse JSON-RPC request: %v\n", err)
 			continue
 		}
 
@@ -300,6 +301,21 @@ func (s *Server) Run() error {
 
 		respBytes, err := json.Marshal(resp)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to marshal JSON-RPC response: %v\n", err)
+			// Send a basic error response
+			errorResp := JSONRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error: &RPCError{
+					Code:    -32603,
+					Message: "Internal error: failed to marshal response",
+				},
+			}
+			if errBytes, e := json.Marshal(errorResp); e == nil {
+				writer.Write(errBytes)
+				writer.WriteByte('\n')
+				writer.Flush()
+			}
 			continue
 		}
 
