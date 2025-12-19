@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	ionosdns "github.com/ionos-cloud/sdk-go-dns"
+	dns "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
 
@@ -352,19 +352,19 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		return s.listResources(s.client, s.ctx, resourceType)
 	// DNS
 	case "list_dns_zones":
-		return s.listDnsZones(s.dnsClient, s.dnsCtx)
+		return s.listDnsZones(s.dnsClient, s.ctx)
 	case "get_dns_zone":
 		zoneID, ok := arguments["zone_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("zone_id is required")
 		}
-		return s.getDnsZone(s.dnsClient, s.dnsCtx, zoneID)
+		return s.getDnsZone(s.dnsClient, s.ctx, zoneID)
 	case "list_dns_records":
 		zoneID, ok := arguments["zone_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("zone_id is required")
 		}
-		return s.listDnsRecords(s.dnsClient, s.dnsCtx, zoneID)
+		return s.listDnsRecords(s.dnsClient, s.ctx, zoneID)
 	case "get_dns_record":
 		zoneID, ok := arguments["zone_id"].(string)
 		if !ok {
@@ -374,7 +374,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("record_id is required")
 		}
-		return s.getDnsRecord(s.dnsClient, s.dnsCtx, zoneID, recordID)
+		return s.getDnsRecord(s.dnsClient, s.ctx, zoneID, recordID)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
@@ -1120,7 +1120,7 @@ func (s *Server) listResources(client *ionoscloud.APIClient, ctx context.Context
 // DNS
 // =============================================================================
 
-func (s *Server) listDnsZones(client *ionosdns.APIClient, ctx context.Context) (string, error) {
+func (s *Server) listDnsZones(client *dns.APIClient, ctx context.Context) (string, error) {
 	zones, _, err := client.ZonesApi.ZonesGet(ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list DNS zones: %w", err)
@@ -1134,7 +1134,7 @@ func (s *Server) listDnsZones(client *ionosdns.APIClient, ctx context.Context) (
 	return string(data), nil
 }
 
-func (s *Server) getDnsZone(client *ionosdns.APIClient, ctx context.Context, zoneID string) (string, error) {
+func (s *Server) getDnsZone(client *dns.APIClient, ctx context.Context, zoneID string) (string, error) {
 	zone, _, err := client.ZonesApi.ZonesFindById(ctx, zoneID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get DNS zone: %w", err)
@@ -1148,7 +1148,7 @@ func (s *Server) getDnsZone(client *ionosdns.APIClient, ctx context.Context, zon
 	return string(data), nil
 }
 
-func (s *Server) listDnsRecords(client *ionosdns.APIClient, ctx context.Context, zoneID string) (string, error) {
+func (s *Server) listDnsRecords(client *dns.APIClient, ctx context.Context, zoneID string) (string, error) {
 	records, _, err := client.RecordsApi.ZonesRecordsGet(ctx, zoneID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list DNS records: %w", err)
@@ -1162,7 +1162,7 @@ func (s *Server) listDnsRecords(client *ionosdns.APIClient, ctx context.Context,
 	return string(data), nil
 }
 
-func (s *Server) getDnsRecord(client *ionosdns.APIClient, ctx context.Context, zoneID, recordID string) (string, error) {
+func (s *Server) getDnsRecord(client *dns.APIClient, ctx context.Context, zoneID, recordID string) (string, error) {
 	record, _, err := client.RecordsApi.ZonesRecordsFindById(ctx, zoneID, recordID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get DNS record: %w", err)

@@ -8,8 +8,9 @@ import (
 	"io"
 	"os"
 
+	dns "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
+	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
-	ionosdns "github.com/ionos-cloud/sdk-go-dns"
 )
 
 const (
@@ -40,15 +41,14 @@ type RPCError struct {
 type Server struct {
 	tools     []Tool
 	client    *ionoscloud.APIClient
-	dnsClient *ionosdns.APIClient
+	dnsClient *dns.APIClient
 	ctx       context.Context
-	dnsCtx    context.Context
 }
 
 func NewServer() *Server {
 	s := &Server{}
 
-	// Initialize IONOS Cloud client
+	// Get credentials from environment
 	username := os.Getenv("IONOS_USERNAME")
 	password := os.Getenv("IONOS_PASSWORD")
 	token := os.Getenv("IONOS_TOKEN")
@@ -58,26 +58,16 @@ func NewServer() *Server {
 		fmt.Fprintf(os.Stderr, "Warning: No IONOS Cloud credentials found. Set IONOS_USERNAME/IONOS_PASSWORD or IONOS_TOKEN environment variables.\n")
 	}
 
-	configuration := ionoscloud.NewConfiguration(username, password, token, "")
-	s.client = ionoscloud.NewAPIClient(configuration)
-	s.ctx = context.Background()
+	// Initialize Compute API client (uses sdk-go/v6)
+	computeConfig := ionoscloud.NewConfiguration(username, password, token, "")
+	s.client = ionoscloud.NewAPIClient(computeConfig)
 
-	// Initialize DNS client
-	dnsConfiguration := ionosdns.NewConfiguration(username, password, token, "")
-	s.dnsClient = ionosdns.NewAPIClient(dnsConfiguration)
-	// DNS API authentication via context
-	if token != "" {
-		s.dnsCtx = context.WithValue(context.Background(), ionosdns.ContextAPIKeys, map[string]ionosdns.APIKey{
-			"tokenAuth": {Key: token, Prefix: "Bearer"},
-		})
-	} else if username != "" && password != "" {
-		s.dnsCtx = context.WithValue(context.Background(), ionosdns.ContextBasicAuth, ionosdns.BasicAuth{
-			UserName: username,
-			Password: password,
-		})
-	} else {
-		s.dnsCtx = context.Background()
-	}
+	// Initialize DNS API client using shared configuration from sdk-go-bundle
+	// This provides unified authentication that works correctly with the DNS API
+	dnsConfig := shared.NewConfiguration(username, password, token, "")
+	s.dnsClient = dns.NewAPIClient(dnsConfig)
+
+	s.ctx = context.Background()
 
 	s.registerTools()
 	return s
