@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+
+	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
 
 const (
@@ -34,11 +37,28 @@ type RPCError struct {
 }
 
 type Server struct {
-	tools []Tool
+	tools  []Tool
+	client *ionoscloud.APIClient
+	ctx    context.Context
 }
 
 func NewServer() *Server {
 	s := &Server{}
+
+	// Initialize IONOS Cloud client
+	username := os.Getenv("IONOS_USERNAME")
+	password := os.Getenv("IONOS_PASSWORD")
+	token := os.Getenv("IONOS_TOKEN")
+
+	// Validate that at least one authentication method is provided
+	if username == "" && token == "" {
+		fmt.Fprintf(os.Stderr, "Warning: No IONOS Cloud credentials found. Set IONOS_USERNAME/IONOS_PASSWORD or IONOS_TOKEN environment variables.\n")
+	}
+
+	configuration := ionoscloud.NewConfiguration(username, password, token, "")
+	s.client = ionoscloud.NewAPIClient(configuration)
+	s.ctx = context.Background()
+
 	s.registerTools()
 	return s
 }

@@ -4,41 +4,26 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
 
-func getIonosClient() (*ionoscloud.APIClient, context.Context) {
-	username := os.Getenv("IONOS_USERNAME")
-	password := os.Getenv("IONOS_PASSWORD")
-	token := os.Getenv("IONOS_TOKEN")
-
-	configuration := ionoscloud.NewConfiguration(username, password, token, "")
-	client := ionoscloud.NewAPIClient(configuration)
-	ctx := context.Background()
-
-	return client, ctx
-}
-
 func (s *Server) executeTool(name string, arguments map[string]interface{}) (string, error) {
-	client, ctx := getIonosClient()
-
 	switch name {
 	case "list_datacenters":
-		return s.listDatacenters(client, ctx)
+		return s.listDatacenters(s.client, s.ctx)
 	case "get_datacenter":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.getDatacenter(client, ctx, datacenterID)
+		return s.getDatacenter(s.client, s.ctx, datacenterID)
 	case "list_servers":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listServers(client, ctx, datacenterID)
+		return s.listServers(s.client, s.ctx, datacenterID)
 	case "get_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -48,13 +33,13 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.getServer(client, ctx, datacenterID, serverID)
+		return s.getServer(s.client, s.ctx, datacenterID, serverID)
 	case "list_volumes":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listVolumes(client, ctx, datacenterID)
+		return s.listVolumes(s.client, s.ctx, datacenterID)
 	case "get_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -64,19 +49,19 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("volume_id is required")
 		}
-		return s.getVolume(client, ctx, datacenterID, volumeID)
+		return s.getVolume(s.client, s.ctx, datacenterID, volumeID)
 	case "list_images":
-		return s.listImages(client, ctx)
+		return s.listImages(s.client, s.ctx)
 	case "list_locations":
-		return s.listLocations(client, ctx)
+		return s.listLocations(s.client, s.ctx)
 	case "list_snapshots":
-		return s.listSnapshots(client, ctx)
+		return s.listSnapshots(s.client, s.ctx)
 	case "get_snapshot":
 		snapshotID, ok := arguments["snapshot_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("snapshot_id is required")
 		}
-		return s.getSnapshot(client, ctx, snapshotID)
+		return s.getSnapshot(s.client, s.ctx, snapshotID)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
