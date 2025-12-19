@@ -270,6 +270,21 @@ Gets detailed information about a specific snapshot.
 
 ## Development
 
+### Testing the MCP Protocol
+
+You can test the server's MCP protocol implementation using stdin/stdout:
+
+```bash
+# Test initialization
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./ionoscloud-mcp
+
+# List available tools
+echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | ./ionoscloud-mcp
+
+# Call a tool (example - requires valid credentials)
+echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_datacenters","arguments":{}}}' | ./ionoscloud-mcp
+```
+
 ### Building from Source
 
 ```bash
