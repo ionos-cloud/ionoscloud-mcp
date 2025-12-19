@@ -65,6 +65,18 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("volume_id is required")
 		}
 		return s.getVolume(client, ctx, datacenterID, volumeID)
+	case "list_images":
+		return s.listImages(client, ctx)
+	case "list_locations":
+		return s.listLocations(client, ctx)
+	case "list_snapshots":
+		return s.listSnapshots(client, ctx)
+	case "get_snapshot":
+		snapshotID, ok := arguments["snapshot_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("snapshot_id is required")
+		}
+		return s.getSnapshot(client, ctx, snapshotID)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
@@ -149,6 +161,62 @@ func (s *Server) getVolume(client *ionoscloud.APIClient, ctx context.Context, da
 	data, err := json.MarshalIndent(volume, "", "  ")
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal volume: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) listImages(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
+	images, _, err := client.ImagesApi.ImagesGet(ctx).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to list images: %w", err)
+	}
+
+	data, err := json.MarshalIndent(images, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal images: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) listLocations(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
+	locations, _, err := client.LocationsApi.LocationsGet(ctx).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to list locations: %w", err)
+	}
+
+	data, err := json.MarshalIndent(locations, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal locations: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) listSnapshots(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
+	snapshots, _, err := client.SnapshotsApi.SnapshotsGet(ctx).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to list snapshots: %w", err)
+	}
+
+	data, err := json.MarshalIndent(snapshots, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal snapshots: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) getSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID string) (string, error) {
+	snapshot, _, err := client.SnapshotsApi.SnapshotsFindById(ctx, snapshotID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to get snapshot: %w", err)
+	}
+
+	data, err := json.MarshalIndent(snapshot, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
 	}
 
 	return string(data), nil

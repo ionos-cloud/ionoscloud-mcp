@@ -132,6 +132,47 @@ func (s *Server) registerTools() {
 				"required": ["datacenter_id", "volume_id"]
 			}`),
 		},
+		{
+			Name:        "list_images",
+			Description: "List all available images (OS templates) in IONOS Cloud",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "list_locations",
+			Description: "List all available locations (regions) in IONOS Cloud",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "list_snapshots",
+			Description: "List all snapshots in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_snapshot",
+			Description: "Get details of a specific snapshot",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"snapshot_id": {
+						"type": "string",
+						"description": "The ID of the snapshot"
+					}
+				},
+				"required": ["snapshot_id"]
+			}`),
+		},
 	}
 }
 

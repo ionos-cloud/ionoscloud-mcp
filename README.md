@@ -6,12 +6,25 @@ This project implements a Model Context Protocol (MCP) server that allows LLMs t
 
 The server provides the following tools for interacting with IONOS Cloud:
 
+### Data Centers
 - **list_datacenters**: List all virtual data centers in your IONOS Cloud account
 - **get_datacenter**: Get details of a specific virtual data center
+
+### Servers
 - **list_servers**: List all servers in a data center
 - **get_server**: Get details of a specific server
+
+### Volumes
 - **list_volumes**: List all volumes in a data center
 - **get_volume**: Get details of a specific volume
+
+### Images & Snapshots
+- **list_images**: List all available images (OS templates)
+- **list_snapshots**: List all snapshots in your account
+- **get_snapshot**: Get details of a specific snapshot
+
+### Locations
+- **list_locations**: List all available locations (regions) in IONOS Cloud
 
 ## Prerequisites
 
@@ -28,6 +41,8 @@ cd ionoscloud-mcp
 
 2. Build the server:
 ```bash
+make build
+# or
 go build -o ionoscloud-mcp .
 ```
 
@@ -194,13 +209,83 @@ Gets detailed information about a specific volume.
 }
 ```
 
+### list_images
+
+Lists all available images (OS templates) in IONOS Cloud.
+
+**Parameters:** None
+
+**Example:**
+```json
+{
+  "name": "list_images",
+  "arguments": {}
+}
+```
+
+### list_locations
+
+Lists all available locations (regions) in IONOS Cloud.
+
+**Parameters:** None
+
+**Example:**
+```json
+{
+  "name": "list_locations",
+  "arguments": {}
+}
+```
+
+### list_snapshots
+
+Lists all snapshots in your IONOS Cloud account.
+
+**Parameters:** None
+
+**Example:**
+```json
+{
+  "name": "list_snapshots",
+  "arguments": {}
+}
+```
+
+### get_snapshot
+
+Gets detailed information about a specific snapshot.
+
+**Parameters:**
+- `snapshot_id` (string, required): The ID of the snapshot
+
+**Example:**
+```json
+{
+  "name": "get_snapshot",
+  "arguments": {
+    "snapshot_id": "22222222-2222-2222-2222-222222222222"
+  }
+}
+```
+
 ## Development
 
 ### Building from Source
 
 ```bash
+make build
+# or
 go build -o ionoscloud-mcp .
 ```
+
+### Available Make Targets
+
+- `make build` - Build the binary
+- `make clean` - Remove build artifacts
+- `make fmt` - Format code
+- `make vet` - Run go vet
+- `make check` - Run fmt and vet
+- `make deps` - Download and tidy dependencies
 
 ### Dependencies
 
