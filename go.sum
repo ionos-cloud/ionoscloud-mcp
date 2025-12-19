@@ -1,3 +1,5 @@
+github.com/ionos-cloud/sdk-go-dns v1.4.0 h1:mZsjPigGn6V9wAHUaAtCXjecQ2ZkB4i6kro+hf+G7BE=
+github.com/ionos-cloud/sdk-go-dns v1.4.0/go.mod h1:8RHKLPUY6jtZqPtqeEIXmRFM7w4mii9pLXR7phLxwC8=
 github.com/ionos-cloud/sdk-go/v6 v6.3.5 h1:6fHArdV1lf50iRhCkCP7wkvGwWzVwi+l9w1t5mwkOa8=
 github.com/ionos-cloud/sdk-go/v6 v6.3.5/go.mod h1:nUGHP4kZHAZngCVr4v6C8nuargFrtvt7GrzH/hqn7c4=
 golang.org/x/oauth2 v0.30.0 h1:dnDm7JmhM45NNpd8FDDeLhK6FwqbOf4MLCM9zb1BOHI=

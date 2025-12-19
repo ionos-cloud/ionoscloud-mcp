@@ -9,6 +9,7 @@ import (
 	"os"
 
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
+	ionosdns "github.com/ionos-cloud/sdk-go-dns"
 )
 
 const (
@@ -37,9 +38,11 @@ type RPCError struct {
 }
 
 type Server struct {
-	tools  []Tool
-	client *ionoscloud.APIClient
-	ctx    context.Context
+	tools     []Tool
+	client    *ionoscloud.APIClient
+	dnsClient *ionosdns.APIClient
+	ctx       context.Context
+	dnsCtx    context.Context
 }
 
 func NewServer() *Server {
@@ -58,6 +61,23 @@ func NewServer() *Server {
 	configuration := ionoscloud.NewConfiguration(username, password, token, "")
 	s.client = ionoscloud.NewAPIClient(configuration)
 	s.ctx = context.Background()
+
+	// Initialize DNS client
+	dnsConfiguration := ionosdns.NewConfiguration(username, password, token, "")
+	s.dnsClient = ionosdns.NewAPIClient(dnsConfiguration)
+	// DNS API authentication via context
+	if token != "" {
+		s.dnsCtx = context.WithValue(context.Background(), ionosdns.ContextAPIKeys, map[string]ionosdns.APIKey{
+			"tokenAuth": {Key: token, Prefix: "Bearer"},
+		})
+	} else if username != "" && password != "" {
+		s.dnsCtx = context.WithValue(context.Background(), ionosdns.ContextBasicAuth, ionosdns.BasicAuth{
+			UserName: username,
+			Password: password,
+		})
+	} else {
+		s.dnsCtx = context.Background()
+	}
 
 	s.registerTools()
 	return s
@@ -191,6 +211,648 @@ func (s *Server) registerTools() {
 					}
 				},
 				"required": ["snapshot_id"]
+			}`),
+		},
+		// Networking - LANs
+		{
+			Name:        "list_lans",
+			Description: "List all LANs in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
+			Name:        "get_lan",
+			Description: "Get details of a specific LAN",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"lan_id": {
+						"type": "string",
+						"description": "The ID of the LAN"
+					}
+				},
+				"required": ["datacenter_id", "lan_id"]
+			}`),
+		},
+		// Networking - NICs
+		{
+			Name:        "list_nics",
+			Description: "List all NICs attached to a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					}
+				},
+				"required": ["datacenter_id", "server_id"]
+			}`),
+		},
+		{
+			Name:        "get_nic",
+			Description: "Get details of a specific NIC",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id"]
+			}`),
+		},
+		// Networking - IP Blocks
+		{
+			Name:        "list_ipblocks",
+			Description: "List all IP blocks in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_ipblock",
+			Description: "Get details of a specific IP block",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"ipblock_id": {
+						"type": "string",
+						"description": "The ID of the IP block"
+					}
+				},
+				"required": ["ipblock_id"]
+			}`),
+		},
+		// Networking - Firewall Rules
+		{
+			Name:        "list_firewall_rules",
+			Description: "List all firewall rules on a NIC",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id"]
+			}`),
+		},
+		{
+			Name:        "get_firewall_rule",
+			Description: "Get details of a specific firewall rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC"
+					},
+					"firewallrule_id": {
+						"type": "string",
+						"description": "The ID of the firewall rule"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id", "firewallrule_id"]
+			}`),
+		},
+		// Networking - NAT Gateways
+		{
+			Name:        "list_nat_gateways",
+			Description: "List all NAT gateways in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
+			Name:        "get_nat_gateway",
+			Description: "Get details of a specific NAT gateway",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id"]
+			}`),
+		},
+		// Networking - Private Cross Connects
+		{
+			Name:        "list_pccs",
+			Description: "List all Private Cross Connects in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_pcc",
+			Description: "Get details of a specific Private Cross Connect",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"pcc_id": {
+						"type": "string",
+						"description": "The ID of the Private Cross Connect"
+					}
+				},
+				"required": ["pcc_id"]
+			}`),
+		},
+		// Load Balancers - Application Load Balancers
+		{
+			Name:        "list_application_load_balancers",
+			Description: "List all Application Load Balancers in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
+			Name:        "get_application_load_balancer",
+			Description: "Get details of a specific Application Load Balancer",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"alb_id": {
+						"type": "string",
+						"description": "The ID of the Application Load Balancer"
+					}
+				},
+				"required": ["datacenter_id", "alb_id"]
+			}`),
+		},
+		{
+			Name:        "list_alb_forwarding_rules",
+			Description: "List all forwarding rules of an Application Load Balancer",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"alb_id": {
+						"type": "string",
+						"description": "The ID of the Application Load Balancer"
+					}
+				},
+				"required": ["datacenter_id", "alb_id"]
+			}`),
+		},
+		{
+			Name:        "get_alb_forwarding_rule",
+			Description: "Get details of a specific ALB forwarding rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"alb_id": {
+						"type": "string",
+						"description": "The ID of the Application Load Balancer"
+					},
+					"rule_id": {
+						"type": "string",
+						"description": "The ID of the forwarding rule"
+					}
+				},
+				"required": ["datacenter_id", "alb_id", "rule_id"]
+			}`),
+		},
+		// Load Balancers - Network Load Balancers
+		{
+			Name:        "list_network_load_balancers",
+			Description: "List all Network Load Balancers in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
+			Name:        "get_network_load_balancer",
+			Description: "Get details of a specific Network Load Balancer",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nlb_id": {
+						"type": "string",
+						"description": "The ID of the Network Load Balancer"
+					}
+				},
+				"required": ["datacenter_id", "nlb_id"]
+			}`),
+		},
+		// Load Balancers - Target Groups
+		{
+			Name:        "list_target_groups",
+			Description: "List all target groups in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_target_group",
+			Description: "Get details of a specific target group",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"target_group_id": {
+						"type": "string",
+						"description": "The ID of the target group"
+					}
+				},
+				"required": ["target_group_id"]
+			}`),
+		},
+		// Kubernetes
+		{
+			Name:        "list_k8s_clusters",
+			Description: "List all Kubernetes clusters in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_k8s_cluster",
+			Description: "Get details of a specific Kubernetes cluster",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"k8s_cluster_id": {
+						"type": "string",
+						"description": "The ID of the Kubernetes cluster"
+					}
+				},
+				"required": ["k8s_cluster_id"]
+			}`),
+		},
+		{
+			Name:        "get_k8s_kubeconfig",
+			Description: "Get the kubeconfig for a Kubernetes cluster",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"k8s_cluster_id": {
+						"type": "string",
+						"description": "The ID of the Kubernetes cluster"
+					}
+				},
+				"required": ["k8s_cluster_id"]
+			}`),
+		},
+		{
+			Name:        "list_k8s_nodepools",
+			Description: "List all node pools in a Kubernetes cluster",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"k8s_cluster_id": {
+						"type": "string",
+						"description": "The ID of the Kubernetes cluster"
+					}
+				},
+				"required": ["k8s_cluster_id"]
+			}`),
+		},
+		{
+			Name:        "get_k8s_nodepool",
+			Description: "Get details of a specific node pool",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"k8s_cluster_id": {
+						"type": "string",
+						"description": "The ID of the Kubernetes cluster"
+					},
+					"nodepool_id": {
+						"type": "string",
+						"description": "The ID of the node pool"
+					}
+				},
+				"required": ["k8s_cluster_id", "nodepool_id"]
+			}`),
+		},
+		{
+			Name:        "list_k8s_nodes",
+			Description: "List all nodes in a node pool",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"k8s_cluster_id": {
+						"type": "string",
+						"description": "The ID of the Kubernetes cluster"
+					},
+					"nodepool_id": {
+						"type": "string",
+						"description": "The ID of the node pool"
+					}
+				},
+				"required": ["k8s_cluster_id", "nodepool_id"]
+			}`),
+		},
+		{
+			Name:        "get_k8s_node",
+			Description: "Get details of a specific node",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"k8s_cluster_id": {
+						"type": "string",
+						"description": "The ID of the Kubernetes cluster"
+					},
+					"nodepool_id": {
+						"type": "string",
+						"description": "The ID of the node pool"
+					},
+					"node_id": {
+						"type": "string",
+						"description": "The ID of the node"
+					}
+				},
+				"required": ["k8s_cluster_id", "nodepool_id", "node_id"]
+			}`),
+		},
+		{
+			Name:        "list_k8s_versions",
+			Description: "List all available Kubernetes versions",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		// User Management - Users
+		{
+			Name:        "list_users",
+			Description: "List all users in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_user",
+			Description: "Get details of a specific user",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"user_id": {
+						"type": "string",
+						"description": "The ID of the user"
+					}
+				},
+				"required": ["user_id"]
+			}`),
+		},
+		// User Management - Groups
+		{
+			Name:        "list_groups",
+			Description: "List all groups in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_group",
+			Description: "Get details of a specific group",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"group_id": {
+						"type": "string",
+						"description": "The ID of the group"
+					}
+				},
+				"required": ["group_id"]
+			}`),
+		},
+		{
+			Name:        "list_group_members",
+			Description: "List all users in a group",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"group_id": {
+						"type": "string",
+						"description": "The ID of the group"
+					}
+				},
+				"required": ["group_id"]
+			}`),
+		},
+		{
+			Name:        "list_user_groups",
+			Description: "List all groups a user belongs to",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"user_id": {
+						"type": "string",
+						"description": "The ID of the user"
+					}
+				},
+				"required": ["user_id"]
+			}`),
+		},
+		// User Management - S3 Keys
+		{
+			Name:        "list_s3_keys",
+			Description: "List all S3 keys for a user",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"user_id": {
+						"type": "string",
+						"description": "The ID of the user"
+					}
+				},
+				"required": ["user_id"]
+			}`),
+		},
+		{
+			Name:        "get_s3_key",
+			Description: "Get details of a specific S3 key",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"user_id": {
+						"type": "string",
+						"description": "The ID of the user"
+					},
+					"key_id": {
+						"type": "string",
+						"description": "The ID of the S3 key"
+					}
+				},
+				"required": ["user_id", "key_id"]
+			}`),
+		},
+		// User Management - Contract
+		{
+			Name:        "get_contract",
+			Description: "Get contract information and resource limits",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "list_resources",
+			Description: "List all resources by type",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"resource_type": {
+						"type": "string",
+						"description": "The type of resource (optional, e.g., datacenter, image, snapshot, ipblock)"
+					}
+				},
+				"required": []
+			}`),
+		},
+		// DNS
+		{
+			Name:        "list_dns_zones",
+			Description: "List all DNS zones in your IONOS Cloud account",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {},
+				"required": []
+			}`),
+		},
+		{
+			Name:        "get_dns_zone",
+			Description: "Get details of a specific DNS zone",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"zone_id": {
+						"type": "string",
+						"description": "The ID of the DNS zone"
+					}
+				},
+				"required": ["zone_id"]
+			}`),
+		},
+		{
+			Name:        "list_dns_records",
+			Description: "List all DNS records in a zone",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"zone_id": {
+						"type": "string",
+						"description": "The ID of the DNS zone"
+					}
+				},
+				"required": ["zone_id"]
+			}`),
+		},
+		{
+			Name:        "get_dns_record",
+			Description: "Get details of a specific DNS record",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"zone_id": {
+						"type": "string",
+						"description": "The ID of the DNS zone"
+					},
+					"record_id": {
+						"type": "string",
+						"description": "The ID of the DNS record"
+					}
+				},
+				"required": ["zone_id", "record_id"]
 			}`),
 		},
 	}
