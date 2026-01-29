@@ -305,7 +305,8 @@ go build -o ionoscloud-mcp .
 ### Dependencies
 
 This project uses minimal external dependencies:
-- [ionos-cloud/sdk-go](https://github.com/ionos-cloud/sdk-go) - Official IONOS Cloud Go SDK
+- [ionos-cloud/sdk-go](https://github.com/ionos-cloud/sdk-go) - Official IONOS Cloud Go SDK (Compute API)
+- [ionos-cloud/sdk-go-bundle](https://github.com/ionos-cloud/sdk-go-bundle) - IONOS Cloud SDK Bundle (DNS API)
 
 ## API Documentation
 
