@@ -8,67 +8,67 @@ The server currently has **42 READ-only tools** (list/get operations). This plan
 
 ---
 
-## Priority 1: Core Infrastructure CRUD
+## Priority 1: Core Infrastructure CRUD ✅ COMPLETED
 
 ### 1.1 Datacenter Operations
-- [ ] `create_datacenter` - Create a new virtual datacenter
+- [x] `create_datacenter` - Create a new virtual datacenter
   - Parameters: name, description, location
   - Test: Create datacenter, verify, then delete
-- [ ] `update_datacenter` - Update datacenter name/description
+- [x] `update_datacenter` - Update datacenter name/description
   - Parameters: datacenter_id, name, description
   - Test: Update existing datacenter, verify changes
-- [ ] `delete_datacenter` - Delete a datacenter
+- [x] `delete_datacenter` - Delete a datacenter
   - Parameters: datacenter_id
   - Test: Delete datacenter created in tests
 
 ### 1.2 Server Operations
-- [ ] `create_server` - Create a new server in a datacenter
+- [x] `create_server` - Create a new server in a datacenter
   - Parameters: datacenter_id, name, cores, ram, availability_zone, cpu_family
   - Test: Create server, verify properties
-- [ ] `update_server` - Update server properties
+- [x] `update_server` - Update server properties
   - Parameters: datacenter_id, server_id, name, cores, ram
   - Test: Update server, verify changes
-- [ ] `delete_server` - Delete a server
+- [x] `delete_server` - Delete a server
   - Parameters: datacenter_id, server_id
   - Test: Delete server created in tests
-- [ ] `start_server` - Power on a server
+- [x] `start_server` - Power on a server
   - Parameters: datacenter_id, server_id
   - Test: Start stopped server, verify state
-- [ ] `stop_server` - Power off a server
+- [x] `stop_server` - Power off a server
   - Parameters: datacenter_id, server_id
   - Test: Stop running server, verify state
-- [ ] `reboot_server` - Reboot a server
+- [x] `reboot_server` - Reboot a server
   - Parameters: datacenter_id, server_id
   - Test: Reboot server, verify state transitions
 
 ### 1.3 Volume Operations
-- [ ] `create_volume` - Create a new volume
+- [x] `create_volume` - Create a new volume
   - Parameters: datacenter_id, name, size, type (HDD/SSD), image (optional), image_password (optional)
   - Test: Create volume, verify properties
-- [ ] `update_volume` - Update volume properties
+- [x] `update_volume` - Update volume properties
   - Parameters: datacenter_id, volume_id, name, size
   - Test: Update volume size/name
-- [ ] `delete_volume` - Delete a volume
+- [x] `delete_volume` - Delete a volume
   - Parameters: datacenter_id, volume_id
   - Test: Delete volume created in tests
-- [ ] `attach_volume` - Attach volume to a server
+- [x] `attach_volume` - Attach volume to a server
   - Parameters: datacenter_id, server_id, volume_id
   - Test: Attach volume, verify attachment
-- [ ] `detach_volume` - Detach volume from a server
+- [x] `detach_volume` - Detach volume from a server
   - Parameters: datacenter_id, server_id, volume_id
   - Test: Detach volume, verify detachment
 
 ### 1.4 Snapshot Operations
-- [ ] `create_snapshot` - Create snapshot of a volume
+- [x] `create_snapshot` - Create snapshot of a volume
   - Parameters: datacenter_id, volume_id, name, description
   - Test: Create snapshot, verify it exists
-- [ ] `update_snapshot` - Update snapshot metadata
+- [x] `update_snapshot` - Update snapshot metadata
   - Parameters: snapshot_id, name, description
   - Test: Update snapshot name/description
-- [ ] `delete_snapshot` - Delete a snapshot
+- [x] `delete_snapshot` - Delete a snapshot
   - Parameters: snapshot_id
   - Test: Delete snapshot created in tests
-- [ ] `restore_snapshot` - Restore volume from snapshot
+- [x] `restore_snapshot` - Restore volume from snapshot
   - Parameters: snapshot_id, volume_id
   - Test: Restore snapshot to volume
 

@@ -99,6 +99,64 @@ func (s *Server) registerTools() {
 			}`),
 		},
 		{
+			Name:        "create_datacenter",
+			Description: "Create a new virtual data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "The name of the data center"
+					},
+					"location": {
+						"type": "string",
+						"description": "The location/region for the data center (e.g., us/las, de/fra, de/txl)"
+					},
+					"description": {
+						"type": "string",
+						"description": "A description for the data center"
+					}
+				},
+				"required": ["name", "location"]
+			}`),
+		},
+		{
+			Name:        "update_datacenter",
+			Description: "Update an existing virtual data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the data center"
+					},
+					"description": {
+						"type": "string",
+						"description": "The new description for the data center"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
+			Name:        "delete_datacenter",
+			Description: "Delete a virtual data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center to delete"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
 			Name:        "list_servers",
 			Description: "List all servers in a data center",
 			InputSchema: json.RawMessage(`{
@@ -125,6 +183,142 @@ func (s *Server) registerTools() {
 					"server_id": {
 						"type": "string",
 						"description": "The ID of the server"
+					}
+				},
+				"required": ["datacenter_id", "server_id"]
+			}`),
+		},
+		{
+			Name:        "create_server",
+			Description: "Create a new server in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the server"
+					},
+					"cores": {
+						"type": "integer",
+						"description": "The number of CPU cores"
+					},
+					"ram": {
+						"type": "integer",
+						"description": "The amount of RAM in MB"
+					},
+					"cpu_family": {
+						"type": "string",
+						"description": "The CPU family (e.g., INTEL_SKYLAKE, AMD_OPTERON)"
+					},
+					"availability_zone": {
+						"type": "string",
+						"description": "The availability zone (AUTO, ZONE_1, ZONE_2)"
+					}
+				},
+				"required": ["datacenter_id", "name", "cores", "ram"]
+			}`),
+		},
+		{
+			Name:        "update_server",
+			Description: "Update an existing server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the server"
+					},
+					"cores": {
+						"type": "integer",
+						"description": "The new number of CPU cores"
+					},
+					"ram": {
+						"type": "integer",
+						"description": "The new amount of RAM in MB"
+					}
+				},
+				"required": ["datacenter_id", "server_id"]
+			}`),
+		},
+		{
+			Name:        "delete_server",
+			Description: "Delete a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server to delete"
+					}
+				},
+				"required": ["datacenter_id", "server_id"]
+			}`),
+		},
+		{
+			Name:        "start_server",
+			Description: "Start (power on) a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server to start"
+					}
+				},
+				"required": ["datacenter_id", "server_id"]
+			}`),
+		},
+		{
+			Name:        "stop_server",
+			Description: "Stop (power off) a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server to stop"
+					}
+				},
+				"required": ["datacenter_id", "server_id"]
+			}`),
+		},
+		{
+			Name:        "reboot_server",
+			Description: "Reboot a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server to reboot"
 					}
 				},
 				"required": ["datacenter_id", "server_id"]
@@ -160,6 +354,140 @@ func (s *Server) registerTools() {
 					}
 				},
 				"required": ["datacenter_id", "volume_id"]
+			}`),
+		},
+		{
+			Name:        "create_volume",
+			Description: "Create a new volume in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the volume"
+					},
+					"size": {
+						"type": "integer",
+						"description": "The size of the volume in GB"
+					},
+					"type": {
+						"type": "string",
+						"description": "The volume type (HDD, SSD, SSD_STANDARD, SSD_PREMIUM)"
+					},
+					"bus": {
+						"type": "string",
+						"description": "The bus type (VIRTIO, IDE)"
+					},
+					"availability_zone": {
+						"type": "string",
+						"description": "The availability zone (AUTO, ZONE_1, ZONE_2, ZONE_3)"
+					},
+					"image": {
+						"type": "string",
+						"description": "The image or snapshot ID to use"
+					},
+					"image_password": {
+						"type": "string",
+						"description": "Password for the image (required for some images)"
+					},
+					"licence_type": {
+						"type": "string",
+						"description": "The licence type (LINUX, WINDOWS, WINDOWS2016, OTHER, UNKNOWN)"
+					}
+				},
+				"required": ["datacenter_id", "name", "size"]
+			}`),
+		},
+		{
+			Name:        "update_volume",
+			Description: "Update an existing volume",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"volume_id": {
+						"type": "string",
+						"description": "The ID of the volume to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the volume"
+					},
+					"size": {
+						"type": "integer",
+						"description": "The new size in GB (can only increase)"
+					}
+				},
+				"required": ["datacenter_id", "volume_id"]
+			}`),
+		},
+		{
+			Name:        "delete_volume",
+			Description: "Delete a volume",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"volume_id": {
+						"type": "string",
+						"description": "The ID of the volume to delete"
+					}
+				},
+				"required": ["datacenter_id", "volume_id"]
+			}`),
+		},
+		{
+			Name:        "attach_volume",
+			Description: "Attach a volume to a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"volume_id": {
+						"type": "string",
+						"description": "The ID of the volume to attach"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "volume_id"]
+			}`),
+		},
+		{
+			Name:        "detach_volume",
+			Description: "Detach a volume from a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"volume_id": {
+						"type": "string",
+						"description": "The ID of the volume to detach"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "volume_id"]
 			}`),
 		},
 		{
@@ -201,6 +529,90 @@ func (s *Server) registerTools() {
 					}
 				},
 				"required": ["snapshot_id"]
+			}`),
+		},
+		{
+			Name:        "create_snapshot",
+			Description: "Create a snapshot of a volume",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"volume_id": {
+						"type": "string",
+						"description": "The ID of the volume to snapshot"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the snapshot"
+					},
+					"description": {
+						"type": "string",
+						"description": "A description for the snapshot"
+					}
+				},
+				"required": ["datacenter_id", "volume_id"]
+			}`),
+		},
+		{
+			Name:        "update_snapshot",
+			Description: "Update snapshot metadata",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"snapshot_id": {
+						"type": "string",
+						"description": "The ID of the snapshot to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the snapshot"
+					},
+					"description": {
+						"type": "string",
+						"description": "The new description for the snapshot"
+					}
+				},
+				"required": ["snapshot_id"]
+			}`),
+		},
+		{
+			Name:        "delete_snapshot",
+			Description: "Delete a snapshot",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"snapshot_id": {
+						"type": "string",
+						"description": "The ID of the snapshot to delete"
+					}
+				},
+				"required": ["snapshot_id"]
+			}`),
+		},
+		{
+			Name:        "restore_snapshot",
+			Description: "Restore a volume from a snapshot",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"volume_id": {
+						"type": "string",
+						"description": "The ID of the volume to restore"
+					},
+					"snapshot_id": {
+						"type": "string",
+						"description": "The ID of the snapshot to restore from"
+					}
+				},
+				"required": ["datacenter_id", "volume_id", "snapshot_id"]
 			}`),
 		},
 		// Networking - LANs

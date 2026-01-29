@@ -19,6 +19,31 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("datacenter_id is required")
 		}
 		return s.getDatacenter(s.client, s.ctx, datacenterID)
+	case "create_datacenter":
+		name, ok := arguments["name"].(string)
+		if !ok {
+			return "", fmt.Errorf("name is required")
+		}
+		location, ok := arguments["location"].(string)
+		if !ok {
+			return "", fmt.Errorf("location is required")
+		}
+		description, _ := arguments["description"].(string)
+		return s.createDatacenter(s.client, s.ctx, name, location, description)
+	case "update_datacenter":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		description, _ := arguments["description"].(string)
+		return s.updateDatacenter(s.client, s.ctx, datacenterID, name, description)
+	case "delete_datacenter":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		return s.deleteDatacenter(s.client, s.ctx, datacenterID)
 	case "list_servers":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -35,6 +60,84 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("server_id is required")
 		}
 		return s.getServer(s.client, s.ctx, datacenterID, serverID)
+	case "create_server":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		name, ok := arguments["name"].(string)
+		if !ok {
+			return "", fmt.Errorf("name is required")
+		}
+		cores, ok := arguments["cores"].(float64)
+		if !ok {
+			return "", fmt.Errorf("cores is required")
+		}
+		ram, ok := arguments["ram"].(float64)
+		if !ok {
+			return "", fmt.Errorf("ram is required")
+		}
+		cpuFamily, _ := arguments["cpu_family"].(string)
+		availabilityZone, _ := arguments["availability_zone"].(string)
+		return s.createServer(s.client, s.ctx, datacenterID, name, int32(cores), int32(ram), cpuFamily, availabilityZone)
+	case "update_server":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		var cores, ram int32
+		if c, ok := arguments["cores"].(float64); ok {
+			cores = int32(c)
+		}
+		if r, ok := arguments["ram"].(float64); ok {
+			ram = int32(r)
+		}
+		return s.updateServer(s.client, s.ctx, datacenterID, serverID, name, cores, ram)
+	case "delete_server":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		return s.deleteServer(s.client, s.ctx, datacenterID, serverID)
+	case "start_server":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		return s.startServer(s.client, s.ctx, datacenterID, serverID)
+	case "stop_server":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		return s.stopServer(s.client, s.ctx, datacenterID, serverID)
+	case "reboot_server":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		return s.rebootServer(s.client, s.ctx, datacenterID, serverID)
 	case "list_volumes":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -51,6 +154,79 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("volume_id is required")
 		}
 		return s.getVolume(s.client, s.ctx, datacenterID, volumeID)
+	case "create_volume":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		name, ok := arguments["name"].(string)
+		if !ok {
+			return "", fmt.Errorf("name is required")
+		}
+		size, ok := arguments["size"].(float64)
+		if !ok {
+			return "", fmt.Errorf("size is required")
+		}
+		volumeType, _ := arguments["type"].(string)
+		bus, _ := arguments["bus"].(string)
+		availabilityZone, _ := arguments["availability_zone"].(string)
+		image, _ := arguments["image"].(string)
+		imagePassword, _ := arguments["image_password"].(string)
+		licenceType, _ := arguments["licence_type"].(string)
+		return s.createVolume(s.client, s.ctx, datacenterID, name, float32(size), volumeType, bus, availabilityZone, image, imagePassword, licenceType)
+	case "update_volume":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		volumeID, ok := arguments["volume_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("volume_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		var size float32
+		if s, ok := arguments["size"].(float64); ok {
+			size = float32(s)
+		}
+		return s.updateVolume(s.client, s.ctx, datacenterID, volumeID, name, size)
+	case "delete_volume":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		volumeID, ok := arguments["volume_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("volume_id is required")
+		}
+		return s.deleteVolume(s.client, s.ctx, datacenterID, volumeID)
+	case "attach_volume":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		volumeID, ok := arguments["volume_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("volume_id is required")
+		}
+		return s.attachVolume(s.client, s.ctx, datacenterID, serverID, volumeID)
+	case "detach_volume":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		volumeID, ok := arguments["volume_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("volume_id is required")
+		}
+		return s.detachVolume(s.client, s.ctx, datacenterID, serverID, volumeID)
 	case "list_images":
 		return s.listImages(s.client, s.ctx)
 	case "list_locations":
@@ -63,6 +239,46 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("snapshot_id is required")
 		}
 		return s.getSnapshot(s.client, s.ctx, snapshotID)
+	case "create_snapshot":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		volumeID, ok := arguments["volume_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("volume_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		description, _ := arguments["description"].(string)
+		return s.createSnapshot(s.client, s.ctx, datacenterID, volumeID, name, description)
+	case "update_snapshot":
+		snapshotID, ok := arguments["snapshot_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("snapshot_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		description, _ := arguments["description"].(string)
+		return s.updateSnapshot(s.client, s.ctx, snapshotID, name, description)
+	case "delete_snapshot":
+		snapshotID, ok := arguments["snapshot_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("snapshot_id is required")
+		}
+		return s.deleteSnapshot(s.client, s.ctx, snapshotID)
+	case "restore_snapshot":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		volumeID, ok := arguments["volume_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("volume_id is required")
+		}
+		snapshotID, ok := arguments["snapshot_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("snapshot_id is required")
+		}
+		return s.restoreSnapshot(s.client, s.ctx, datacenterID, volumeID, snapshotID)
 	// Networking - LANs
 	case "list_lans":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -408,6 +624,63 @@ func (s *Server) getDatacenter(client *ionoscloud.APIClient, ctx context.Context
 	return string(data), nil
 }
 
+func (s *Server) createDatacenter(client *ionoscloud.APIClient, ctx context.Context, name, location, description string) (string, error) {
+	properties := ionoscloud.DatacenterPropertiesPost{
+		Name:     &name,
+		Location: &location,
+	}
+	if description != "" {
+		properties.Description = &description
+	}
+
+	datacenter := ionoscloud.DatacenterPost{
+		Properties: &properties,
+	}
+
+	result, _, err := client.DataCentersApi.DatacentersPost(ctx).Datacenter(datacenter).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create datacenter: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal datacenter: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name, description string) (string, error) {
+	properties := ionoscloud.DatacenterPropertiesPut{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if description != "" {
+		properties.Description = &description
+	}
+
+	result, _, err := client.DataCentersApi.DatacentersPatch(ctx, datacenterID).Datacenter(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update datacenter: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal datacenter: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
+	_, err := client.DataCentersApi.DatacentersDelete(ctx, datacenterID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete datacenter: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "deleted", "datacenter_id": "%s"}`, datacenterID), nil
+}
+
 func (s *Server) listServers(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
 	servers, _, err := client.ServersApi.DatacentersServersGet(ctx, datacenterID).Execute()
 	if err != nil {
@@ -436,6 +709,97 @@ func (s *Server) getServer(client *ionoscloud.APIClient, ctx context.Context, da
 	return string(data), nil
 }
 
+func (s *Server) createServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, cores, ram int32, cpuFamily, availabilityZone string) (string, error) {
+	properties := ionoscloud.ServerProperties{
+		Name:  &name,
+		Cores: &cores,
+		Ram:   &ram,
+	}
+	if cpuFamily != "" {
+		properties.CpuFamily = &cpuFamily
+	}
+	if availabilityZone != "" {
+		properties.AvailabilityZone = &availabilityZone
+	}
+
+	server := ionoscloud.Server{
+		Properties: &properties,
+	}
+
+	result, _, err := client.ServersApi.DatacentersServersPost(ctx, datacenterID).Server(server).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create server: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal server: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, name string, cores, ram int32) (string, error) {
+	properties := ionoscloud.ServerProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if cores > 0 {
+		properties.Cores = &cores
+	}
+	if ram > 0 {
+		properties.Ram = &ram
+	}
+
+	result, _, err := client.ServersApi.DatacentersServersPatch(ctx, datacenterID, serverID).Server(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update server: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal server: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
+	_, err := client.ServersApi.DatacentersServersDelete(ctx, datacenterID, serverID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete server: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "deleted", "server_id": "%s"}`, serverID), nil
+}
+
+func (s *Server) startServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
+	_, err := client.ServersApi.DatacentersServersStartPost(ctx, datacenterID, serverID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to start server: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "starting", "server_id": "%s"}`, serverID), nil
+}
+
+func (s *Server) stopServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
+	_, err := client.ServersApi.DatacentersServersStopPost(ctx, datacenterID, serverID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to stop server: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "stopping", "server_id": "%s"}`, serverID), nil
+}
+
+func (s *Server) rebootServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
+	_, err := client.ServersApi.DatacentersServersRebootPost(ctx, datacenterID, serverID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to reboot server: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "rebooting", "server_id": "%s"}`, serverID), nil
+}
+
 func (s *Server) listVolumes(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
 	volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, datacenterID).Execute()
 	if err != nil {
@@ -462,6 +826,105 @@ func (s *Server) getVolume(client *ionoscloud.APIClient, ctx context.Context, da
 	}
 
 	return string(data), nil
+}
+
+func (s *Server) createVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, size float32, volumeType, bus, availabilityZone, image, imagePassword, licenceType string) (string, error) {
+	properties := ionoscloud.VolumeProperties{
+		Name: &name,
+		Size: &size,
+	}
+	if volumeType != "" {
+		properties.Type = &volumeType
+	}
+	if bus != "" {
+		properties.Bus = &bus
+	}
+	if availabilityZone != "" {
+		properties.AvailabilityZone = &availabilityZone
+	}
+	if image != "" {
+		properties.Image = &image
+	}
+	if imagePassword != "" {
+		properties.ImagePassword = &imagePassword
+	}
+	if licenceType != "" {
+		properties.LicenceType = &licenceType
+	}
+
+	volume := ionoscloud.Volume{
+		Properties: &properties,
+	}
+
+	result, _, err := client.VolumesApi.DatacentersVolumesPost(ctx, datacenterID).Volume(volume).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create volume: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal volume: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, name string, size float32) (string, error) {
+	properties := ionoscloud.VolumeProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if size > 0 {
+		properties.Size = &size
+	}
+
+	result, _, err := client.VolumesApi.DatacentersVolumesPatch(ctx, datacenterID, volumeID).Volume(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update volume: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal volume: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID string) (string, error) {
+	_, err := client.VolumesApi.DatacentersVolumesDelete(ctx, datacenterID, volumeID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete volume: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "deleted", "volume_id": "%s"}`, volumeID), nil
+}
+
+func (s *Server) attachVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, volumeID string) (string, error) {
+	volume := ionoscloud.Volume{
+		Id: &volumeID,
+	}
+
+	result, _, err := client.ServersApi.DatacentersServersVolumesPost(ctx, datacenterID, serverID).Volume(volume).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to attach volume: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal volume: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) detachVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, volumeID string) (string, error) {
+	_, err := client.ServersApi.DatacentersServersVolumesDelete(ctx, datacenterID, serverID, volumeID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to detach volume: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "detached", "volume_id": "%s", "server_id": "%s"}`, volumeID, serverID), nil
 }
 
 func (s *Server) listImages(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
@@ -518,6 +981,79 @@ func (s *Server) getSnapshot(client *ionoscloud.APIClient, ctx context.Context, 
 	}
 
 	return string(data), nil
+}
+
+func (s *Server) createSnapshot(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, name, description string) (string, error) {
+	properties := ionoscloud.CreateSnapshotProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if description != "" {
+		properties.Description = &description
+	}
+
+	snapshot := ionoscloud.CreateSnapshot{
+		Properties: &properties,
+	}
+
+	result, _, err := client.VolumesApi.DatacentersVolumesCreateSnapshotPost(ctx, datacenterID, volumeID).Snapshot(snapshot).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create snapshot: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID, name, description string) (string, error) {
+	properties := ionoscloud.SnapshotProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if description != "" {
+		properties.Description = &description
+	}
+
+	result, _, err := client.SnapshotsApi.SnapshotsPatch(ctx, snapshotID).Snapshot(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update snapshot: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID string) (string, error) {
+	_, err := client.SnapshotsApi.SnapshotsDelete(ctx, snapshotID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete snapshot: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "deleted", "snapshot_id": "%s"}`, snapshotID), nil
+}
+
+func (s *Server) restoreSnapshot(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, snapshotID string) (string, error) {
+	properties := ionoscloud.RestoreSnapshotProperties{
+		SnapshotId: &snapshotID,
+	}
+	restoreSnapshot := ionoscloud.RestoreSnapshot{
+		Properties: &properties,
+	}
+
+	_, err := client.VolumesApi.DatacentersVolumesRestoreSnapshotPost(ctx, datacenterID, volumeID).RestoreSnapshot(restoreSnapshot).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to restore snapshot: %w", err)
+	}
+
+	return fmt.Sprintf(`{"status": "restoring", "volume_id": "%s", "snapshot_id": "%s"}`, volumeID, snapshotID), nil
 }
 
 // =============================================================================
