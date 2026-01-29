@@ -9,6 +9,15 @@ import (
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
 
+// statusResponse creates a JSON response for status messages
+func statusResponse(fields map[string]string) (string, error) {
+	data, err := json.MarshalIndent(fields, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal response: %w", err)
+	}
+	return string(data), nil
+}
+
 func (s *Server) executeTool(name string, arguments map[string]interface{}) (string, error) {
 	switch name {
 	case "list_datacenters":
@@ -185,8 +194,8 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		var size float32
-		if s, ok := arguments["size"].(float64); ok {
-			size = float32(s)
+		if sizeFloat, ok := arguments["size"].(float64); ok {
+			size = float32(sizeFloat)
 		}
 		return s.updateVolume(s.client, s.ctx, datacenterID, volumeID, name, size)
 	case "delete_volume":
@@ -651,6 +660,10 @@ func (s *Server) createDatacenter(client *ionoscloud.APIClient, ctx context.Cont
 }
 
 func (s *Server) updateDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name, description string) (string, error) {
+	if name == "" && description == "" {
+		return "", fmt.Errorf("at least one of name or description must be provided")
+	}
+
 	properties := ionoscloud.DatacenterPropertiesPut{}
 	if name != "" {
 		properties.Name = &name
@@ -678,7 +691,7 @@ func (s *Server) deleteDatacenter(client *ionoscloud.APIClient, ctx context.Cont
 		return "", fmt.Errorf("failed to delete datacenter: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "deleted", "datacenter_id": "%s"}`, datacenterID), nil
+	return statusResponse(map[string]string{"status": "deleted", "datacenter_id": datacenterID})
 }
 
 func (s *Server) listServers(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
@@ -710,6 +723,17 @@ func (s *Server) getServer(client *ionoscloud.APIClient, ctx context.Context, da
 }
 
 func (s *Server) createServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, cores, ram int32, cpuFamily, availabilityZone string) (string, error) {
+	// Validate inputs
+	if cores < 1 {
+		return "", fmt.Errorf("cores must be at least 1, got %d", cores)
+	}
+	if ram < 256 {
+		return "", fmt.Errorf("ram must be at least 256 MB, got %d", ram)
+	}
+	if ram%256 != 0 {
+		return "", fmt.Errorf("ram must be a multiple of 256 MB, got %d", ram)
+	}
+
 	properties := ionoscloud.ServerProperties{
 		Name:  &name,
 		Cores: &cores,
@@ -740,6 +764,10 @@ func (s *Server) createServer(client *ionoscloud.APIClient, ctx context.Context,
 }
 
 func (s *Server) updateServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, name string, cores, ram int32) (string, error) {
+	if name == "" && cores == 0 && ram == 0 {
+		return "", fmt.Errorf("at least one of name, cores, or ram must be provided")
+	}
+
 	properties := ionoscloud.ServerProperties{}
 	if name != "" {
 		properties.Name = &name
@@ -770,7 +798,7 @@ func (s *Server) deleteServer(client *ionoscloud.APIClient, ctx context.Context,
 		return "", fmt.Errorf("failed to delete server: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "deleted", "server_id": "%s"}`, serverID), nil
+	return statusResponse(map[string]string{"status": "deleted", "server_id": serverID})
 }
 
 func (s *Server) startServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
@@ -779,7 +807,7 @@ func (s *Server) startServer(client *ionoscloud.APIClient, ctx context.Context, 
 		return "", fmt.Errorf("failed to start server: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "starting", "server_id": "%s"}`, serverID), nil
+	return statusResponse(map[string]string{"status": "starting", "server_id": serverID})
 }
 
 func (s *Server) stopServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
@@ -788,7 +816,7 @@ func (s *Server) stopServer(client *ionoscloud.APIClient, ctx context.Context, d
 		return "", fmt.Errorf("failed to stop server: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "stopping", "server_id": "%s"}`, serverID), nil
+	return statusResponse(map[string]string{"status": "stopping", "server_id": serverID})
 }
 
 func (s *Server) rebootServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
@@ -797,7 +825,7 @@ func (s *Server) rebootServer(client *ionoscloud.APIClient, ctx context.Context,
 		return "", fmt.Errorf("failed to reboot server: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "rebooting", "server_id": "%s"}`, serverID), nil
+	return statusResponse(map[string]string{"status": "rebooting", "server_id": serverID})
 }
 
 func (s *Server) listVolumes(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
@@ -829,6 +857,23 @@ func (s *Server) getVolume(client *ionoscloud.APIClient, ctx context.Context, da
 }
 
 func (s *Server) createVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, size float32, volumeType, bus, availabilityZone, image, imagePassword, licenceType string) (string, error) {
+	// Validate inputs
+	if size < 1 {
+		return "", fmt.Errorf("size must be at least 1 GB, got %.1f", size)
+	}
+
+	// Validate volume type if provided
+	validTypes := map[string]bool{"HDD": true, "SSD": true, "SSD Standard": true, "SSD Premium": true, "DAS": true}
+	if volumeType != "" && !validTypes[volumeType] {
+		return "", fmt.Errorf("invalid volume type: %s (valid: HDD, SSD, SSD Standard, SSD Premium, DAS)", volumeType)
+	}
+
+	// Validate bus type if provided
+	validBus := map[string]bool{"VIRTIO": true, "IDE": true}
+	if bus != "" && !validBus[bus] {
+		return "", fmt.Errorf("invalid bus type: %s (valid: VIRTIO, IDE)", bus)
+	}
+
 	properties := ionoscloud.VolumeProperties{
 		Name: &name,
 		Size: &size,
@@ -870,6 +915,10 @@ func (s *Server) createVolume(client *ionoscloud.APIClient, ctx context.Context,
 }
 
 func (s *Server) updateVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, name string, size float32) (string, error) {
+	if name == "" && size == 0 {
+		return "", fmt.Errorf("at least one of name or size must be provided")
+	}
+
 	properties := ionoscloud.VolumeProperties{}
 	if name != "" {
 		properties.Name = &name
@@ -897,7 +946,7 @@ func (s *Server) deleteVolume(client *ionoscloud.APIClient, ctx context.Context,
 		return "", fmt.Errorf("failed to delete volume: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "deleted", "volume_id": "%s"}`, volumeID), nil
+	return statusResponse(map[string]string{"status": "deleted", "volume_id": volumeID})
 }
 
 func (s *Server) attachVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, volumeID string) (string, error) {
@@ -924,7 +973,7 @@ func (s *Server) detachVolume(client *ionoscloud.APIClient, ctx context.Context,
 		return "", fmt.Errorf("failed to detach volume: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "detached", "volume_id": "%s", "server_id": "%s"}`, volumeID, serverID), nil
+	return statusResponse(map[string]string{"status": "detached", "volume_id": volumeID, "server_id": serverID})
 }
 
 func (s *Server) listImages(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
@@ -1010,6 +1059,10 @@ func (s *Server) createSnapshot(client *ionoscloud.APIClient, ctx context.Contex
 }
 
 func (s *Server) updateSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID, name, description string) (string, error) {
+	if name == "" && description == "" {
+		return "", fmt.Errorf("at least one of name or description must be provided")
+	}
+
 	properties := ionoscloud.SnapshotProperties{}
 	if name != "" {
 		properties.Name = &name
@@ -1037,7 +1090,7 @@ func (s *Server) deleteSnapshot(client *ionoscloud.APIClient, ctx context.Contex
 		return "", fmt.Errorf("failed to delete snapshot: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "deleted", "snapshot_id": "%s"}`, snapshotID), nil
+	return statusResponse(map[string]string{"status": "deleted", "snapshot_id": snapshotID})
 }
 
 func (s *Server) restoreSnapshot(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, snapshotID string) (string, error) {
@@ -1053,7 +1106,7 @@ func (s *Server) restoreSnapshot(client *ionoscloud.APIClient, ctx context.Conte
 		return "", fmt.Errorf("failed to restore snapshot: %w", err)
 	}
 
-	return fmt.Sprintf(`{"status": "restoring", "volume_id": "%s", "snapshot_id": "%s"}`, volumeID, snapshotID), nil
+	return statusResponse(map[string]string{"status": "restoring", "volume_id": volumeID, "snapshot_id": snapshotID})
 }
 
 // =============================================================================

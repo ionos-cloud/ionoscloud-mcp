@@ -10,6 +10,20 @@ import (
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
 
+// Test constants
+const (
+	testLocation         = "de/fra"
+	testServerCores      = 1
+	testServerRAM        = 1024 // MB - minimum for most operations
+	testVolumeSize       = 10   // GB - minimum practical size
+	testVolumeSizeUp     = 20   // GB - for update tests
+	defaultWaitTimeout   = 5 * time.Minute
+	snapshotWaitTimeout  = 10 * time.Minute
+	cleanupWaitTime      = 10 * time.Second
+	attachmentWaitTime   = 30 * time.Second
+	pollInterval         = 5 * time.Second
+)
+
 // TestServer wraps the MCP server for testing
 type TestServer struct {
 	*Server
@@ -24,6 +38,13 @@ func newTestServer(t *testing.T) *TestServer {
 	return &TestServer{Server: NewServer()}
 }
 
+// cleanupResource attempts to delete a resource and logs any errors
+func (ts *TestServer) cleanupResource(t *testing.T, toolName string, args map[string]interface{}) {
+	if _, err := ts.executeTool(toolName, args); err != nil {
+		t.Logf("Warning: cleanup failed for %s: %v", toolName, err)
+	}
+}
+
 // waitForState polls a resource until it reaches the expected state or times out
 func waitForState(t *testing.T, check func() (string, error), timeout time.Duration) {
 	deadline := time.Now().Add(timeout)
@@ -32,7 +53,7 @@ func waitForState(t *testing.T, check func() (string, error), timeout time.Durat
 		if err == nil && state == "AVAILABLE" {
 			return
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(pollInterval)
 	}
 	t.Log("Warning: state check timed out")
 }
@@ -50,7 +71,7 @@ func TestDatacenterCRUD(t *testing.T) {
 	t.Run("CreateDatacenter", func(t *testing.T) {
 		result, err := ts.executeTool("create_datacenter", map[string]interface{}{
 			"name":        "test-dc-mcp",
-			"location":    "de/fra",
+			"location":    testLocation,
 			"description": "Test datacenter for MCP E2E tests",
 		})
 		if err != nil {
@@ -88,7 +109,7 @@ func TestDatacenterCRUD(t *testing.T) {
 			return *dc.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Update datacenter
 	t.Run("UpdateDatacenter", func(t *testing.T) {
@@ -185,7 +206,7 @@ func TestServerCRUD(t *testing.T) {
 	// First, create a datacenter for the server
 	result, err := ts.executeTool("create_datacenter", map[string]interface{}{
 		"name":        "test-dc-server",
-		"location":    "de/fra",
+		"location":    testLocation,
 		"description": "Test datacenter for server tests",
 	})
 	if err != nil {
@@ -198,9 +219,8 @@ func TestServerCRUD(t *testing.T) {
 
 	// Cleanup at the end
 	defer func() {
-		// Wait a bit for resources to be released
-		time.Sleep(10 * time.Second)
-		ts.executeTool("delete_datacenter", map[string]interface{}{
+		time.Sleep(cleanupWaitTime)
+		ts.cleanupResource(t, "delete_datacenter", map[string]interface{}{
 			"datacenter_id": dcID,
 		})
 	}()
@@ -216,7 +236,7 @@ func TestServerCRUD(t *testing.T) {
 			return *dc.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	var serverID string
 
@@ -225,8 +245,8 @@ func TestServerCRUD(t *testing.T) {
 		result, err := ts.executeTool("create_server", map[string]interface{}{
 			"datacenter_id": dcID,
 			"name":          "test-server-mcp",
-			"cores":         float64(1),
-			"ram":           float64(1024),
+			"cores":         float64(testServerCores),
+			"ram":           float64(testServerRAM),
 		})
 		if err != nil {
 			t.Fatalf("Failed to create server: %v", err)
@@ -261,7 +281,7 @@ func TestServerCRUD(t *testing.T) {
 			return *server.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Update server
 	t.Run("UpdateServer", func(t *testing.T) {
@@ -337,7 +357,7 @@ func TestServerCRUD(t *testing.T) {
 	})
 
 	// Wait a bit
-	time.Sleep(10 * time.Second)
+	time.Sleep(cleanupWaitTime)
 
 	// Delete server
 	t.Run("DeleteServer", func(t *testing.T) {
@@ -372,7 +392,7 @@ func TestVolumeCRUD(t *testing.T) {
 	// First, create a datacenter for the volume
 	result, err := ts.executeTool("create_datacenter", map[string]interface{}{
 		"name":        "test-dc-volume",
-		"location":    "de/fra",
+		"location":    testLocation,
 		"description": "Test datacenter for volume tests",
 	})
 	if err != nil {
@@ -385,8 +405,8 @@ func TestVolumeCRUD(t *testing.T) {
 
 	// Cleanup at the end
 	defer func() {
-		time.Sleep(10 * time.Second)
-		ts.executeTool("delete_datacenter", map[string]interface{}{
+		time.Sleep(cleanupWaitTime)
+		ts.cleanupResource(t, "delete_datacenter", map[string]interface{}{
 			"datacenter_id": dcID,
 		})
 	}()
@@ -402,7 +422,7 @@ func TestVolumeCRUD(t *testing.T) {
 			return *dc.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	var volumeID string
 
@@ -411,7 +431,7 @@ func TestVolumeCRUD(t *testing.T) {
 		result, err := ts.executeTool("create_volume", map[string]interface{}{
 			"datacenter_id": dcID,
 			"name":          "test-volume-mcp",
-			"size":          float64(10),
+			"size":          float64(testVolumeSize),
 			"type":          "HDD",
 			"licence_type":  "LINUX",
 		})
@@ -448,7 +468,7 @@ func TestVolumeCRUD(t *testing.T) {
 			return *volume.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Update volume
 	t.Run("UpdateVolume", func(t *testing.T) {
@@ -456,7 +476,7 @@ func TestVolumeCRUD(t *testing.T) {
 			"datacenter_id": dcID,
 			"volume_id":     volumeID,
 			"name":          "test-volume-mcp-updated",
-			"size":          float64(20), // Increase size
+			"size":          float64(testVolumeSizeUp),
 		})
 		if err != nil {
 			t.Fatalf("Failed to update volume: %v", err)
@@ -482,7 +502,7 @@ func TestVolumeCRUD(t *testing.T) {
 			return *volume.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// List volumes
 	t.Run("ListVolumes", func(t *testing.T) {
@@ -556,7 +576,7 @@ func TestSnapshotCRUD(t *testing.T) {
 	// First, create a datacenter and volume
 	result, err := ts.executeTool("create_datacenter", map[string]interface{}{
 		"name":        "test-dc-snapshot",
-		"location":    "de/fra",
+		"location":    testLocation,
 		"description": "Test datacenter for snapshot tests",
 	})
 	if err != nil {
@@ -569,8 +589,8 @@ func TestSnapshotCRUD(t *testing.T) {
 
 	// Cleanup at the end
 	defer func() {
-		time.Sleep(10 * time.Second)
-		ts.executeTool("delete_datacenter", map[string]interface{}{
+		time.Sleep(cleanupWaitTime)
+		ts.cleanupResource(t, "delete_datacenter", map[string]interface{}{
 			"datacenter_id": dcID,
 		})
 	}()
@@ -586,13 +606,13 @@ func TestSnapshotCRUD(t *testing.T) {
 			return *dc.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Create volume
 	result, err = ts.executeTool("create_volume", map[string]interface{}{
 		"datacenter_id": dcID,
 		"name":          "test-volume-snapshot",
-		"size":          float64(10),
+		"size":          float64(testVolumeSize),
 		"type":          "HDD",
 		"licence_type":  "LINUX",
 	})
@@ -616,7 +636,7 @@ func TestSnapshotCRUD(t *testing.T) {
 			return *volume.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	var snapshotID string
 
@@ -660,7 +680,7 @@ func TestSnapshotCRUD(t *testing.T) {
 			return *snapshot.Metadata.State, nil
 		}
 		return "", nil
-	}, 10*time.Minute)
+	}, snapshotWaitTimeout)
 
 	// Update snapshot
 	t.Run("UpdateSnapshot", func(t *testing.T) {
@@ -739,8 +759,8 @@ func TestSnapshotCRUD(t *testing.T) {
 	})
 
 	// Delete volume
-	time.Sleep(10 * time.Second)
-	ts.executeTool("delete_volume", map[string]interface{}{
+	time.Sleep(cleanupWaitTime)
+	ts.cleanupResource(t, "delete_volume", map[string]interface{}{
 		"datacenter_id": dcID,
 		"volume_id":     volumeID,
 	})
@@ -756,7 +776,7 @@ func TestVolumeAttachment(t *testing.T) {
 	// Create datacenter
 	result, err := ts.executeTool("create_datacenter", map[string]interface{}{
 		"name":        "test-dc-attach",
-		"location":    "de/fra",
+		"location":    testLocation,
 		"description": "Test datacenter for attachment tests",
 	})
 	if err != nil {
@@ -769,8 +789,8 @@ func TestVolumeAttachment(t *testing.T) {
 
 	// Cleanup
 	defer func() {
-		time.Sleep(10 * time.Second)
-		ts.executeTool("delete_datacenter", map[string]interface{}{
+		time.Sleep(cleanupWaitTime)
+		ts.cleanupResource(t, "delete_datacenter", map[string]interface{}{
 			"datacenter_id": dcID,
 		})
 	}()
@@ -786,7 +806,7 @@ func TestVolumeAttachment(t *testing.T) {
 			return *dc.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Create server
 	result, err = ts.executeTool("create_server", map[string]interface{}{
@@ -815,13 +835,13 @@ func TestVolumeAttachment(t *testing.T) {
 			return *server.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Create volume
 	result, err = ts.executeTool("create_volume", map[string]interface{}{
 		"datacenter_id": dcID,
 		"name":          "test-volume-attach",
-		"size":          float64(10),
+		"size":          float64(testVolumeSize),
 		"type":          "HDD",
 		"licence_type":  "LINUX",
 	})
@@ -845,7 +865,7 @@ func TestVolumeAttachment(t *testing.T) {
 			return *volume.Metadata.State, nil
 		}
 		return "", nil
-	}, 5*time.Minute)
+	}, defaultWaitTimeout)
 
 	// Attach volume
 	t.Run("AttachVolume", func(t *testing.T) {
@@ -867,7 +887,7 @@ func TestVolumeAttachment(t *testing.T) {
 	})
 
 	// Wait for attachment
-	time.Sleep(30 * time.Second)
+	time.Sleep(attachmentWaitTime)
 
 	// Detach volume
 	t.Run("DetachVolume", func(t *testing.T) {
@@ -893,13 +913,13 @@ func TestVolumeAttachment(t *testing.T) {
 	})
 
 	// Cleanup
-	time.Sleep(10 * time.Second)
-	ts.executeTool("delete_volume", map[string]interface{}{
+	time.Sleep(cleanupWaitTime)
+	ts.cleanupResource(t, "delete_volume", map[string]interface{}{
 		"datacenter_id": dcID,
 		"volume_id":     volumeID,
 	})
-	time.Sleep(10 * time.Second)
-	ts.executeTool("delete_server", map[string]interface{}{
+	time.Sleep(cleanupWaitTime)
+	ts.cleanupResource(t, "delete_server", map[string]interface{}{
 		"datacenter_id": dcID,
 		"server_id":     serverID,
 	})
