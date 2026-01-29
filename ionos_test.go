@@ -44,6 +44,8 @@ func waitForState(t *testing.T, check func() (string, error), timeout time.Durat
 func TestDatacenterCRUD(t *testing.T) {
 	ts := newTestServer(t)
 
+	var dcID string
+
 	// Create datacenter
 	t.Run("CreateDatacenter", func(t *testing.T) {
 		result, err := ts.executeTool("create_datacenter", map[string]interface{}{
@@ -64,12 +66,10 @@ func TestDatacenterCRUD(t *testing.T) {
 			t.Fatal("Datacenter ID is empty")
 		}
 
-		// Store for cleanup
-		t.Setenv("TEST_DC_ID", *dc.Id)
-		t.Logf("Created datacenter: %s", *dc.Id)
+		dcID = *dc.Id
+		t.Logf("Created datacenter: %s", dcID)
 	})
 
-	dcID := os.Getenv("TEST_DC_ID")
 	if dcID == "" {
 		t.Fatal("No datacenter ID from create step")
 	}
