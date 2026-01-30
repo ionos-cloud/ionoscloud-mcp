@@ -1812,3 +1812,325 @@ func TestExecuteToolMissingParameters(t *testing.T) {
 		t.Error("Expected error for missing server parameters")
 	}
 }
+
+// =============================================================================
+// Validation Unit Tests
+// =============================================================================
+
+func TestValidateIP(t *testing.T) {
+	server := NewServer()
+	_ = server // Use server to avoid unused variable warning
+
+	tests := []struct {
+		name    string
+		ip      string
+		wantErr bool
+	}{
+		{"empty string is valid", "", false},
+		{"valid IPv4", "192.168.1.1", false},
+		{"valid IPv6", "2001:db8::1", false},
+		{"valid CIDR", "192.168.1.0/24", false},
+		{"valid IPv6 CIDR", "2001:db8::/32", false},
+		{"invalid IP", "not-an-ip", true},
+		{"invalid CIDR", "192.168.1.0/99", true},
+		{"SQL injection attempt", "'; DROP TABLE users; --", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateIP(tt.ip)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateIP(%q) error = %v, wantErr %v", tt.ip, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateMAC(t *testing.T) {
+	tests := []struct {
+		name    string
+		mac     string
+		wantErr bool
+	}{
+		{"empty string is valid", "", false},
+		{"valid MAC lowercase", "aa:bb:cc:dd:ee:ff", false},
+		{"valid MAC uppercase", "AA:BB:CC:DD:EE:FF", false},
+		{"valid MAC mixed case", "Aa:Bb:Cc:Dd:Ee:Ff", false},
+		{"invalid MAC - too short", "aa:bb:cc", true},
+		{"invalid MAC - wrong separator", "aa-bb-cc-dd-ee-ff", true},
+		{"invalid MAC - no separators", "aabbccddeeff", true},
+		{"invalid MAC - invalid hex", "gg:hh:ii:jj:kk:ll", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateMAC(tt.mac)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateMAC(%q) error = %v, wantErr %v", tt.mac, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateLocation(t *testing.T) {
+	tests := []struct {
+		name     string
+		location string
+		wantErr  bool
+	}{
+		{"valid de/fra", "de/fra", false},
+		{"valid de/txl", "de/txl", false},
+		{"valid us/las", "us/las", false},
+		{"valid us/ewr", "us/ewr", false},
+		{"valid gb/lhr", "gb/lhr", false},
+		{"valid es/vit", "es/vit", false},
+		{"valid fr/par", "fr/par", false},
+		{"invalid location", "invalid/loc", true},
+		{"empty location", "", true},
+		{"SQL injection", "'; DROP TABLE --", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateLocation(tt.location)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateLocation(%q) error = %v, wantErr %v", tt.location, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateProtocol(t *testing.T) {
+	tests := []struct {
+		name     string
+		protocol string
+		wantErr  bool
+	}{
+		{"valid TCP", "TCP", false},
+		{"valid UDP", "UDP", false},
+		{"valid ICMP", "ICMP", false},
+		{"valid ICMPv6", "ICMPv6", false},
+		{"valid GRE", "GRE", false},
+		{"valid ESP", "ESP", false},
+		{"valid AH", "AH", false},
+		{"valid ANY", "ANY", false},
+		{"invalid protocol", "INVALID", true},
+		{"lowercase tcp", "tcp", true},
+		{"empty protocol", "", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateProtocol(tt.protocol)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateProtocol(%q) error = %v, wantErr %v", tt.protocol, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidatePortRange(t *testing.T) {
+	tests := []struct {
+		name     string
+		start    int32
+		end      int32
+		startSet bool
+		endSet   bool
+		wantErr  bool
+	}{
+		{"both unset is valid", 0, 0, false, false, false},
+		{"valid single port", 22, 22, true, true, false},
+		{"valid port range", 80, 443, true, true, false},
+		{"only start set", 22, 0, true, false, false},
+		{"only end set", 0, 443, false, true, false},
+		{"start too low", 0, 0, true, false, true},
+		{"start too high", 70000, 0, true, false, true},
+		{"end too low", 0, 0, false, true, true},
+		{"end too high", 0, 70000, false, true, true},
+		{"start greater than end", 443, 80, true, true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePortRange(tt.start, tt.end, tt.startSet, tt.endSet)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validatePortRange(%d, %d, %v, %v) error = %v, wantErr %v",
+					tt.start, tt.end, tt.startSet, tt.endSet, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateICMP(t *testing.T) {
+	tests := []struct {
+		name     string
+		icmpType int32
+		icmpCode int32
+		typeSet  bool
+		codeSet  bool
+		wantErr  bool
+	}{
+		{"both unset is valid", 0, 0, false, false, false},
+		{"valid type and code", 8, 0, true, true, false},
+		{"type only", 8, 0, true, false, false},
+		{"code only", 0, 0, false, true, false},
+		{"type too low", -1, 0, true, false, true},
+		{"type too high", 256, 0, true, false, true},
+		{"code too low", 0, -1, false, true, true},
+		{"code too high", 0, 256, false, true, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateICMP(tt.icmpType, tt.icmpCode, tt.typeSet, tt.codeSet)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateICMP(%d, %d, %v, %v) error = %v, wantErr %v",
+					tt.icmpType, tt.icmpCode, tt.typeSet, tt.codeSet, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCreateIpBlockValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test invalid location
+	_, err := server.executeTool("create_ipblock", map[string]interface{}{
+		"location": "invalid/location",
+		"size":     float64(1),
+	})
+	if err == nil {
+		t.Error("Expected error for invalid location")
+	}
+
+	// Test invalid size
+	_, err = server.executeTool("create_ipblock", map[string]interface{}{
+		"location": "de/fra",
+		"size":     float64(0),
+	})
+	if err == nil {
+		t.Error("Expected error for invalid size")
+	}
+}
+
+func TestCreateFirewallRuleValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test invalid protocol
+	_, err := server.executeTool("create_firewall_rule", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"server_id":     "test-server",
+		"nic_id":        "test-nic",
+		"protocol":      "INVALID_PROTOCOL",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid protocol")
+	}
+
+	// Test invalid source_ip
+	_, err = server.executeTool("create_firewall_rule", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"server_id":     "test-server",
+		"nic_id":        "test-nic",
+		"protocol":      "TCP",
+		"source_ip":     "not-an-ip",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid source_ip")
+	}
+
+	// Test invalid MAC address
+	_, err = server.executeTool("create_firewall_rule", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"server_id":     "test-server",
+		"nic_id":        "test-nic",
+		"protocol":      "TCP",
+		"source_mac":    "invalid-mac",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid source_mac")
+	}
+
+	// Test invalid port range
+	_, err = server.executeTool("create_firewall_rule", map[string]interface{}{
+		"datacenter_id":    "test-dc",
+		"server_id":        "test-server",
+		"nic_id":           "test-nic",
+		"protocol":         "TCP",
+		"port_range_start": float64(443),
+		"port_range_end":   float64(80),
+	})
+	if err == nil {
+		t.Error("Expected error for port_range_start > port_range_end")
+	}
+}
+
+func TestUpdateFirewallRuleValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test invalid protocol in update
+	_, err := server.executeTool("update_firewall_rule", map[string]interface{}{
+		"datacenter_id":   "test-dc",
+		"server_id":       "test-server",
+		"nic_id":          "test-nic",
+		"firewallrule_id": "test-rule",
+		"protocol":        "INVALID_PROTOCOL",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid protocol in update")
+	}
+
+	// Test update with no fields
+	_, err = server.executeTool("update_firewall_rule", map[string]interface{}{
+		"datacenter_id":   "test-dc",
+		"server_id":       "test-server",
+		"nic_id":          "test-nic",
+		"firewallrule_id": "test-rule",
+	})
+	if err == nil {
+		t.Error("Expected error for update with no fields")
+	}
+}
+
+func TestCreateNicValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test invalid LAN ID
+	_, err := server.executeTool("create_nic", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"server_id":     "test-server",
+		"lan":           float64(0),
+	})
+	if err == nil {
+		t.Error("Expected error for invalid LAN ID")
+	}
+
+	// Test invalid IP in ips list
+	_, err = server.executeTool("create_nic", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"server_id":     "test-server",
+		"lan":           float64(1),
+		"ips":           []interface{}{"not-an-ip"},
+	})
+	if err == nil {
+		t.Error("Expected error for invalid IP in ips list")
+	}
+}
+
+func TestUpdateLanValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test update with no fields
+	_, err := server.executeTool("update_lan", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"lan_id":        "1",
+	})
+	if err == nil {
+		t.Error("Expected error for update with no fields")
+	}
+}

@@ -4,10 +4,112 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"regexp"
 
 	dns "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
+
+// Valid IONOS Cloud locations
+var validLocations = map[string]bool{
+	"de/fra": true, "de/txl": true, "us/las": true, "us/ewr": true,
+	"gb/lhr": true, "es/vit": true, "fr/par": true,
+}
+
+// Valid firewall protocols
+var validProtocols = map[string]bool{
+	"TCP": true, "UDP": true, "ICMP": true, "ICMPv6": true,
+	"GRE": true, "ESP": true, "AH": true, "ANY": true,
+}
+
+// MAC address regex pattern
+var macAddressRegex = regexp.MustCompile(`^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$`)
+
+// validateIP validates an IP address or CIDR
+func validateIP(ip string) error {
+	if ip == "" {
+		return nil
+	}
+	// Try parsing as IP address
+	if net.ParseIP(ip) != nil {
+		return nil
+	}
+	// Try parsing as CIDR
+	if _, _, err := net.ParseCIDR(ip); err == nil {
+		return nil
+	}
+	return fmt.Errorf("invalid IP address or CIDR: %s", ip)
+}
+
+// validateMAC validates a MAC address
+func validateMAC(mac string) error {
+	if mac == "" {
+		return nil
+	}
+	if !macAddressRegex.MatchString(mac) {
+		return fmt.Errorf("invalid MAC address format: %s (expected XX:XX:XX:XX:XX:XX)", mac)
+	}
+	return nil
+}
+
+// validateLocation validates an IONOS location
+func validateLocation(location string) error {
+	if !validLocations[location] {
+		return fmt.Errorf("invalid location: %s (valid: de/fra, de/txl, us/las, us/ewr, gb/lhr, es/vit, fr/par)", location)
+	}
+	return nil
+}
+
+// validateProtocol validates a firewall protocol
+func validateProtocol(protocol string) error {
+	if !validProtocols[protocol] {
+		return fmt.Errorf("invalid protocol: %s (valid: TCP, UDP, ICMP, ICMPv6, GRE, ESP, AH, ANY)", protocol)
+	}
+	return nil
+}
+
+// validatePortRange validates port range values
+func validatePortRange(start, end int32, startSet, endSet bool) error {
+	if startSet {
+		if start < 1 || start > 65535 {
+			return fmt.Errorf("port_range_start must be between 1-65535, got %d", start)
+		}
+	}
+	if endSet {
+		if end < 1 || end > 65535 {
+			return fmt.Errorf("port_range_end must be between 1-65535, got %d", end)
+		}
+	}
+	if startSet && endSet && start > end {
+		return fmt.Errorf("port_range_start (%d) cannot be greater than port_range_end (%d)", start, end)
+	}
+	return nil
+}
+
+// validateICMP validates ICMP type and code
+func validateICMP(icmpType, icmpCode int32, typeSet, codeSet bool) error {
+	if typeSet {
+		if icmpType < 0 || icmpType > 255 {
+			return fmt.Errorf("icmp_type must be between 0-255, got %d", icmpType)
+		}
+	}
+	if codeSet {
+		if icmpCode < 0 || icmpCode > 255 {
+			return fmt.Errorf("icmp_code must be between 0-255, got %d", icmpCode)
+		}
+	}
+	return nil
+}
+
+// marshalResponse marshals any value to indented JSON
+func marshalResponse(v interface{}, resourceName string) (string, error) {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal %s: %w", resourceName, err)
+	}
+	return string(data), nil
+}
 
 // statusResponse creates a JSON response for status messages
 func statusResponse(fields map[string]string) (string, error) {
@@ -1381,12 +1483,7 @@ func (s *Server) createLan(client *ionoscloud.APIClient, ctx context.Context, da
 		return "", fmt.Errorf("failed to create LAN: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal LAN: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "LAN")
 }
 
 func (s *Server) updateLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID, name string, public, publicSet bool) (string, error) {
@@ -1407,12 +1504,7 @@ func (s *Server) updateLan(client *ionoscloud.APIClient, ctx context.Context, da
 		return "", fmt.Errorf("failed to update LAN: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal LAN: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "LAN")
 }
 
 func (s *Server) deleteLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID string) (string, error) {
@@ -1462,6 +1554,13 @@ func (s *Server) createNic(client *ionoscloud.APIClient, ctx context.Context, da
 		return "", fmt.Errorf("lan must be at least 1, got %d", lan)
 	}
 
+	// Validate IP addresses
+	for _, ip := range ips {
+		if err := validateIP(ip); err != nil {
+			return "", fmt.Errorf("invalid IP in ips list: %w", err)
+		}
+	}
+
 	properties := ionoscloud.NicProperties{
 		Lan:  &lan,
 		Dhcp: &dhcp,
@@ -1482,17 +1581,19 @@ func (s *Server) createNic(client *ionoscloud.APIClient, ctx context.Context, da
 		return "", fmt.Errorf("failed to create NIC: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal NIC: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "NIC")
 }
 
 func (s *Server) updateNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, name string, lan int32, dhcp, dhcpSet bool, ips []string) (string, error) {
 	if name == "" && lan == 0 && !dhcpSet && len(ips) == 0 {
 		return "", fmt.Errorf("at least one of name, lan, dhcp, or ips must be provided")
+	}
+
+	// Validate IP addresses
+	for _, ip := range ips {
+		if err := validateIP(ip); err != nil {
+			return "", fmt.Errorf("invalid IP in ips list: %w", err)
+		}
 	}
 
 	properties := ionoscloud.NicProperties{}
@@ -1514,12 +1615,7 @@ func (s *Server) updateNic(client *ionoscloud.APIClient, ctx context.Context, da
 		return "", fmt.Errorf("failed to update NIC: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal NIC: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "NIC")
 }
 
 func (s *Server) deleteNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID string) (string, error) {
@@ -1564,6 +1660,11 @@ func (s *Server) getIpBlock(client *ionoscloud.APIClient, ctx context.Context, i
 }
 
 func (s *Server) createIpBlock(client *ionoscloud.APIClient, ctx context.Context, location string, size int32, name string) (string, error) {
+	// Validate location
+	if err := validateLocation(location); err != nil {
+		return "", err
+	}
+
 	// Validate size
 	if size < 1 {
 		return "", fmt.Errorf("size must be at least 1, got %d", size)
@@ -1586,12 +1687,7 @@ func (s *Server) createIpBlock(client *ionoscloud.APIClient, ctx context.Context
 		return "", fmt.Errorf("failed to create IP block: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal IP block: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "IP block")
 }
 
 func (s *Server) updateIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID, name string) (string, error) {
@@ -1608,12 +1704,7 @@ func (s *Server) updateIpBlock(client *ionoscloud.APIClient, ctx context.Context
 		return "", fmt.Errorf("failed to update IP block: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal IP block: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "IP block")
 }
 
 func (s *Server) deleteIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID string) (string, error) {
@@ -1659,9 +1750,33 @@ func (s *Server) getFirewallRule(client *ionoscloud.APIClient, ctx context.Conte
 
 func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
 	// Validate protocol
-	validProtocols := map[string]bool{"TCP": true, "UDP": true, "ICMP": true, "ICMPv6": true, "GRE": true, "ESP": true, "AH": true, "ANY": true}
-	if !validProtocols[protocol] {
-		return "", fmt.Errorf("invalid protocol: %s (valid: TCP, UDP, ICMP, ICMPv6, GRE, ESP, AH, ANY)", protocol)
+	if err := validateProtocol(protocol); err != nil {
+		return "", err
+	}
+
+	// Validate MAC address
+	if err := validateMAC(sourceMac); err != nil {
+		return "", err
+	}
+
+	// Validate IP addresses
+	if err := validateIP(sourceIP); err != nil {
+		return "", fmt.Errorf("invalid source_ip: %w", err)
+	}
+	if err := validateIP(targetIP); err != nil {
+		return "", fmt.Errorf("invalid target_ip: %w", err)
+	}
+
+	// Validate port range
+	portStartSet := portRangeStart > 0
+	portEndSet := portRangeEnd > 0
+	if err := validatePortRange(portRangeStart, portRangeEnd, portStartSet, portEndSet); err != nil {
+		return "", err
+	}
+
+	// Validate ICMP parameters
+	if err := validateICMP(icmpType, icmpCode, icmpTypeSet, icmpCodeSet); err != nil {
+		return "", err
 	}
 
 	properties := ionoscloud.FirewallruleProperties{
@@ -1679,10 +1794,10 @@ func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 	if targetIP != "" {
 		properties.TargetIp = &targetIP
 	}
-	if portRangeStart > 0 {
+	if portStartSet {
 		properties.PortRangeStart = &portRangeStart
 	}
-	if portRangeEnd > 0 {
+	if portEndSet {
 		properties.PortRangeEnd = &portRangeEnd
 	}
 	if icmpTypeSet {
@@ -1704,18 +1819,43 @@ func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 		return "", fmt.Errorf("failed to create firewall rule: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal firewall rule: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "firewall rule")
 }
 
 func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd int32, portRangeStartSet, portRangeEndSet bool, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
 	// Check if at least one field is provided
 	if name == "" && protocol == "" && sourceMac == "" && sourceIP == "" && targetIP == "" && !portRangeStartSet && !portRangeEndSet && !icmpTypeSet && !icmpCodeSet && ruleType == "" {
 		return "", fmt.Errorf("at least one field must be provided for update")
+	}
+
+	// Validate protocol if provided
+	if protocol != "" {
+		if err := validateProtocol(protocol); err != nil {
+			return "", err
+		}
+	}
+
+	// Validate MAC address if provided
+	if err := validateMAC(sourceMac); err != nil {
+		return "", err
+	}
+
+	// Validate IP addresses if provided
+	if err := validateIP(sourceIP); err != nil {
+		return "", fmt.Errorf("invalid source_ip: %w", err)
+	}
+	if err := validateIP(targetIP); err != nil {
+		return "", fmt.Errorf("invalid target_ip: %w", err)
+	}
+
+	// Validate port range
+	if err := validatePortRange(portRangeStart, portRangeEnd, portRangeStartSet, portRangeEndSet); err != nil {
+		return "", err
+	}
+
+	// Validate ICMP parameters
+	if err := validateICMP(icmpType, icmpCode, icmpTypeSet, icmpCodeSet); err != nil {
+		return "", err
 	}
 
 	properties := ionoscloud.FirewallruleProperties{}
@@ -1755,12 +1895,7 @@ func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 		return "", fmt.Errorf("failed to update firewall rule: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal firewall rule: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "firewall rule")
 }
 
 func (s *Server) deleteFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID string) (string, error) {
