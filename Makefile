@@ -1,8 +1,12 @@
 .PHONY: build run clean test fmt vet
 
+VERSION ?= 0.2.0
+BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+LDFLAGS = -X main.Version=$(VERSION) -X main.BuildDate=$(BUILD_DATE)
+
 # Build the binary
 build:
-	go build -o ionoscloud-mcp .
+	go build -ldflags "$(LDFLAGS)" -o ionoscloud-mcp ./cmd/ionoscloud-mcp
 
 # Run the server
 run: build
@@ -10,7 +14,7 @@ run: build
 
 # Clean build artifacts
 clean:
-	rm -f ionoscloud-mcp
+	rm -f ionoscloud-mcp ionoscloud-mcp-new
 
 # Run tests
 test:
@@ -34,3 +38,11 @@ deps:
 
 # Build and run
 dev: check build run
+
+# List available toolsets
+list-toolsets: build
+	./ionoscloud-mcp list-toolsets
+
+# List all tools
+list-tools: build
+	./ionoscloud-mcp list-tools

@@ -4,27 +4,22 @@ This project implements a Model Context Protocol (MCP) server that allows LLMs t
 
 ## Features
 
-The server provides the following tools for interacting with IONOS Cloud:
+- **93 tools** for comprehensive IONOS Cloud infrastructure management
+- **6 toolsets**: Compute, Networking, Load Balancing, Kubernetes, IAM, DNS
+- **Tool annotations** for safety (read-only, destructive hints)
+- **CLI options** for toolset filtering and read-only mode
+- **Modular architecture** with self-registering toolsets
 
-### Data Centers
-- **list_datacenters**: List all virtual data centers in your IONOS Cloud account
-- **get_datacenter**: Get details of a specific virtual data center
+### Available Toolsets
 
-### Servers
-- **list_servers**: List all servers in a data center
-- **get_server**: Get details of a specific server
-
-### Volumes
-- **list_volumes**: List all volumes in a data center
-- **get_volume**: Get details of a specific volume
-
-### Images & Snapshots
-- **list_images**: List all available images (OS templates)
-- **list_snapshots**: List all snapshots in your account
-- **get_snapshot**: Get details of a specific snapshot
-
-### Locations
-- **list_locations**: List all available locations (regions) in IONOS Cloud
+| Toolset | Tools | Resources |
+|---------|-------|-----------|
+| compute | 28 | Datacenters, Servers, Volumes, Snapshots, Images, Locations |
+| networking | 35 | LANs, NICs, IP Blocks, Firewall Rules, NAT Gateways, PCCs |
+| loadbalancing | 8 | Application Load Balancers, Network Load Balancers, Target Groups |
+| kubernetes | 8 | K8s Clusters, Node Pools, Nodes, Kubeconfig, Versions |
+| iam | 10 | Users, Groups, S3 Keys, Contract, Resources |
+| dns | 4 | DNS Zones, DNS Records |
 
 ## Prerequisites
 
@@ -42,33 +37,53 @@ cd ionoscloud-mcp
 2. Build the server:
 ```bash
 make build
-# or
-go build -o ionoscloud-mcp .
 ```
 
 ## Configuration
 
-The server requires IONOS Cloud API credentials to be set as environment variables. You can use either:
+The server requires IONOS Cloud API credentials to be set as environment variables:
 
-- Username and password authentication:
-  ```bash
-  export IONOS_USERNAME="your-username"
-  export IONOS_PASSWORD="your-password"
-  ```
+```bash
+# Username and password authentication
+export IONOS_USERNAME="your-username"
+export IONOS_PASSWORD="your-password"
 
-- Token-based authentication:
-  ```bash
-  export IONOS_TOKEN="your-api-token"
-  ```
+# Or token-based authentication
+export IONOS_TOKEN="your-api-token"
+```
 
 You can obtain your API credentials from the [IONOS Cloud DCD](https://dcd.ionos.com/).
 
+### Optional Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `IONOS_MCP_LOGGING` | Enable request logging (`true` or `1`) |
+| `IONOS_MCP_METRICS` | Enable timing metrics (`true` or `1`) |
+| `IONOS_MCP_READ_ONLY` | Only expose read-only tools (`true` or `1`) |
+| `IONOS_MCP_TOOLSETS` | Comma-separated list of enabled toolsets |
+
 ## Usage
 
-The server uses stdio for communication following the MCP protocol. To run the server:
+### Running the Server
+
+The server uses stdio for communication following the MCP protocol:
 
 ```bash
 ./ionoscloud-mcp
+```
+
+### CLI Options
+
+```bash
+./ionoscloud-mcp --help              # Show help
+./ionoscloud-mcp --version           # Show version
+./ionoscloud-mcp list-toolsets       # List available toolsets
+./ionoscloud-mcp list-tools          # List all tools with annotations
+./ionoscloud-mcp --read-only         # Only expose read-only tools (54 tools)
+./ionoscloud-mcp --toolsets=compute,dns  # Enable only specific toolsets
+./ionoscloud-mcp --logging           # Enable request logging to stderr
+./ionoscloud-mcp --metrics           # Enable timing metrics
 ```
 
 ### Integration with MCP Clients
@@ -89,13 +104,14 @@ To use this server with an MCP client (like Claude Desktop), add it to your MCP 
 }
 ```
 
-Or with token authentication:
+For read-only mode (recommended for safety):
 
 ```json
 {
   "mcpServers": {
     "ionoscloud": {
       "command": "/path/to/ionoscloud-mcp",
+      "args": ["--read-only"],
       "env": {
         "IONOS_TOKEN": "your-api-token"
       }
@@ -104,175 +120,20 @@ Or with token authentication:
 }
 ```
 
-## Available Tools
+## Tool Categories
 
-### list_datacenters
+### Read-Only Tools (54 tools)
+Safe operations that only read data: `list_*`, `get_*`
 
-Lists all virtual data centers in your IONOS Cloud account.
+### Destructive Tools (14 tools)
+Operations that can delete or destroy resources: `delete_*`, `stop_server`, `reboot_server`, `restore_snapshot`
 
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_datacenters",
-  "arguments": {}
-}
-```
-
-### get_datacenter
-
-Gets detailed information about a specific data center.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-
-**Example:**
-```json
-{
-  "name": "get_datacenter",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012"
-  }
-}
-```
-
-### list_servers
-
-Lists all servers in a specific data center.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-
-**Example:**
-```json
-{
-  "name": "list_servers",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012"
-  }
-}
-```
-
-### get_server
-
-Gets detailed information about a specific server.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-- `server_id` (string, required): The ID of the server
-
-**Example:**
-```json
-{
-  "name": "get_server",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012",
-    "server_id": "87654321-4321-4321-4321-210987654321"
-  }
-}
-```
-
-### list_volumes
-
-Lists all volumes in a specific data center.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-
-**Example:**
-```json
-{
-  "name": "list_volumes",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012"
-  }
-}
-```
-
-### get_volume
-
-Gets detailed information about a specific volume.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-- `volume_id` (string, required): The ID of the volume
-
-**Example:**
-```json
-{
-  "name": "get_volume",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012",
-    "volume_id": "11111111-1111-1111-1111-111111111111"
-  }
-}
-```
-
-### list_images
-
-Lists all available images (OS templates) in IONOS Cloud.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_images",
-  "arguments": {}
-}
-```
-
-### list_locations
-
-Lists all available locations (regions) in IONOS Cloud.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_locations",
-  "arguments": {}
-}
-```
-
-### list_snapshots
-
-Lists all snapshots in your IONOS Cloud account.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_snapshots",
-  "arguments": {}
-}
-```
-
-### get_snapshot
-
-Gets detailed information about a specific snapshot.
-
-**Parameters:**
-- `snapshot_id` (string, required): The ID of the snapshot
-
-**Example:**
-```json
-{
-  "name": "get_snapshot",
-  "arguments": {
-    "snapshot_id": "22222222-2222-2222-2222-222222222222"
-  }
-}
-```
+### Write Tools (25 tools)
+Operations that create or modify resources: `create_*`, `update_*`, `attach_*`, `detach_*`, `start_server`
 
 ## Development
 
 ### Testing the MCP Protocol
-
-You can test the server's MCP protocol implementation using stdin/stdout:
 
 ```bash
 # Test initialization
@@ -281,32 +142,48 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./ionoscloud
 # List available tools
 echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | ./ionoscloud-mcp
 
-# Call a tool (example - requires valid credentials)
+# Call a tool (requires valid credentials)
 echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_datacenters","arguments":{}}}' | ./ionoscloud-mcp
-```
-
-### Building from Source
-
-```bash
-make build
-# or
-go build -o ionoscloud-mcp .
 ```
 
 ### Available Make Targets
 
-- `make build` - Build the binary
-- `make clean` - Remove build artifacts
-- `make fmt` - Format code
-- `make vet` - Run go vet
-- `make check` - Run fmt and vet
-- `make deps` - Download and tidy dependencies
+```bash
+make build          # Build the binary
+make test           # Run tests
+make clean          # Remove build artifacts
+make fmt            # Format code
+make vet            # Run go vet
+make check          # Run fmt and vet
+make deps           # Download and tidy dependencies
+make list-toolsets  # List available toolsets
+make list-tools     # List all available tools
+```
 
-### Dependencies
+### Project Structure
 
-This project uses minimal external dependencies:
-- [ionos-cloud/sdk-go](https://github.com/ionos-cloud/sdk-go) - Official IONOS Cloud Go SDK (Compute API)
-- [ionos-cloud/sdk-go-bundle](https://github.com/ionos-cloud/sdk-go-bundle) - IONOS Cloud SDK Bundle (DNS API)
+```
+cmd/ionoscloud-mcp/     # CLI entry point
+pkg/
+  api/                  # Core interfaces and types
+  config/               # Configuration management
+  ionos/                # IONOS Cloud client wrapper
+  mcp/                  # MCP server implementation
+  toolsets/             # Tool implementations by category
+    compute/            # Datacenters, Servers, Volumes, etc.
+    networking/         # LANs, NICs, Firewall Rules, etc.
+    loadbalancing/      # ALB, NLB, Target Groups
+    kubernetes/         # K8s Clusters, Node Pools
+    iam/                # Users, Groups, S3 Keys
+    dns/                # DNS Zones, Records
+```
+
+## Dependencies
+
+- [mark3labs/mcp-go](https://github.com/mark3labs/mcp-go) - MCP Go SDK
+- [ionos-cloud/sdk-go/v6](https://github.com/ionos-cloud/sdk-go) - IONOS Cloud Compute SDK
+- [ionos-cloud/sdk-go-bundle](https://github.com/ionos-cloud/sdk-go-bundle) - IONOS Cloud SDK Bundle (DNS)
+- [spf13/cobra](https://github.com/spf13/cobra) - CLI framework
 
 ## API Documentation
 

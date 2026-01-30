@@ -2,9 +2,23 @@
 
 This document tracks the implementation progress for adding full CRUD operations to the IONOS Cloud MCP server. Each task includes implementing the function AND its corresponding end-to-end tests.
 
+## Architecture Migration - COMPLETED ✅
+
+The codebase has been migrated from a monolithic architecture (3 files, ~5,000 lines) to a modular toolset-based plugin architecture:
+
+- **93 tools** organized into 6 toolsets (compute, networking, loadbalancing, kubernetes, iam, dns)
+- **Tool annotations** for safety classification (54 read-only, 14 destructive)
+- **MCP Go SDK** integration (mark3labs/mcp-go)
+- **Cobra CLI** with flags for toolset filtering, read-only mode, logging, metrics
+- **Modular structure** under `pkg/toolsets/` with self-registering toolsets
+
+See CLAUDE.md for the full architecture documentation.
+
+---
+
 ## Current Status
 
-The server currently has **42 READ-only tools** (list/get operations). This plan adds **CREATE, UPDATE, DELETE, and ACTION operations** for full infrastructure management.
+The server currently has **93 tools** (54 read-only, 25 write, 14 destructive). This plan adds additional CRUD operations for full infrastructure management.
 
 ---
 
