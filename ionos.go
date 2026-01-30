@@ -723,6 +723,202 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("pcc_id is required")
 		}
 		return s.getPcc(s.client, s.ctx, pccID)
+	case "create_nat_gateway":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		name, ok := arguments["name"].(string)
+		if !ok {
+			return "", fmt.Errorf("name is required")
+		}
+		publicIPsInterface, ok := arguments["public_ips"].([]interface{})
+		if !ok {
+			return "", fmt.Errorf("public_ips is required")
+		}
+		publicIPs := make([]string, len(publicIPsInterface))
+		for i, ip := range publicIPsInterface {
+			ipStr, ok := ip.(string)
+			if !ok {
+				return "", fmt.Errorf("public_ips[%d] must be a string", i)
+			}
+			publicIPs[i] = ipStr
+		}
+		var lans []map[string]interface{}
+		if lansInterface, ok := arguments["lans"].([]interface{}); ok {
+			for i, l := range lansInterface {
+				lanMap, ok := l.(map[string]interface{})
+				if !ok {
+					return "", fmt.Errorf("lans[%d] must be an object", i)
+				}
+				lans = append(lans, lanMap)
+			}
+		}
+		return s.createNatGateway(s.client, s.ctx, datacenterID, name, publicIPs, lans)
+	case "update_nat_gateway":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		var publicIPs []string
+		if publicIPsInterface, ok := arguments["public_ips"].([]interface{}); ok {
+			publicIPs = make([]string, len(publicIPsInterface))
+			for i, ip := range publicIPsInterface {
+				ipStr, ok := ip.(string)
+				if !ok {
+					return "", fmt.Errorf("public_ips[%d] must be a string", i)
+				}
+				publicIPs[i] = ipStr
+			}
+		}
+		var lans []map[string]interface{}
+		if lansInterface, ok := arguments["lans"].([]interface{}); ok {
+			for i, l := range lansInterface {
+				lanMap, ok := l.(map[string]interface{})
+				if !ok {
+					return "", fmt.Errorf("lans[%d] must be an object", i)
+				}
+				lans = append(lans, lanMap)
+			}
+		}
+		return s.updateNatGateway(s.client, s.ctx, datacenterID, natGatewayID, name, publicIPs, lans)
+	case "delete_nat_gateway":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		return s.deleteNatGateway(s.client, s.ctx, datacenterID, natGatewayID)
+	// NAT Gateway Rules
+	case "list_nat_gateway_rules":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		return s.listNatGatewayRules(s.client, s.ctx, datacenterID, natGatewayID)
+	case "get_nat_gateway_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		ruleID, ok := arguments["rule_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("rule_id is required")
+		}
+		return s.getNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, ruleID)
+	case "create_nat_gateway_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		name, ok := arguments["name"].(string)
+		if !ok {
+			return "", fmt.Errorf("name is required")
+		}
+		sourceSubnet, ok := arguments["source_subnet"].(string)
+		if !ok {
+			return "", fmt.Errorf("source_subnet is required")
+		}
+		publicIP, ok := arguments["public_ip"].(string)
+		if !ok {
+			return "", fmt.Errorf("public_ip is required")
+		}
+		ruleType, _ := arguments["type"].(string)
+		protocol, _ := arguments["protocol"].(string)
+		targetSubnet, _ := arguments["target_subnet"].(string)
+		var targetPortRangeStart, targetPortRangeEnd int32
+		if v, ok := arguments["target_port_range_start"].(float64); ok {
+			targetPortRangeStart = int32(v)
+		}
+		if v, ok := arguments["target_port_range_end"].(float64); ok {
+			targetPortRangeEnd = int32(v)
+		}
+		return s.createNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, name, ruleType, protocol, sourceSubnet, publicIP, targetSubnet, targetPortRangeStart, targetPortRangeEnd)
+	case "update_nat_gateway_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		ruleID, ok := arguments["rule_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("rule_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		protocol, _ := arguments["protocol"].(string)
+		sourceSubnet, _ := arguments["source_subnet"].(string)
+		publicIP, _ := arguments["public_ip"].(string)
+		targetSubnet, _ := arguments["target_subnet"].(string)
+		var targetPortRangeStart, targetPortRangeEnd int32
+		var targetPortRangeStartSet, targetPortRangeEndSet bool
+		if v, ok := arguments["target_port_range_start"].(float64); ok {
+			targetPortRangeStart = int32(v)
+			targetPortRangeStartSet = true
+		}
+		if v, ok := arguments["target_port_range_end"].(float64); ok {
+			targetPortRangeEnd = int32(v)
+			targetPortRangeEndSet = true
+		}
+		return s.updateNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, ruleID, name, protocol, sourceSubnet, publicIP, targetSubnet, targetPortRangeStart, targetPortRangeEnd, targetPortRangeStartSet, targetPortRangeEndSet)
+	case "delete_nat_gateway_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		natGatewayID, ok := arguments["nat_gateway_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nat_gateway_id is required")
+		}
+		ruleID, ok := arguments["rule_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("rule_id is required")
+		}
+		return s.deleteNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, ruleID)
+	// Private Cross Connect CRUD
+	case "create_pcc":
+		name, ok := arguments["name"].(string)
+		if !ok {
+			return "", fmt.Errorf("name is required")
+		}
+		description, _ := arguments["description"].(string)
+		return s.createPcc(s.client, s.ctx, name, description)
+	case "update_pcc":
+		pccID, ok := arguments["pcc_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("pcc_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		description, _ := arguments["description"].(string)
+		return s.updatePcc(s.client, s.ctx, pccID, name, description)
+	case "delete_pcc":
+		pccID, ok := arguments["pcc_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("pcc_id is required")
+		}
+		return s.deletePcc(s.client, s.ctx, pccID)
 	// Load Balancers - Application Load Balancers
 	case "list_application_load_balancers":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -1939,6 +2135,330 @@ func (s *Server) getNatGateway(client *ionoscloud.APIClient, ctx context.Context
 	return string(data), nil
 }
 
+func (s *Server) createNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, publicIPs []string, lans []map[string]interface{}) (string, error) {
+	// Validate public IPs
+	for i, ip := range publicIPs {
+		if err := validateIP(ip); err != nil {
+			return "", fmt.Errorf("public_ips[%d] invalid: %w", i, err)
+		}
+	}
+
+	properties := ionoscloud.NatGatewayProperties{
+		Name:      &name,
+		PublicIps: &publicIPs,
+	}
+
+	// Convert and validate LAN configurations if provided
+	if len(lans) > 0 {
+		natGatewayLans, err := parseLanConfigurations(lans)
+		if err != nil {
+			return "", err
+		}
+		properties.Lans = &natGatewayLans
+	}
+
+	natGateway := ionoscloud.NatGateway{
+		Properties: &properties,
+	}
+
+	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysPost(ctx, datacenterID).NatGateway(natGateway).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create NAT gateway: %w", err)
+	}
+
+	return marshalResponse(result, "NAT gateway")
+}
+
+func (s *Server) updateNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, name string, publicIPs []string, lans []map[string]interface{}) (string, error) {
+	// Check if at least one field is provided
+	if name == "" && len(publicIPs) == 0 && len(lans) == 0 {
+		return "", fmt.Errorf("at least one field must be provided for update")
+	}
+
+	// Validate public IPs
+	for i, ip := range publicIPs {
+		if err := validateIP(ip); err != nil {
+			return "", fmt.Errorf("public_ips[%d] invalid: %w", i, err)
+		}
+	}
+
+	properties := ionoscloud.NatGatewayProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if len(publicIPs) > 0 {
+		properties.PublicIps = &publicIPs
+	}
+
+	// Convert and validate LAN configurations if provided
+	if len(lans) > 0 {
+		natGatewayLans, err := parseLanConfigurations(lans)
+		if err != nil {
+			return "", err
+		}
+		properties.Lans = &natGatewayLans
+	}
+
+	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysPatch(ctx, datacenterID, natGatewayID).NatGatewayProperties(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update NAT gateway: %w", err)
+	}
+
+	return marshalResponse(result, "NAT gateway")
+}
+
+func (s *Server) deleteNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID string) (string, error) {
+	_, err := client.NATGatewaysApi.DatacentersNatgatewaysDelete(ctx, datacenterID, natGatewayID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete NAT gateway: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "nat_gateway_id": natGatewayID})
+}
+
+// =============================================================================
+// NAT Gateway Rules
+// =============================================================================
+
+func (s *Server) listNatGatewayRules(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID string) (string, error) {
+	rules, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesGet(ctx, datacenterID, natGatewayID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to list NAT gateway rules: %w", err)
+	}
+
+	return marshalResponse(rules, "NAT gateway rules")
+}
+
+func (s *Server) getNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, ruleID string) (string, error) {
+	rule, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesFindByNatGatewayRuleId(ctx, datacenterID, natGatewayID, ruleID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to get NAT gateway rule: %w", err)
+	}
+
+	return marshalResponse(rule, "NAT gateway rule")
+}
+
+// Valid NAT gateway rule protocols
+var validNatProtocols = map[string]bool{
+	"TCP": true, "UDP": true, "ICMP": true, "ALL": true,
+}
+
+// Valid NAT gateway rule types
+var validNatRuleTypes = map[string]bool{
+	"SNAT": true,
+}
+
+// parseLanConfigurations parses and validates LAN configurations for NAT gateways
+func parseLanConfigurations(lans []map[string]interface{}) ([]ionoscloud.NatGatewayLanProperties, error) {
+	natGatewayLans := make([]ionoscloud.NatGatewayLanProperties, len(lans))
+	for i, lan := range lans {
+		// Validate LAN ID
+		idFloat, ok := lan["id"].(float64)
+		if !ok {
+			return nil, fmt.Errorf("lan[%d].id is required and must be a number", i)
+		}
+		lanID := int32(idFloat)
+		if lanID <= 0 {
+			return nil, fmt.Errorf("lan[%d].id must be positive, got %d", i, lanID)
+		}
+
+		lanProps := ionoscloud.NatGatewayLanProperties{
+			Id: &lanID,
+		}
+
+		// Validate gateway IPs if provided
+		if gatewayIPs, ok := lan["gateway_ips"].([]interface{}); ok {
+			ips := make([]string, len(gatewayIPs))
+			for j, ip := range gatewayIPs {
+				ipStr, ok := ip.(string)
+				if !ok {
+					return nil, fmt.Errorf("lan[%d].gateway_ips[%d] must be a string", i, j)
+				}
+				if err := validateIP(ipStr); err != nil {
+					return nil, fmt.Errorf("lan[%d].gateway_ips[%d] invalid: %w", i, j, err)
+				}
+				ips[j] = ipStr
+			}
+			lanProps.GatewayIps = &ips
+		}
+
+		natGatewayLans[i] = lanProps
+	}
+	return natGatewayLans, nil
+}
+
+// validateNatPortRange validates port range for NAT gateway rules
+func validateNatPortRange(start, end int32) error {
+	if start != 0 {
+		if start < 1 || start > 65535 {
+			return fmt.Errorf("target_port_range_start must be between 1-65535, got %d", start)
+		}
+	}
+	if end != 0 {
+		if end < 1 || end > 65535 {
+			return fmt.Errorf("target_port_range_end must be between 1-65535, got %d", end)
+		}
+	}
+	if start != 0 && end != 0 && start > end {
+		return fmt.Errorf("target_port_range_start (%d) cannot be greater than target_port_range_end (%d)", start, end)
+	}
+	return nil
+}
+
+func (s *Server) createNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, name, ruleType, protocol, sourceSubnet, publicIP, targetSubnet string, targetPortRangeStart, targetPortRangeEnd int32) (string, error) {
+	// Validate source subnet (CIDR)
+	if err := validateIP(sourceSubnet); err != nil {
+		return "", fmt.Errorf("invalid source_subnet: %w", err)
+	}
+
+	// Validate public IP
+	if err := validateIP(publicIP); err != nil {
+		return "", fmt.Errorf("invalid public_ip: %w", err)
+	}
+
+	// Validate protocol if provided
+	if protocol != "" && !validNatProtocols[protocol] {
+		return "", fmt.Errorf("invalid protocol: %s (valid: TCP, UDP, ICMP, ALL)", protocol)
+	}
+
+	// Validate rule type if provided
+	if ruleType != "" && !validNatRuleTypes[ruleType] {
+		return "", fmt.Errorf("invalid type: %s (valid: SNAT)", ruleType)
+	}
+
+	// Validate port range
+	if err := validateNatPortRange(targetPortRangeStart, targetPortRangeEnd); err != nil {
+		return "", err
+	}
+
+	properties := ionoscloud.NatGatewayRuleProperties{
+		Name:         &name,
+		SourceSubnet: &sourceSubnet,
+		PublicIp:     &publicIP,
+	}
+
+	if ruleType != "" {
+		natRuleType := ionoscloud.NatGatewayRuleType(ruleType)
+		properties.Type = &natRuleType
+	}
+	if protocol != "" {
+		natProtocol := ionoscloud.NatGatewayRuleProtocol(protocol)
+		properties.Protocol = &natProtocol
+	}
+	if targetSubnet != "" {
+		if err := validateIP(targetSubnet); err != nil {
+			return "", fmt.Errorf("invalid target_subnet: %w", err)
+		}
+		properties.TargetSubnet = &targetSubnet
+	}
+	if targetPortRangeStart > 0 || targetPortRangeEnd > 0 {
+		portRange := ionoscloud.TargetPortRange{}
+		if targetPortRangeStart > 0 {
+			portRange.Start = &targetPortRangeStart
+		}
+		if targetPortRangeEnd > 0 {
+			portRange.End = &targetPortRangeEnd
+		}
+		properties.TargetPortRange = &portRange
+	}
+
+	rule := ionoscloud.NatGatewayRule{
+		Properties: &properties,
+	}
+
+	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesPost(ctx, datacenterID, natGatewayID).NatGatewayRule(rule).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create NAT gateway rule: %w", err)
+	}
+
+	return marshalResponse(result, "NAT gateway rule")
+}
+
+func (s *Server) updateNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, ruleID, name, protocol, sourceSubnet, publicIP, targetSubnet string, targetPortRangeStart, targetPortRangeEnd int32, targetPortRangeStartSet, targetPortRangeEndSet bool) (string, error) {
+	// Check if at least one field is provided
+	if name == "" && protocol == "" && sourceSubnet == "" && publicIP == "" && targetSubnet == "" && !targetPortRangeStartSet && !targetPortRangeEndSet {
+		return "", fmt.Errorf("at least one field must be provided for update")
+	}
+
+	// Validate inputs
+	if sourceSubnet != "" {
+		if err := validateIP(sourceSubnet); err != nil {
+			return "", fmt.Errorf("invalid source_subnet: %w", err)
+		}
+	}
+	if publicIP != "" {
+		if err := validateIP(publicIP); err != nil {
+			return "", fmt.Errorf("invalid public_ip: %w", err)
+		}
+	}
+	if targetSubnet != "" {
+		if err := validateIP(targetSubnet); err != nil {
+			return "", fmt.Errorf("invalid target_subnet: %w", err)
+		}
+	}
+	if protocol != "" && !validNatProtocols[protocol] {
+		return "", fmt.Errorf("invalid protocol: %s (valid: TCP, UDP, ICMP, ALL)", protocol)
+	}
+
+	// Validate port range if provided
+	if targetPortRangeStartSet || targetPortRangeEndSet {
+		var start, end int32
+		if targetPortRangeStartSet {
+			start = targetPortRangeStart
+		}
+		if targetPortRangeEndSet {
+			end = targetPortRangeEnd
+		}
+		if err := validateNatPortRange(start, end); err != nil {
+			return "", err
+		}
+	}
+
+	properties := ionoscloud.NatGatewayRuleProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if protocol != "" {
+		natProtocol := ionoscloud.NatGatewayRuleProtocol(protocol)
+		properties.Protocol = &natProtocol
+	}
+	if sourceSubnet != "" {
+		properties.SourceSubnet = &sourceSubnet
+	}
+	if publicIP != "" {
+		properties.PublicIp = &publicIP
+	}
+	if targetSubnet != "" {
+		properties.TargetSubnet = &targetSubnet
+	}
+	if targetPortRangeStartSet || targetPortRangeEndSet {
+		portRange := ionoscloud.TargetPortRange{}
+		if targetPortRangeStartSet {
+			portRange.Start = &targetPortRangeStart
+		}
+		if targetPortRangeEndSet {
+			portRange.End = &targetPortRangeEnd
+		}
+		properties.TargetPortRange = &portRange
+	}
+
+	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesPatch(ctx, datacenterID, natGatewayID, ruleID).NatGatewayRuleProperties(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update NAT gateway rule: %w", err)
+	}
+
+	return marshalResponse(result, "NAT gateway rule")
+}
+
+func (s *Server) deleteNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, ruleID string) (string, error) {
+	_, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesDelete(ctx, datacenterID, natGatewayID, ruleID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete NAT gateway rule: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "rule_id": ruleID})
+}
+
 // =============================================================================
 // Networking - Private Cross Connects
 // =============================================================================
@@ -1969,6 +2489,57 @@ func (s *Server) getPcc(client *ionoscloud.APIClient, ctx context.Context, pccID
 	}
 
 	return string(data), nil
+}
+
+func (s *Server) createPcc(client *ionoscloud.APIClient, ctx context.Context, name, description string) (string, error) {
+	properties := ionoscloud.PrivateCrossConnectProperties{
+		Name: &name,
+	}
+	if description != "" {
+		properties.Description = &description
+	}
+
+	pcc := ionoscloud.PrivateCrossConnect{
+		Properties: &properties,
+	}
+
+	result, _, err := client.PrivateCrossConnectsApi.PccsPost(ctx).Pcc(pcc).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create Private Cross Connect: %w", err)
+	}
+
+	return marshalResponse(result, "Private Cross Connect")
+}
+
+func (s *Server) updatePcc(client *ionoscloud.APIClient, ctx context.Context, pccID, name, description string) (string, error) {
+	// Check if at least one field is provided
+	if name == "" && description == "" {
+		return "", fmt.Errorf("at least one field must be provided for update")
+	}
+
+	properties := ionoscloud.PrivateCrossConnectProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if description != "" {
+		properties.Description = &description
+	}
+
+	result, _, err := client.PrivateCrossConnectsApi.PccsPatch(ctx, pccID).Pcc(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update Private Cross Connect: %w", err)
+	}
+
+	return marshalResponse(result, "Private Cross Connect")
+}
+
+func (s *Server) deletePcc(client *ionoscloud.APIClient, ctx context.Context, pccID string) (string, error) {
+	_, err := client.PrivateCrossConnectsApi.PccsDelete(ctx, pccID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete Private Cross Connect: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "pcc_id": pccID})
 }
 
 // =============================================================================

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -1749,13 +1750,558 @@ func TestFirewallRuleCRUD(t *testing.T) {
 }
 
 // =============================================================================
+// Priority 3: Advanced Networking E2E Tests
+// =============================================================================
+
+func TestNatGatewayCRUD(t *testing.T) {
+	ts := newTestServer(t)
+
+	// Create datacenter
+	result, err := ts.executeTool("create_datacenter", map[string]interface{}{
+		"name":        "test-dc-natgw",
+		"location":    testLocation,
+		"description": "Test datacenter for NAT gateway tests",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create datacenter: %v", err)
+	}
+	var dc ionoscloud.Datacenter
+	json.Unmarshal([]byte(result), &dc)
+	dcID := *dc.Id
+
+	defer func() {
+		time.Sleep(cleanupWaitTime)
+		ts.cleanupResource(t, "delete_datacenter", map[string]interface{}{
+			"datacenter_id": dcID,
+		})
+	}()
+
+	// Wait for datacenter
+	waitForState(t, func() (string, error) {
+		result, _ := ts.executeTool("get_datacenter", map[string]interface{}{
+			"datacenter_id": dcID,
+		})
+		var dc ionoscloud.Datacenter
+		json.Unmarshal([]byte(result), &dc)
+		if dc.Metadata != nil && dc.Metadata.State != nil {
+			return *dc.Metadata.State, nil
+		}
+		return "", nil
+	}, defaultWaitTimeout)
+
+	// First we need an IP block for the NAT gateway
+	var ipBlockID string
+	var publicIP string
+
+	t.Run("CreateIpBlock", func(t *testing.T) {
+		result, err := ts.executeTool("create_ipblock", map[string]interface{}{
+			"name":     "test-nat-ipblock",
+			"location": testLocation,
+			"size":     float64(1),
+		})
+		if err != nil {
+			t.Fatalf("Failed to create IP block: %v", err)
+		}
+
+		var ipBlock map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &ipBlock); err != nil {
+			t.Fatalf("Failed to unmarshal IP block: %v", err)
+		}
+
+		ipBlockID = ipBlock["id"].(string)
+		props := ipBlock["properties"].(map[string]interface{})
+		ips := props["ips"].([]interface{})
+		publicIP = ips[0].(string)
+		t.Logf("Created IP block %s with IP %s", ipBlockID, publicIP)
+	})
+
+	// We also need a LAN for the NAT gateway
+	var lanID string
+	t.Run("CreateLan", func(t *testing.T) {
+		result, err := ts.executeTool("create_lan", map[string]interface{}{
+			"datacenter_id": dcID,
+			"name":          "test-nat-lan",
+			"public":        false,
+		})
+		if err != nil {
+			t.Fatalf("Failed to create LAN: %v", err)
+		}
+
+		var lan map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &lan); err != nil {
+			t.Fatalf("Failed to unmarshal LAN: %v", err)
+		}
+
+		lanID = lan["id"].(string)
+		t.Logf("Created LAN %s", lanID)
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	var natGatewayID string
+
+	// Create NAT Gateway
+	t.Run("CreateNatGateway", func(t *testing.T) {
+		result, err := ts.executeTool("create_nat_gateway", map[string]interface{}{
+			"datacenter_id": dcID,
+			"name":          "test-nat-gateway",
+			"public_ips":    []interface{}{publicIP},
+		})
+		if err != nil {
+			t.Fatalf("Failed to create NAT gateway: %v", err)
+		}
+
+		var natGateway map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &natGateway); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway: %v", err)
+		}
+
+		natGatewayID = natGateway["id"].(string)
+		if natGatewayID == "" {
+			t.Fatal("NAT gateway ID is empty")
+		}
+
+		t.Logf("Created NAT gateway %s", natGatewayID)
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	// List NAT Gateways
+	t.Run("ListNatGateways", func(t *testing.T) {
+		result, err := ts.executeTool("list_nat_gateways", map[string]interface{}{
+			"datacenter_id": dcID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list NAT gateways: %v", err)
+		}
+
+		var gateways map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &gateways); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateways: %v", err)
+		}
+
+		items := gateways["items"].([]interface{})
+		if len(items) == 0 {
+			t.Fatal("Expected at least one NAT gateway")
+		}
+
+		t.Log("Listed NAT gateways successfully")
+	})
+
+	// Get NAT Gateway
+	t.Run("GetNatGateway", func(t *testing.T) {
+		result, err := ts.executeTool("get_nat_gateway", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to get NAT gateway: %v", err)
+		}
+
+		var natGateway map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &natGateway); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway: %v", err)
+		}
+
+		if natGateway["id"].(string) != natGatewayID {
+			t.Fatal("NAT gateway ID mismatch")
+		}
+
+		t.Log("Got NAT gateway successfully")
+	})
+
+	// Update NAT Gateway
+	t.Run("UpdateNatGateway", func(t *testing.T) {
+		result, err := ts.executeTool("update_nat_gateway", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+			"name":           "updated-nat-gateway",
+		})
+		if err != nil {
+			t.Fatalf("Failed to update NAT gateway: %v", err)
+		}
+
+		var natGateway map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &natGateway); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway: %v", err)
+		}
+
+		props := natGateway["properties"].(map[string]interface{})
+		if props["name"].(string) != "updated-nat-gateway" {
+			t.Fatal("NAT gateway name not updated")
+		}
+
+		t.Log("Updated NAT gateway successfully")
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	// Delete NAT Gateway
+	t.Run("DeleteNatGateway", func(t *testing.T) {
+		result, err := ts.executeTool("delete_nat_gateway", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to delete NAT gateway: %v", err)
+		}
+
+		var status map[string]string
+		if err := json.Unmarshal([]byte(result), &status); err != nil {
+			t.Fatalf("Failed to unmarshal result: %v", err)
+		}
+
+		if status["status"] != "deleted" {
+			t.Fatal("Delete status is not 'deleted'")
+		}
+
+		t.Log("Deleted NAT gateway successfully")
+	})
+
+	// Cleanup
+	time.Sleep(cleanupWaitTime)
+	ts.cleanupResource(t, "delete_lan", map[string]interface{}{
+		"datacenter_id": dcID,
+		"lan_id":        lanID,
+	})
+	time.Sleep(cleanupWaitTime)
+	ts.cleanupResource(t, "delete_ipblock", map[string]interface{}{
+		"ipblock_id": ipBlockID,
+	})
+}
+
+func TestNatGatewayRulesCRUD(t *testing.T) {
+	ts := newTestServer(t)
+
+	// Create datacenter
+	result, err := ts.executeTool("create_datacenter", map[string]interface{}{
+		"name":        "test-dc-natrules",
+		"location":    testLocation,
+		"description": "Test datacenter for NAT gateway rules tests",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create datacenter: %v", err)
+	}
+	var dc ionoscloud.Datacenter
+	json.Unmarshal([]byte(result), &dc)
+	dcID := *dc.Id
+
+	defer func() {
+		time.Sleep(cleanupWaitTime)
+		ts.cleanupResource(t, "delete_datacenter", map[string]interface{}{
+			"datacenter_id": dcID,
+		})
+	}()
+
+	// Wait for datacenter
+	waitForState(t, func() (string, error) {
+		result, _ := ts.executeTool("get_datacenter", map[string]interface{}{
+			"datacenter_id": dcID,
+		})
+		var dc ionoscloud.Datacenter
+		json.Unmarshal([]byte(result), &dc)
+		if dc.Metadata != nil && dc.Metadata.State != nil {
+			return *dc.Metadata.State, nil
+		}
+		return "", nil
+	}, defaultWaitTimeout)
+
+	// Create IP block
+	var ipBlockID string
+	var publicIP string
+	result, err = ts.executeTool("create_ipblock", map[string]interface{}{
+		"name":     "test-nat-rules-ipblock",
+		"location": testLocation,
+		"size":     float64(1),
+	})
+	if err != nil {
+		t.Fatalf("Failed to create IP block: %v", err)
+	}
+	var ipBlock map[string]interface{}
+	json.Unmarshal([]byte(result), &ipBlock)
+	ipBlockID = ipBlock["id"].(string)
+	props := ipBlock["properties"].(map[string]interface{})
+	ips := props["ips"].([]interface{})
+	publicIP = ips[0].(string)
+	defer ts.cleanupResource(t, "delete_ipblock", map[string]interface{}{"ipblock_id": ipBlockID})
+
+	time.Sleep(cleanupWaitTime)
+
+	// Create NAT Gateway
+	var natGatewayID string
+	result, err = ts.executeTool("create_nat_gateway", map[string]interface{}{
+		"datacenter_id": dcID,
+		"name":          "test-nat-rules-gateway",
+		"public_ips":    []interface{}{publicIP},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create NAT gateway: %v", err)
+	}
+	var natGateway map[string]interface{}
+	json.Unmarshal([]byte(result), &natGateway)
+	natGatewayID = natGateway["id"].(string)
+	defer ts.cleanupResource(t, "delete_nat_gateway", map[string]interface{}{
+		"datacenter_id":  dcID,
+		"nat_gateway_id": natGatewayID,
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	var ruleID string
+
+	// Create NAT Gateway Rule
+	t.Run("CreateNatGatewayRule", func(t *testing.T) {
+		result, err := ts.executeTool("create_nat_gateway_rule", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+			"name":           "test-nat-rule",
+			"source_subnet":  "10.0.1.0/24",
+			"public_ip":      publicIP,
+			"protocol":       "TCP",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create NAT gateway rule: %v", err)
+		}
+
+		var rule map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &rule); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway rule: %v", err)
+		}
+
+		ruleID = rule["id"].(string)
+		if ruleID == "" {
+			t.Fatal("NAT gateway rule ID is empty")
+		}
+
+		t.Logf("Created NAT gateway rule %s", ruleID)
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	// List NAT Gateway Rules
+	t.Run("ListNatGatewayRules", func(t *testing.T) {
+		result, err := ts.executeTool("list_nat_gateway_rules", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list NAT gateway rules: %v", err)
+		}
+
+		var rules map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &rules); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway rules: %v", err)
+		}
+
+		items := rules["items"].([]interface{})
+		if len(items) == 0 {
+			t.Fatal("Expected at least one NAT gateway rule")
+		}
+
+		t.Log("Listed NAT gateway rules successfully")
+	})
+
+	// Get NAT Gateway Rule
+	t.Run("GetNatGatewayRule", func(t *testing.T) {
+		result, err := ts.executeTool("get_nat_gateway_rule", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+			"rule_id":        ruleID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to get NAT gateway rule: %v", err)
+		}
+
+		var rule map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &rule); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway rule: %v", err)
+		}
+
+		if rule["id"].(string) != ruleID {
+			t.Fatal("NAT gateway rule ID mismatch")
+		}
+
+		t.Log("Got NAT gateway rule successfully")
+	})
+
+	// Update NAT Gateway Rule
+	t.Run("UpdateNatGatewayRule", func(t *testing.T) {
+		result, err := ts.executeTool("update_nat_gateway_rule", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+			"rule_id":        ruleID,
+			"name":           "updated-nat-rule",
+		})
+		if err != nil {
+			t.Fatalf("Failed to update NAT gateway rule: %v", err)
+		}
+
+		var rule map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &rule); err != nil {
+			t.Fatalf("Failed to unmarshal NAT gateway rule: %v", err)
+		}
+
+		props := rule["properties"].(map[string]interface{})
+		if props["name"].(string) != "updated-nat-rule" {
+			t.Fatal("NAT gateway rule name not updated")
+		}
+
+		t.Log("Updated NAT gateway rule successfully")
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	// Delete NAT Gateway Rule
+	t.Run("DeleteNatGatewayRule", func(t *testing.T) {
+		result, err := ts.executeTool("delete_nat_gateway_rule", map[string]interface{}{
+			"datacenter_id":  dcID,
+			"nat_gateway_id": natGatewayID,
+			"rule_id":        ruleID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to delete NAT gateway rule: %v", err)
+		}
+
+		var status map[string]string
+		if err := json.Unmarshal([]byte(result), &status); err != nil {
+			t.Fatalf("Failed to unmarshal result: %v", err)
+		}
+
+		if status["status"] != "deleted" {
+			t.Fatal("Delete status is not 'deleted'")
+		}
+
+		t.Log("Deleted NAT gateway rule successfully")
+	})
+}
+
+func TestPccCRUD(t *testing.T) {
+	ts := newTestServer(t)
+
+	var pccID string
+
+	// Create PCC
+	t.Run("CreatePcc", func(t *testing.T) {
+		result, err := ts.executeTool("create_pcc", map[string]interface{}{
+			"name":        "test-pcc",
+			"description": "Test Private Cross Connect",
+		})
+		if err != nil {
+			t.Fatalf("Failed to create PCC: %v", err)
+		}
+
+		var pcc map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &pcc); err != nil {
+			t.Fatalf("Failed to unmarshal PCC: %v", err)
+		}
+
+		pccID = pcc["id"].(string)
+		if pccID == "" {
+			t.Fatal("PCC ID is empty")
+		}
+
+		t.Logf("Created PCC %s", pccID)
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	// List PCCs
+	t.Run("ListPccs", func(t *testing.T) {
+		result, err := ts.executeTool("list_pccs", map[string]interface{}{})
+		if err != nil {
+			t.Fatalf("Failed to list PCCs: %v", err)
+		}
+
+		var pccs map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &pccs); err != nil {
+			t.Fatalf("Failed to unmarshal PCCs: %v", err)
+		}
+
+		items := pccs["items"].([]interface{})
+		if len(items) == 0 {
+			t.Fatal("Expected at least one PCC")
+		}
+
+		t.Log("Listed PCCs successfully")
+	})
+
+	// Get PCC
+	t.Run("GetPcc", func(t *testing.T) {
+		result, err := ts.executeTool("get_pcc", map[string]interface{}{
+			"pcc_id": pccID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to get PCC: %v", err)
+		}
+
+		var pcc map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &pcc); err != nil {
+			t.Fatalf("Failed to unmarshal PCC: %v", err)
+		}
+
+		if pcc["id"].(string) != pccID {
+			t.Fatal("PCC ID mismatch")
+		}
+
+		t.Log("Got PCC successfully")
+	})
+
+	// Update PCC
+	t.Run("UpdatePcc", func(t *testing.T) {
+		result, err := ts.executeTool("update_pcc", map[string]interface{}{
+			"pcc_id":      pccID,
+			"name":        "updated-pcc",
+			"description": "Updated description",
+		})
+		if err != nil {
+			t.Fatalf("Failed to update PCC: %v", err)
+		}
+
+		var pcc map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &pcc); err != nil {
+			t.Fatalf("Failed to unmarshal PCC: %v", err)
+		}
+
+		props := pcc["properties"].(map[string]interface{})
+		if props["name"].(string) != "updated-pcc" {
+			t.Fatal("PCC name not updated")
+		}
+
+		t.Log("Updated PCC successfully")
+	})
+
+	time.Sleep(cleanupWaitTime)
+
+	// Delete PCC
+	t.Run("DeletePcc", func(t *testing.T) {
+		result, err := ts.executeTool("delete_pcc", map[string]interface{}{
+			"pcc_id": pccID,
+		})
+		if err != nil {
+			t.Fatalf("Failed to delete PCC: %v", err)
+		}
+
+		var status map[string]string
+		if err := json.Unmarshal([]byte(result), &status); err != nil {
+			t.Fatalf("Failed to unmarshal result: %v", err)
+		}
+
+		if status["status"] != "deleted" {
+			t.Fatal("Delete status is not 'deleted'")
+		}
+
+		t.Log("Deleted PCC successfully")
+	})
+}
+
+// =============================================================================
 // Unit Tests (no API calls)
 // =============================================================================
 
 func TestToolDefinitions(t *testing.T) {
 	server := NewServer()
 
-	// Check that all Priority 1 and Priority 2 tools are registered
+	// Check that all Priority 1, Priority 2, and Priority 3 tools are registered
 	expectedTools := []string{
 		// Priority 1: Core Infrastructure CRUD
 		"list_datacenters", "get_datacenter", "create_datacenter", "update_datacenter", "delete_datacenter",
@@ -1770,6 +2316,10 @@ func TestToolDefinitions(t *testing.T) {
 		"list_nics", "get_nic", "create_nic", "update_nic", "delete_nic",
 		"list_ipblocks", "get_ipblock", "create_ipblock", "update_ipblock", "delete_ipblock",
 		"list_firewall_rules", "get_firewall_rule", "create_firewall_rule", "update_firewall_rule", "delete_firewall_rule",
+		// Priority 3: Advanced Networking
+		"list_nat_gateways", "get_nat_gateway", "create_nat_gateway", "update_nat_gateway", "delete_nat_gateway",
+		"list_nat_gateway_rules", "get_nat_gateway_rule", "create_nat_gateway_rule", "update_nat_gateway_rule", "delete_nat_gateway_rule",
+		"list_pccs", "get_pcc", "create_pcc", "update_pcc", "delete_pcc",
 	}
 
 	toolMap := make(map[string]bool)
@@ -2132,5 +2682,203 @@ func TestUpdateLanValidation(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("Expected error for update with no fields")
+	}
+}
+
+// =============================================================================
+// Priority 3: Advanced Networking Validation Tests
+// =============================================================================
+
+func TestParseLanConfigurations(t *testing.T) {
+	tests := []struct {
+		name    string
+		lans    []map[string]interface{}
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name:    "empty lans is valid",
+			lans:    []map[string]interface{}{},
+			wantErr: false,
+		},
+		{
+			name: "valid lan with id only",
+			lans: []map[string]interface{}{
+				{"id": float64(1)},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid lan with gateway_ips",
+			lans: []map[string]interface{}{
+				{"id": float64(1), "gateway_ips": []interface{}{"10.0.0.1"}},
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing lan id",
+			lans: []map[string]interface{}{
+				{"gateway_ips": []interface{}{"10.0.0.1"}},
+			},
+			wantErr: true,
+			errMsg:  "lan[0].id is required",
+		},
+		{
+			name: "lan id wrong type",
+			lans: []map[string]interface{}{
+				{"id": "not-a-number"},
+			},
+			wantErr: true,
+			errMsg:  "lan[0].id is required",
+		},
+		{
+			name: "lan id zero",
+			lans: []map[string]interface{}{
+				{"id": float64(0)},
+			},
+			wantErr: true,
+			errMsg:  "lan[0].id must be positive",
+		},
+		{
+			name: "lan id negative",
+			lans: []map[string]interface{}{
+				{"id": float64(-1)},
+			},
+			wantErr: true,
+			errMsg:  "lan[0].id must be positive",
+		},
+		{
+			name: "gateway_ip wrong type",
+			lans: []map[string]interface{}{
+				{"id": float64(1), "gateway_ips": []interface{}{123}},
+			},
+			wantErr: true,
+			errMsg:  "lan[0].gateway_ips[0] must be a string",
+		},
+		{
+			name: "gateway_ip invalid",
+			lans: []map[string]interface{}{
+				{"id": float64(1), "gateway_ips": []interface{}{"not-an-ip"}},
+			},
+			wantErr: true,
+			errMsg:  "lan[0].gateway_ips[0] invalid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseLanConfigurations(tt.lans)
+			if tt.wantErr {
+				if err == nil {
+					t.Error("Expected error but got nil")
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("Expected error containing %q, got %q", tt.errMsg, err.Error())
+				}
+			} else if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestValidateNatPortRange(t *testing.T) {
+	tests := []struct {
+		name    string
+		start   int32
+		end     int32
+		wantErr bool
+	}{
+		{"both zero is valid", 0, 0, false},
+		{"valid single port", 80, 80, false},
+		{"valid port range", 80, 443, false},
+		{"start only", 80, 0, false},
+		{"end only", 0, 443, false},
+		{"start too low", -1, 0, true},
+		{"start too high", 65536, 0, true},
+		{"end too low", 0, -1, true},
+		{"end too high", 0, 65536, true},
+		{"start greater than end", 443, 80, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNatPortRange(tt.start, tt.end)
+			if tt.wantErr && err == nil {
+				t.Error("Expected error but got nil")
+			} else if !tt.wantErr && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestCreateNatGatewayValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test invalid public_ip type
+	_, err := server.executeTool("create_nat_gateway", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"name":          "test-nat",
+		"public_ips":    []interface{}{123}, // not a string
+	})
+	if err == nil {
+		t.Error("Expected error for invalid public_ip type")
+	}
+
+	// Test invalid lan type
+	_, err = server.executeTool("create_nat_gateway", map[string]interface{}{
+		"datacenter_id": "test-dc",
+		"name":          "test-nat",
+		"public_ips":    []interface{}{"1.2.3.4"},
+		"lans":          []interface{}{"not-an-object"},
+	})
+	if err == nil {
+		t.Error("Expected error for invalid lan type")
+	}
+}
+
+func TestCreateNatGatewayRuleValidation(t *testing.T) {
+	server := NewServer()
+	server.ctx = context.Background()
+
+	// Test invalid protocol
+	_, err := server.executeTool("create_nat_gateway_rule", map[string]interface{}{
+		"datacenter_id":  "test-dc",
+		"nat_gateway_id": "test-nat",
+		"name":           "test-rule",
+		"source_subnet":  "10.0.0.0/24",
+		"public_ip":      "1.2.3.4",
+		"protocol":       "INVALID_PROTOCOL",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid protocol")
+	}
+
+	// Test invalid rule type
+	_, err = server.executeTool("create_nat_gateway_rule", map[string]interface{}{
+		"datacenter_id":  "test-dc",
+		"nat_gateway_id": "test-nat",
+		"name":           "test-rule",
+		"source_subnet":  "10.0.0.0/24",
+		"public_ip":      "1.2.3.4",
+		"type":           "INVALID_TYPE",
+	})
+	if err == nil {
+		t.Error("Expected error for invalid rule type")
+	}
+
+	// Test invalid port range
+	_, err = server.executeTool("create_nat_gateway_rule", map[string]interface{}{
+		"datacenter_id":           "test-dc",
+		"nat_gateway_id":          "test-nat",
+		"name":                    "test-rule",
+		"source_subnet":           "10.0.0.0/24",
+		"public_ip":               "1.2.3.4",
+		"target_port_range_start": float64(443),
+		"target_port_range_end":   float64(80),
+	})
+	if err == nil {
+		t.Error("Expected error for port_range_start > port_range_end")
 	}
 }

@@ -1189,6 +1189,317 @@ func (s *Server) registerTools() {
 				"required": ["pcc_id"]
 			}`),
 		},
+		{
+			Name:        "create_nat_gateway",
+			Description: "Create a NAT gateway in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the NAT gateway"
+					},
+					"public_ips": {
+						"type": "array",
+						"items": {"type": "string"},
+						"description": "Collection of public IP addresses of the NAT gateway"
+					},
+					"lans": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {"type": "integer", "description": "LAN ID"},
+								"gateway_ips": {"type": "array", "items": {"type": "string"}, "description": "Gateway IPs for this LAN"}
+							}
+						},
+						"description": "Collection of LANs connected to the NAT gateway"
+					}
+				},
+				"required": ["datacenter_id", "name", "public_ips"]
+			}`),
+		},
+		{
+			Name:        "update_nat_gateway",
+			Description: "Update a NAT gateway",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the NAT gateway"
+					},
+					"public_ips": {
+						"type": "array",
+						"items": {"type": "string"},
+						"description": "Updated collection of public IP addresses"
+					},
+					"lans": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"properties": {
+								"id": {"type": "integer", "description": "LAN ID"},
+								"gateway_ips": {"type": "array", "items": {"type": "string"}, "description": "Gateway IPs for this LAN"}
+							}
+						},
+						"description": "Updated collection of LANs"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id"]
+			}`),
+		},
+		{
+			Name:        "delete_nat_gateway",
+			Description: "Delete a NAT gateway",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway to delete"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id"]
+			}`),
+		},
+		// NAT Gateway Rules
+		{
+			Name:        "list_nat_gateway_rules",
+			Description: "List all rules for a NAT gateway",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id"]
+			}`),
+		},
+		{
+			Name:        "get_nat_gateway_rule",
+			Description: "Get details of a specific NAT gateway rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					},
+					"rule_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway rule"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id", "rule_id"]
+			}`),
+		},
+		{
+			Name:        "create_nat_gateway_rule",
+			Description: "Create a rule for a NAT gateway",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the rule"
+					},
+					"type": {
+						"type": "string",
+						"description": "Type of the rule (SNAT)",
+						"enum": ["SNAT"]
+					},
+					"protocol": {
+						"type": "string",
+						"description": "Protocol (TCP, UDP, ICMP, ALL)",
+						"enum": ["TCP", "UDP", "ICMP", "ALL"]
+					},
+					"source_subnet": {
+						"type": "string",
+						"description": "Source subnet of the NAT gateway rule (CIDR notation)"
+					},
+					"public_ip": {
+						"type": "string",
+						"description": "Public IP address of the NAT gateway rule"
+					},
+					"target_subnet": {
+						"type": "string",
+						"description": "Target subnet (for DNAT only)"
+					},
+					"target_port_range_start": {
+						"type": "integer",
+						"description": "Target port range start"
+					},
+					"target_port_range_end": {
+						"type": "integer",
+						"description": "Target port range end"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id", "name", "source_subnet", "public_ip"]
+			}`),
+		},
+		{
+			Name:        "update_nat_gateway_rule",
+			Description: "Update a NAT gateway rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					},
+					"rule_id": {
+						"type": "string",
+						"description": "The ID of the rule to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the rule"
+					},
+					"protocol": {
+						"type": "string",
+						"description": "Protocol (TCP, UDP, ICMP, ALL)",
+						"enum": ["TCP", "UDP", "ICMP", "ALL"]
+					},
+					"source_subnet": {
+						"type": "string",
+						"description": "Source subnet (CIDR notation)"
+					},
+					"public_ip": {
+						"type": "string",
+						"description": "Public IP address"
+					},
+					"target_subnet": {
+						"type": "string",
+						"description": "Target subnet"
+					},
+					"target_port_range_start": {
+						"type": "integer",
+						"description": "Target port range start"
+					},
+					"target_port_range_end": {
+						"type": "integer",
+						"description": "Target port range end"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id", "rule_id"]
+			}`),
+		},
+		{
+			Name:        "delete_nat_gateway_rule",
+			Description: "Delete a NAT gateway rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"nat_gateway_id": {
+						"type": "string",
+						"description": "The ID of the NAT gateway"
+					},
+					"rule_id": {
+						"type": "string",
+						"description": "The ID of the rule to delete"
+					}
+				},
+				"required": ["datacenter_id", "nat_gateway_id", "rule_id"]
+			}`),
+		},
+		// Private Cross Connect CRUD
+		{
+			Name:        "create_pcc",
+			Description: "Create a Private Cross Connect",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"name": {
+						"type": "string",
+						"description": "The name of the Private Cross Connect"
+					},
+					"description": {
+						"type": "string",
+						"description": "A description for the Private Cross Connect"
+					}
+				},
+				"required": ["name"]
+			}`),
+		},
+		{
+			Name:        "update_pcc",
+			Description: "Update a Private Cross Connect",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"pcc_id": {
+						"type": "string",
+						"description": "The ID of the Private Cross Connect"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the Private Cross Connect"
+					},
+					"description": {
+						"type": "string",
+						"description": "The new description for the Private Cross Connect"
+					}
+				},
+				"required": ["pcc_id"]
+			}`),
+		},
+		{
+			Name:        "delete_pcc",
+			Description: "Delete a Private Cross Connect",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"pcc_id": {
+						"type": "string",
+						"description": "The ID of the Private Cross Connect to delete"
+					}
+				},
+				"required": ["pcc_id"]
+			}`),
+		},
 		// Load Balancers - Application Load Balancers
 		{
 			Name:        "list_application_load_balancers",
