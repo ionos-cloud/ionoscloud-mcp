@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"regexp"
 
-	dns "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
 	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
 )
 
@@ -69,20 +67,21 @@ func validateProtocol(protocol string) error {
 	return nil
 }
 
-// validatePortRange validates port range values
-func validatePortRange(start, end int32, startSet, endSet bool) error {
-	if startSet {
+// validatePortRange validates port range values. fieldPrefix is used in error messages
+// (e.g., "port_range" or "target_port_range")
+func validatePortRange(start, end int32, fieldPrefix string) error {
+	if start != 0 {
 		if start < 1 || start > 65535 {
-			return fmt.Errorf("port_range_start must be between 1-65535, got %d", start)
+			return fmt.Errorf("%s_start must be between 1-65535, got %d", fieldPrefix, start)
 		}
 	}
-	if endSet {
+	if end != 0 {
 		if end < 1 || end > 65535 {
-			return fmt.Errorf("port_range_end must be between 1-65535, got %d", end)
+			return fmt.Errorf("%s_end must be between 1-65535, got %d", fieldPrefix, end)
 		}
 	}
-	if startSet && endSet && start > end {
-		return fmt.Errorf("port_range_start (%d) cannot be greater than port_range_end (%d)", start, end)
+	if start != 0 && end != 0 && start > end {
+		return fmt.Errorf("%s_start (%d) cannot be greater than %s_end (%d)", fieldPrefix, start, fieldPrefix, end)
 	}
 	return nil
 }
@@ -123,13 +122,13 @@ func statusResponse(fields map[string]string) (string, error) {
 func (s *Server) executeTool(name string, arguments map[string]interface{}) (string, error) {
 	switch name {
 	case "list_datacenters":
-		return s.listDatacenters(s.client, s.ctx)
+		return s.listDatacenters()
 	case "get_datacenter":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.getDatacenter(s.client, s.ctx, datacenterID)
+		return s.getDatacenter(datacenterID)
 	case "create_datacenter":
 		name, ok := arguments["name"].(string)
 		if !ok {
@@ -140,7 +139,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("location is required")
 		}
 		description, _ := arguments["description"].(string)
-		return s.createDatacenter(s.client, s.ctx, name, location, description)
+		return s.createDatacenter(name, location, description)
 	case "update_datacenter":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -148,19 +147,19 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		description, _ := arguments["description"].(string)
-		return s.updateDatacenter(s.client, s.ctx, datacenterID, name, description)
+		return s.updateDatacenter(datacenterID, name, description)
 	case "delete_datacenter":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.deleteDatacenter(s.client, s.ctx, datacenterID)
+		return s.deleteDatacenter(datacenterID)
 	case "list_servers":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listServers(s.client, s.ctx, datacenterID)
+		return s.listServers(datacenterID)
 	case "get_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -170,7 +169,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.getServer(s.client, s.ctx, datacenterID, serverID)
+		return s.getServer(datacenterID, serverID)
 	case "create_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -190,7 +189,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		cpuFamily, _ := arguments["cpu_family"].(string)
 		availabilityZone, _ := arguments["availability_zone"].(string)
-		return s.createServer(s.client, s.ctx, datacenterID, name, int32(cores), int32(ram), cpuFamily, availabilityZone)
+		return s.createServer(datacenterID, name, int32(cores), int32(ram), cpuFamily, availabilityZone)
 	case "update_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -208,7 +207,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if r, ok := arguments["ram"].(float64); ok {
 			ram = int32(r)
 		}
-		return s.updateServer(s.client, s.ctx, datacenterID, serverID, name, cores, ram)
+		return s.updateServer(datacenterID, serverID, name, cores, ram)
 	case "delete_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -218,7 +217,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.deleteServer(s.client, s.ctx, datacenterID, serverID)
+		return s.deleteServer(datacenterID, serverID)
 	case "start_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -228,7 +227,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.startServer(s.client, s.ctx, datacenterID, serverID)
+		return s.startServer(datacenterID, serverID)
 	case "stop_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -238,7 +237,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.stopServer(s.client, s.ctx, datacenterID, serverID)
+		return s.stopServer(datacenterID, serverID)
 	case "reboot_server":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -248,13 +247,13 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.rebootServer(s.client, s.ctx, datacenterID, serverID)
+		return s.rebootServer(datacenterID, serverID)
 	case "list_volumes":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listVolumes(s.client, s.ctx, datacenterID)
+		return s.listVolumes(datacenterID)
 	case "get_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -264,7 +263,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("volume_id is required")
 		}
-		return s.getVolume(s.client, s.ctx, datacenterID, volumeID)
+		return s.getVolume(datacenterID, volumeID)
 	case "create_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -284,7 +283,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		image, _ := arguments["image"].(string)
 		imagePassword, _ := arguments["image_password"].(string)
 		licenceType, _ := arguments["licence_type"].(string)
-		return s.createVolume(s.client, s.ctx, datacenterID, name, float32(size), volumeType, bus, availabilityZone, image, imagePassword, licenceType)
+		return s.createVolume(datacenterID, name, float32(size), volumeType, bus, availabilityZone, image, imagePassword, licenceType)
 	case "update_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -299,7 +298,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if sizeFloat, ok := arguments["size"].(float64); ok {
 			size = float32(sizeFloat)
 		}
-		return s.updateVolume(s.client, s.ctx, datacenterID, volumeID, name, size)
+		return s.updateVolume(datacenterID, volumeID, name, size)
 	case "delete_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -309,7 +308,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("volume_id is required")
 		}
-		return s.deleteVolume(s.client, s.ctx, datacenterID, volumeID)
+		return s.deleteVolume(datacenterID, volumeID)
 	case "attach_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -323,7 +322,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("volume_id is required")
 		}
-		return s.attachVolume(s.client, s.ctx, datacenterID, serverID, volumeID)
+		return s.attachVolume(datacenterID, serverID, volumeID)
 	case "detach_volume":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -337,19 +336,19 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("volume_id is required")
 		}
-		return s.detachVolume(s.client, s.ctx, datacenterID, serverID, volumeID)
+		return s.detachVolume(datacenterID, serverID, volumeID)
 	case "list_images":
-		return s.listImages(s.client, s.ctx)
+		return s.listImages()
 	case "list_locations":
-		return s.listLocations(s.client, s.ctx)
+		return s.listLocations()
 	case "list_snapshots":
-		return s.listSnapshots(s.client, s.ctx)
+		return s.listSnapshots()
 	case "get_snapshot":
 		snapshotID, ok := arguments["snapshot_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("snapshot_id is required")
 		}
-		return s.getSnapshot(s.client, s.ctx, snapshotID)
+		return s.getSnapshot(snapshotID)
 	case "create_snapshot":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -361,7 +360,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		description, _ := arguments["description"].(string)
-		return s.createSnapshot(s.client, s.ctx, datacenterID, volumeID, name, description)
+		return s.createSnapshot(datacenterID, volumeID, name, description)
 	case "update_snapshot":
 		snapshotID, ok := arguments["snapshot_id"].(string)
 		if !ok {
@@ -369,13 +368,13 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		description, _ := arguments["description"].(string)
-		return s.updateSnapshot(s.client, s.ctx, snapshotID, name, description)
+		return s.updateSnapshot(snapshotID, name, description)
 	case "delete_snapshot":
 		snapshotID, ok := arguments["snapshot_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("snapshot_id is required")
 		}
-		return s.deleteSnapshot(s.client, s.ctx, snapshotID)
+		return s.deleteSnapshot(snapshotID)
 	case "restore_snapshot":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -389,14 +388,14 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("snapshot_id is required")
 		}
-		return s.restoreSnapshot(s.client, s.ctx, datacenterID, volumeID, snapshotID)
+		return s.restoreSnapshot(datacenterID, volumeID, snapshotID)
 	// Networking - LANs
 	case "list_lans":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listLans(s.client, s.ctx, datacenterID)
+		return s.listLans(datacenterID)
 	case "get_lan":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -406,7 +405,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("lan_id is required")
 		}
-		return s.getLan(s.client, s.ctx, datacenterID, lanID)
+		return s.getLan(datacenterID, lanID)
 	case "create_lan":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -414,7 +413,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		public, _ := arguments["public"].(bool)
-		return s.createLan(s.client, s.ctx, datacenterID, name, public)
+		return s.createLan(datacenterID, name, public)
 	case "update_lan":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -426,7 +425,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		public, publicSet := arguments["public"].(bool)
-		return s.updateLan(s.client, s.ctx, datacenterID, lanID, name, public, publicSet)
+		return s.updateLan(datacenterID, lanID, name, public, publicSet)
 	case "delete_lan":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -436,7 +435,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("lan_id is required")
 		}
-		return s.deleteLan(s.client, s.ctx, datacenterID, lanID)
+		return s.deleteLan(datacenterID, lanID)
 	// Networking - NICs
 	case "list_nics":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -447,7 +446,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("server_id is required")
 		}
-		return s.listNics(s.client, s.ctx, datacenterID, serverID)
+		return s.listNics(datacenterID, serverID)
 	case "get_nic":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -461,7 +460,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nic_id is required")
 		}
-		return s.getNic(s.client, s.ctx, datacenterID, serverID, nicID)
+		return s.getNic(datacenterID, serverID, nicID)
 	case "create_nic":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -486,7 +485,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 				}
 			}
 		}
-		return s.createNic(s.client, s.ctx, datacenterID, serverID, name, int32(lan), dhcp, ips)
+		return s.createNic(datacenterID, serverID, name, int32(lan), dhcp, ips)
 	case "update_nic":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -514,7 +513,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 				}
 			}
 		}
-		return s.updateNic(s.client, s.ctx, datacenterID, serverID, nicID, name, lan, dhcp, dhcpSet, ips)
+		return s.updateNic(datacenterID, serverID, nicID, name, lan, dhcp, dhcpSet, ips)
 	case "delete_nic":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -528,16 +527,16 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nic_id is required")
 		}
-		return s.deleteNic(s.client, s.ctx, datacenterID, serverID, nicID)
+		return s.deleteNic(datacenterID, serverID, nicID)
 	// Networking - IP Blocks
 	case "list_ipblocks":
-		return s.listIpBlocks(s.client, s.ctx)
+		return s.listIpBlocks()
 	case "get_ipblock":
 		ipblockID, ok := arguments["ipblock_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("ipblock_id is required")
 		}
-		return s.getIpBlock(s.client, s.ctx, ipblockID)
+		return s.getIpBlock(ipblockID)
 	case "create_ipblock":
 		location, ok := arguments["location"].(string)
 		if !ok {
@@ -548,20 +547,20 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("size is required")
 		}
 		name, _ := arguments["name"].(string)
-		return s.createIpBlock(s.client, s.ctx, location, int32(size), name)
+		return s.createIpBlock(location, int32(size), name)
 	case "update_ipblock":
 		ipblockID, ok := arguments["ipblock_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("ipblock_id is required")
 		}
 		name, _ := arguments["name"].(string)
-		return s.updateIpBlock(s.client, s.ctx, ipblockID, name)
+		return s.updateIpBlock(ipblockID, name)
 	case "delete_ipblock":
 		ipblockID, ok := arguments["ipblock_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("ipblock_id is required")
 		}
-		return s.deleteIpBlock(s.client, s.ctx, ipblockID)
+		return s.deleteIpBlock(ipblockID)
 	// Networking - Firewall Rules
 	case "list_firewall_rules":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -576,7 +575,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nic_id is required")
 		}
-		return s.listFirewallRules(s.client, s.ctx, datacenterID, serverID, nicID)
+		return s.listFirewallRules(datacenterID, serverID, nicID)
 	case "get_firewall_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -594,7 +593,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("firewallrule_id is required")
 		}
-		return s.getFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, firewallRuleID)
+		return s.getFirewallRule(datacenterID, serverID, nicID, firewallRuleID)
 	case "create_firewall_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -634,7 +633,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			icmpCodeSet = true
 		}
 		ruleType, _ := arguments["type"].(string)
-		return s.createFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP, portRangeStart, portRangeEnd, icmpType, icmpCode, icmpTypeSet, icmpCodeSet, ruleType)
+		return s.createFirewallRule(datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP, portRangeStart, portRangeEnd, icmpType, icmpCode, icmpTypeSet, icmpCodeSet, ruleType)
 	case "update_firewall_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -678,7 +677,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			icmpCodeSet = true
 		}
 		ruleType, _ := arguments["type"].(string)
-		return s.updateFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP, portRangeStart, portRangeEnd, portRangeStartSet, portRangeEndSet, icmpType, icmpCode, icmpTypeSet, icmpCodeSet, ruleType)
+		return s.updateFirewallRule(datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP, portRangeStart, portRangeEnd, portRangeStartSet, portRangeEndSet, icmpType, icmpCode, icmpTypeSet, icmpCodeSet, ruleType)
 	case "delete_firewall_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -696,14 +695,14 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("firewallrule_id is required")
 		}
-		return s.deleteFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, firewallRuleID)
+		return s.deleteFirewallRule(datacenterID, serverID, nicID, firewallRuleID)
 	// Networking - NAT Gateways
 	case "list_nat_gateways":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listNatGateways(s.client, s.ctx, datacenterID)
+		return s.listNatGateways(datacenterID)
 	case "get_nat_gateway":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -713,16 +712,16 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nat_gateway_id is required")
 		}
-		return s.getNatGateway(s.client, s.ctx, datacenterID, natGatewayID)
+		return s.getNatGateway(datacenterID, natGatewayID)
 	// Networking - Private Cross Connects
 	case "list_pccs":
-		return s.listPccs(s.client, s.ctx)
+		return s.listPccs()
 	case "get_pcc":
 		pccID, ok := arguments["pcc_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("pcc_id is required")
 		}
-		return s.getPcc(s.client, s.ctx, pccID)
+		return s.getPcc(pccID)
 	case "create_nat_gateway":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -754,7 +753,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 				lans = append(lans, lanMap)
 			}
 		}
-		return s.createNatGateway(s.client, s.ctx, datacenterID, name, publicIPs, lans)
+		return s.createNatGateway(datacenterID, name, publicIPs, lans)
 	case "update_nat_gateway":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -786,7 +785,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 				lans = append(lans, lanMap)
 			}
 		}
-		return s.updateNatGateway(s.client, s.ctx, datacenterID, natGatewayID, name, publicIPs, lans)
+		return s.updateNatGateway(datacenterID, natGatewayID, name, publicIPs, lans)
 	case "delete_nat_gateway":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -796,7 +795,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nat_gateway_id is required")
 		}
-		return s.deleteNatGateway(s.client, s.ctx, datacenterID, natGatewayID)
+		return s.deleteNatGateway(datacenterID, natGatewayID)
 	// NAT Gateway Rules
 	case "list_nat_gateway_rules":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -807,7 +806,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nat_gateway_id is required")
 		}
-		return s.listNatGatewayRules(s.client, s.ctx, datacenterID, natGatewayID)
+		return s.listNatGatewayRules(datacenterID, natGatewayID)
 	case "get_nat_gateway_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -821,7 +820,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("rule_id is required")
 		}
-		return s.getNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, ruleID)
+		return s.getNatGatewayRule(datacenterID, natGatewayID, ruleID)
 	case "create_nat_gateway_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -853,7 +852,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if v, ok := arguments["target_port_range_end"].(float64); ok {
 			targetPortRangeEnd = int32(v)
 		}
-		return s.createNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, name, ruleType, protocol, sourceSubnet, publicIP, targetSubnet, targetPortRangeStart, targetPortRangeEnd)
+		return s.createNatGatewayRule(datacenterID, natGatewayID, name, ruleType, protocol, sourceSubnet, publicIP, targetSubnet, targetPortRangeStart, targetPortRangeEnd)
 	case "update_nat_gateway_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -882,7 +881,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			targetPortRangeEnd = int32(v)
 			targetPortRangeEndSet = true
 		}
-		return s.updateNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, ruleID, name, protocol, sourceSubnet, publicIP, targetSubnet, targetPortRangeStart, targetPortRangeEnd, targetPortRangeStartSet, targetPortRangeEndSet)
+		return s.updateNatGatewayRule(datacenterID, natGatewayID, ruleID, name, protocol, sourceSubnet, publicIP, targetSubnet, targetPortRangeStart, targetPortRangeEnd, targetPortRangeStartSet, targetPortRangeEndSet)
 	case "delete_nat_gateway_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -896,7 +895,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("rule_id is required")
 		}
-		return s.deleteNatGatewayRule(s.client, s.ctx, datacenterID, natGatewayID, ruleID)
+		return s.deleteNatGatewayRule(datacenterID, natGatewayID, ruleID)
 	// Private Cross Connect CRUD
 	case "create_pcc":
 		name, ok := arguments["name"].(string)
@@ -904,7 +903,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("name is required")
 		}
 		description, _ := arguments["description"].(string)
-		return s.createPcc(s.client, s.ctx, name, description)
+		return s.createPcc(name, description)
 	case "update_pcc":
 		pccID, ok := arguments["pcc_id"].(string)
 		if !ok {
@@ -912,20 +911,20 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		}
 		name, _ := arguments["name"].(string)
 		description, _ := arguments["description"].(string)
-		return s.updatePcc(s.client, s.ctx, pccID, name, description)
+		return s.updatePcc(pccID, name, description)
 	case "delete_pcc":
 		pccID, ok := arguments["pcc_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("pcc_id is required")
 		}
-		return s.deletePcc(s.client, s.ctx, pccID)
+		return s.deletePcc(pccID)
 	// Load Balancers - Application Load Balancers
 	case "list_application_load_balancers":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listApplicationLoadBalancers(s.client, s.ctx, datacenterID)
+		return s.listApplicationLoadBalancers(datacenterID)
 	case "get_application_load_balancer":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -935,7 +934,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("alb_id is required")
 		}
-		return s.getApplicationLoadBalancer(s.client, s.ctx, datacenterID, albID)
+		return s.getApplicationLoadBalancer(datacenterID, albID)
 	case "list_alb_forwarding_rules":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -945,7 +944,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("alb_id is required")
 		}
-		return s.listAlbForwardingRules(s.client, s.ctx, datacenterID, albID)
+		return s.listAlbForwardingRules(datacenterID, albID)
 	case "get_alb_forwarding_rule":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -959,14 +958,14 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("rule_id is required")
 		}
-		return s.getAlbForwardingRule(s.client, s.ctx, datacenterID, albID, ruleID)
+		return s.getAlbForwardingRule(datacenterID, albID, ruleID)
 	// Load Balancers - Network Load Balancers
 	case "list_network_load_balancers":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("datacenter_id is required")
 		}
-		return s.listNetworkLoadBalancers(s.client, s.ctx, datacenterID)
+		return s.listNetworkLoadBalancers(datacenterID)
 	case "get_network_load_balancer":
 		datacenterID, ok := arguments["datacenter_id"].(string)
 		if !ok {
@@ -976,37 +975,37 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nlb_id is required")
 		}
-		return s.getNetworkLoadBalancer(s.client, s.ctx, datacenterID, nlbID)
+		return s.getNetworkLoadBalancer(datacenterID, nlbID)
 	// Load Balancers - Target Groups
 	case "list_target_groups":
-		return s.listTargetGroups(s.client, s.ctx)
+		return s.listTargetGroups()
 	case "get_target_group":
 		targetGroupID, ok := arguments["target_group_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("target_group_id is required")
 		}
-		return s.getTargetGroup(s.client, s.ctx, targetGroupID)
+		return s.getTargetGroup(targetGroupID)
 	// Kubernetes
 	case "list_k8s_clusters":
-		return s.listK8sClusters(s.client, s.ctx)
+		return s.listK8sClusters()
 	case "get_k8s_cluster":
 		k8sClusterID, ok := arguments["k8s_cluster_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("k8s_cluster_id is required")
 		}
-		return s.getK8sCluster(s.client, s.ctx, k8sClusterID)
+		return s.getK8sCluster(k8sClusterID)
 	case "get_k8s_kubeconfig":
 		k8sClusterID, ok := arguments["k8s_cluster_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("k8s_cluster_id is required")
 		}
-		return s.getK8sKubeconfig(s.client, s.ctx, k8sClusterID)
+		return s.getK8sKubeconfig(k8sClusterID)
 	case "list_k8s_nodepools":
 		k8sClusterID, ok := arguments["k8s_cluster_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("k8s_cluster_id is required")
 		}
-		return s.listK8sNodepools(s.client, s.ctx, k8sClusterID)
+		return s.listK8sNodepools(k8sClusterID)
 	case "get_k8s_nodepool":
 		k8sClusterID, ok := arguments["k8s_cluster_id"].(string)
 		if !ok {
@@ -1016,7 +1015,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nodepool_id is required")
 		}
-		return s.getK8sNodepool(s.client, s.ctx, k8sClusterID, nodepoolID)
+		return s.getK8sNodepool(k8sClusterID, nodepoolID)
 	case "list_k8s_nodes":
 		k8sClusterID, ok := arguments["k8s_cluster_id"].(string)
 		if !ok {
@@ -1026,7 +1025,7 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("nodepool_id is required")
 		}
-		return s.listK8sNodes(s.client, s.ctx, k8sClusterID, nodepoolID)
+		return s.listK8sNodes(k8sClusterID, nodepoolID)
 	case "get_k8s_node":
 		k8sClusterID, ok := arguments["k8s_cluster_id"].(string)
 		if !ok {
@@ -1040,46 +1039,46 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("node_id is required")
 		}
-		return s.getK8sNode(s.client, s.ctx, k8sClusterID, nodepoolID, nodeID)
+		return s.getK8sNode(k8sClusterID, nodepoolID, nodeID)
 	case "list_k8s_versions":
-		return s.listK8sVersions(s.client, s.ctx)
+		return s.listK8sVersions()
 	// User Management - Users
 	case "list_users":
-		return s.listUsers(s.client, s.ctx)
+		return s.listUsers()
 	case "get_user":
 		userID, ok := arguments["user_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("user_id is required")
 		}
-		return s.getUser(s.client, s.ctx, userID)
+		return s.getUser(userID)
 	// User Management - Groups
 	case "list_groups":
-		return s.listGroups(s.client, s.ctx)
+		return s.listGroups()
 	case "get_group":
 		groupID, ok := arguments["group_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("group_id is required")
 		}
-		return s.getGroup(s.client, s.ctx, groupID)
+		return s.getGroup(groupID)
 	case "list_group_members":
 		groupID, ok := arguments["group_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("group_id is required")
 		}
-		return s.listGroupMembers(s.client, s.ctx, groupID)
+		return s.listGroupMembers(groupID)
 	case "list_user_groups":
 		userID, ok := arguments["user_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("user_id is required")
 		}
-		return s.listUserGroups(s.client, s.ctx, userID)
+		return s.listUserGroups(userID)
 	// User Management - S3 Keys
 	case "list_s3_keys":
 		userID, ok := arguments["user_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("user_id is required")
 		}
-		return s.listS3Keys(s.client, s.ctx, userID)
+		return s.listS3Keys(userID)
 	case "get_s3_key":
 		userID, ok := arguments["user_id"].(string)
 		if !ok {
@@ -1089,28 +1088,28 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("key_id is required")
 		}
-		return s.getS3Key(s.client, s.ctx, userID, keyID)
+		return s.getS3Key(userID, keyID)
 	// User Management - Contract
 	case "get_contract":
-		return s.getContract(s.client, s.ctx)
+		return s.getContract()
 	case "list_resources":
 		resourceType, _ := arguments["resource_type"].(string)
-		return s.listResources(s.client, s.ctx, resourceType)
+		return s.listResources(resourceType)
 	// DNS
 	case "list_dns_zones":
-		return s.listDnsZones(s.dnsClient, s.ctx)
+		return s.listDnsZones()
 	case "get_dns_zone":
 		zoneID, ok := arguments["zone_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("zone_id is required")
 		}
-		return s.getDnsZone(s.dnsClient, s.ctx, zoneID)
+		return s.getDnsZone(zoneID)
 	case "list_dns_records":
 		zoneID, ok := arguments["zone_id"].(string)
 		if !ok {
 			return "", fmt.Errorf("zone_id is required")
 		}
-		return s.listDnsRecords(s.dnsClient, s.ctx, zoneID)
+		return s.listDnsRecords(zoneID)
 	case "get_dns_record":
 		zoneID, ok := arguments["zone_id"].(string)
 		if !ok {
@@ -1120,41 +1119,31 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 		if !ok {
 			return "", fmt.Errorf("record_id is required")
 		}
-		return s.getDnsRecord(s.dnsClient, s.ctx, zoneID, recordID)
+		return s.getDnsRecord(zoneID, recordID)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
 }
 
-func (s *Server) listDatacenters(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Execute()
+func (s *Server) listDatacenters() (string, error) {
+	datacenters, _, err := s.client.DataCentersApi.DatacentersGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list datacenters: %w", err)
 	}
 
-	data, err := json.MarshalIndent(datacenters, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal datacenters: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(datacenters, "datacenters")
 }
 
-func (s *Server) getDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	datacenter, _, err := client.DataCentersApi.DatacentersFindById(ctx, datacenterID).Execute()
+func (s *Server) getDatacenter(datacenterID string) (string, error) {
+	datacenter, _, err := s.client.DataCentersApi.DatacentersFindById(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get datacenter: %w", err)
 	}
 
-	data, err := json.MarshalIndent(datacenter, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal datacenter: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(datacenter, "datacenter")
 }
 
-func (s *Server) createDatacenter(client *ionoscloud.APIClient, ctx context.Context, name, location, description string) (string, error) {
+func (s *Server) createDatacenter(name, location, description string) (string, error) {
 	properties := ionoscloud.DatacenterPropertiesPost{
 		Name:     &name,
 		Location: &location,
@@ -1167,20 +1156,15 @@ func (s *Server) createDatacenter(client *ionoscloud.APIClient, ctx context.Cont
 		Properties: &properties,
 	}
 
-	result, _, err := client.DataCentersApi.DatacentersPost(ctx).Datacenter(datacenter).Execute()
+	result, _, err := s.client.DataCentersApi.DatacentersPost(s.ctx).Datacenter(datacenter).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create datacenter: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal datacenter: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "datacenter")
 }
 
-func (s *Server) updateDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name, description string) (string, error) {
+func (s *Server) updateDatacenter(datacenterID, name, description string) (string, error) {
 	if name == "" && description == "" {
 		return "", fmt.Errorf("at least one of name or description must be provided")
 	}
@@ -1193,21 +1177,16 @@ func (s *Server) updateDatacenter(client *ionoscloud.APIClient, ctx context.Cont
 		properties.Description = &description
 	}
 
-	result, _, err := client.DataCentersApi.DatacentersPatch(ctx, datacenterID).Datacenter(properties).Execute()
+	result, _, err := s.client.DataCentersApi.DatacentersPatch(s.ctx, datacenterID).Datacenter(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update datacenter: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal datacenter: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "datacenter")
 }
 
-func (s *Server) deleteDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	_, err := client.DataCentersApi.DatacentersDelete(ctx, datacenterID).Execute()
+func (s *Server) deleteDatacenter(datacenterID string) (string, error) {
+	_, err := s.client.DataCentersApi.DatacentersDelete(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete datacenter: %w", err)
 	}
@@ -1215,35 +1194,25 @@ func (s *Server) deleteDatacenter(client *ionoscloud.APIClient, ctx context.Cont
 	return statusResponse(map[string]string{"status": "deleted", "datacenter_id": datacenterID})
 }
 
-func (s *Server) listServers(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	servers, _, err := client.ServersApi.DatacentersServersGet(ctx, datacenterID).Execute()
+func (s *Server) listServers(datacenterID string) (string, error) {
+	servers, _, err := s.client.ServersApi.DatacentersServersGet(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list servers: %w", err)
 	}
 
-	data, err := json.MarshalIndent(servers, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal servers: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(servers, "servers")
 }
 
-func (s *Server) getServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	server, _, err := client.ServersApi.DatacentersServersFindById(ctx, datacenterID, serverID).Execute()
+func (s *Server) getServer(datacenterID, serverID string) (string, error) {
+	server, _, err := s.client.ServersApi.DatacentersServersFindById(s.ctx, datacenterID, serverID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get server: %w", err)
 	}
 
-	data, err := json.MarshalIndent(server, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal server: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(server, "server")
 }
 
-func (s *Server) createServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, cores, ram int32, cpuFamily, availabilityZone string) (string, error) {
+func (s *Server) createServer(datacenterID, name string, cores, ram int32, cpuFamily, availabilityZone string) (string, error) {
 	// Validate inputs
 	if cores < 1 {
 		return "", fmt.Errorf("cores must be at least 1, got %d", cores)
@@ -1271,20 +1240,15 @@ func (s *Server) createServer(client *ionoscloud.APIClient, ctx context.Context,
 		Properties: &properties,
 	}
 
-	result, _, err := client.ServersApi.DatacentersServersPost(ctx, datacenterID).Server(server).Execute()
+	result, _, err := s.client.ServersApi.DatacentersServersPost(s.ctx, datacenterID).Server(server).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create server: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal server: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "server")
 }
 
-func (s *Server) updateServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, name string, cores, ram int32) (string, error) {
+func (s *Server) updateServer(datacenterID, serverID, name string, cores, ram int32) (string, error) {
 	if name == "" && cores == 0 && ram == 0 {
 		return "", fmt.Errorf("at least one of name, cores, or ram must be provided")
 	}
@@ -1300,21 +1264,16 @@ func (s *Server) updateServer(client *ionoscloud.APIClient, ctx context.Context,
 		properties.Ram = &ram
 	}
 
-	result, _, err := client.ServersApi.DatacentersServersPatch(ctx, datacenterID, serverID).Server(properties).Execute()
+	result, _, err := s.client.ServersApi.DatacentersServersPatch(s.ctx, datacenterID, serverID).Server(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update server: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal server: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "server")
 }
 
-func (s *Server) deleteServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	_, err := client.ServersApi.DatacentersServersDelete(ctx, datacenterID, serverID).Execute()
+func (s *Server) deleteServer(datacenterID, serverID string) (string, error) {
+	_, err := s.client.ServersApi.DatacentersServersDelete(s.ctx, datacenterID, serverID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete server: %w", err)
 	}
@@ -1322,8 +1281,8 @@ func (s *Server) deleteServer(client *ionoscloud.APIClient, ctx context.Context,
 	return statusResponse(map[string]string{"status": "deleted", "server_id": serverID})
 }
 
-func (s *Server) startServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	_, err := client.ServersApi.DatacentersServersStartPost(ctx, datacenterID, serverID).Execute()
+func (s *Server) startServer(datacenterID, serverID string) (string, error) {
+	_, err := s.client.ServersApi.DatacentersServersStartPost(s.ctx, datacenterID, serverID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to start server: %w", err)
 	}
@@ -1331,8 +1290,8 @@ func (s *Server) startServer(client *ionoscloud.APIClient, ctx context.Context, 
 	return statusResponse(map[string]string{"status": "starting", "server_id": serverID})
 }
 
-func (s *Server) stopServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	_, err := client.ServersApi.DatacentersServersStopPost(ctx, datacenterID, serverID).Execute()
+func (s *Server) stopServer(datacenterID, serverID string) (string, error) {
+	_, err := s.client.ServersApi.DatacentersServersStopPost(s.ctx, datacenterID, serverID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to stop server: %w", err)
 	}
@@ -1340,8 +1299,8 @@ func (s *Server) stopServer(client *ionoscloud.APIClient, ctx context.Context, d
 	return statusResponse(map[string]string{"status": "stopping", "server_id": serverID})
 }
 
-func (s *Server) rebootServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	_, err := client.ServersApi.DatacentersServersRebootPost(ctx, datacenterID, serverID).Execute()
+func (s *Server) rebootServer(datacenterID, serverID string) (string, error) {
+	_, err := s.client.ServersApi.DatacentersServersRebootPost(s.ctx, datacenterID, serverID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to reboot server: %w", err)
 	}
@@ -1349,35 +1308,25 @@ func (s *Server) rebootServer(client *ionoscloud.APIClient, ctx context.Context,
 	return statusResponse(map[string]string{"status": "rebooting", "server_id": serverID})
 }
 
-func (s *Server) listVolumes(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, datacenterID).Execute()
+func (s *Server) listVolumes(datacenterID string) (string, error) {
+	volumes, _, err := s.client.VolumesApi.DatacentersVolumesGet(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list volumes: %w", err)
 	}
 
-	data, err := json.MarshalIndent(volumes, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volumes: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(volumes, "volumes")
 }
 
-func (s *Server) getVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID string) (string, error) {
-	volume, _, err := client.VolumesApi.DatacentersVolumesFindById(ctx, datacenterID, volumeID).Execute()
+func (s *Server) getVolume(datacenterID, volumeID string) (string, error) {
+	volume, _, err := s.client.VolumesApi.DatacentersVolumesFindById(s.ctx, datacenterID, volumeID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get volume: %w", err)
 	}
 
-	data, err := json.MarshalIndent(volume, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volume: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(volume, "volume")
 }
 
-func (s *Server) createVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, size float32, volumeType, bus, availabilityZone, image, imagePassword, licenceType string) (string, error) {
+func (s *Server) createVolume(datacenterID, name string, size float32, volumeType, bus, availabilityZone, image, imagePassword, licenceType string) (string, error) {
 	// Validate inputs
 	if size < 1 {
 		return "", fmt.Errorf("size must be at least 1 GB, got %.1f", size)
@@ -1422,20 +1371,15 @@ func (s *Server) createVolume(client *ionoscloud.APIClient, ctx context.Context,
 		Properties: &properties,
 	}
 
-	result, _, err := client.VolumesApi.DatacentersVolumesPost(ctx, datacenterID).Volume(volume).Execute()
+	result, _, err := s.client.VolumesApi.DatacentersVolumesPost(s.ctx, datacenterID).Volume(volume).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create volume: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volume: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "volume")
 }
 
-func (s *Server) updateVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, name string, size float32) (string, error) {
+func (s *Server) updateVolume(datacenterID, volumeID, name string, size float32) (string, error) {
 	if name == "" && size == 0 {
 		return "", fmt.Errorf("at least one of name or size must be provided")
 	}
@@ -1448,21 +1392,16 @@ func (s *Server) updateVolume(client *ionoscloud.APIClient, ctx context.Context,
 		properties.Size = &size
 	}
 
-	result, _, err := client.VolumesApi.DatacentersVolumesPatch(ctx, datacenterID, volumeID).Volume(properties).Execute()
+	result, _, err := s.client.VolumesApi.DatacentersVolumesPatch(s.ctx, datacenterID, volumeID).Volume(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update volume: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volume: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "volume")
 }
 
-func (s *Server) deleteVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID string) (string, error) {
-	_, err := client.VolumesApi.DatacentersVolumesDelete(ctx, datacenterID, volumeID).Execute()
+func (s *Server) deleteVolume(datacenterID, volumeID string) (string, error) {
+	_, err := s.client.VolumesApi.DatacentersVolumesDelete(s.ctx, datacenterID, volumeID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete volume: %w", err)
 	}
@@ -1470,26 +1409,21 @@ func (s *Server) deleteVolume(client *ionoscloud.APIClient, ctx context.Context,
 	return statusResponse(map[string]string{"status": "deleted", "volume_id": volumeID})
 }
 
-func (s *Server) attachVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, volumeID string) (string, error) {
+func (s *Server) attachVolume(datacenterID, serverID, volumeID string) (string, error) {
 	volume := ionoscloud.Volume{
 		Id: &volumeID,
 	}
 
-	result, _, err := client.ServersApi.DatacentersServersVolumesPost(ctx, datacenterID, serverID).Volume(volume).Execute()
+	result, _, err := s.client.ServersApi.DatacentersServersVolumesPost(s.ctx, datacenterID, serverID).Volume(volume).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to attach volume: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volume: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "volume")
 }
 
-func (s *Server) detachVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, volumeID string) (string, error) {
-	_, err := client.ServersApi.DatacentersServersVolumesDelete(ctx, datacenterID, serverID, volumeID).Execute()
+func (s *Server) detachVolume(datacenterID, serverID, volumeID string) (string, error) {
+	_, err := s.client.ServersApi.DatacentersServersVolumesDelete(s.ctx, datacenterID, serverID, volumeID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to detach volume: %w", err)
 	}
@@ -1497,63 +1431,43 @@ func (s *Server) detachVolume(client *ionoscloud.APIClient, ctx context.Context,
 	return statusResponse(map[string]string{"status": "detached", "volume_id": volumeID, "server_id": serverID})
 }
 
-func (s *Server) listImages(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	images, _, err := client.ImagesApi.ImagesGet(ctx).Execute()
+func (s *Server) listImages() (string, error) {
+	images, _, err := s.client.ImagesApi.ImagesGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list images: %w", err)
 	}
 
-	data, err := json.MarshalIndent(images, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal images: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(images, "images")
 }
 
-func (s *Server) listLocations(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	locations, _, err := client.LocationsApi.LocationsGet(ctx).Execute()
+func (s *Server) listLocations() (string, error) {
+	locations, _, err := s.client.LocationsApi.LocationsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list locations: %w", err)
 	}
 
-	data, err := json.MarshalIndent(locations, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal locations: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(locations, "locations")
 }
 
-func (s *Server) listSnapshots(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	snapshots, _, err := client.SnapshotsApi.SnapshotsGet(ctx).Execute()
+func (s *Server) listSnapshots() (string, error) {
+	snapshots, _, err := s.client.SnapshotsApi.SnapshotsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list snapshots: %w", err)
 	}
 
-	data, err := json.MarshalIndent(snapshots, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snapshots: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(snapshots, "snapshots")
 }
 
-func (s *Server) getSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID string) (string, error) {
-	snapshot, _, err := client.SnapshotsApi.SnapshotsFindById(ctx, snapshotID).Execute()
+func (s *Server) getSnapshot(snapshotID string) (string, error) {
+	snapshot, _, err := s.client.SnapshotsApi.SnapshotsFindById(s.ctx, snapshotID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get snapshot: %w", err)
 	}
 
-	data, err := json.MarshalIndent(snapshot, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(snapshot, "snapshot")
 }
 
-func (s *Server) createSnapshot(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, name, description string) (string, error) {
+func (s *Server) createSnapshot(datacenterID, volumeID, name, description string) (string, error) {
 	properties := ionoscloud.CreateSnapshotProperties{}
 	if name != "" {
 		properties.Name = &name
@@ -1566,20 +1480,15 @@ func (s *Server) createSnapshot(client *ionoscloud.APIClient, ctx context.Contex
 		Properties: &properties,
 	}
 
-	result, _, err := client.VolumesApi.DatacentersVolumesCreateSnapshotPost(ctx, datacenterID, volumeID).Snapshot(snapshot).Execute()
+	result, _, err := s.client.VolumesApi.DatacentersVolumesCreateSnapshotPost(s.ctx, datacenterID, volumeID).Snapshot(snapshot).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create snapshot: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "snapshot")
 }
 
-func (s *Server) updateSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID, name, description string) (string, error) {
+func (s *Server) updateSnapshot(snapshotID, name, description string) (string, error) {
 	if name == "" && description == "" {
 		return "", fmt.Errorf("at least one of name or description must be provided")
 	}
@@ -1592,21 +1501,16 @@ func (s *Server) updateSnapshot(client *ionoscloud.APIClient, ctx context.Contex
 		properties.Description = &description
 	}
 
-	result, _, err := client.SnapshotsApi.SnapshotsPatch(ctx, snapshotID).Snapshot(properties).Execute()
+	result, _, err := s.client.SnapshotsApi.SnapshotsPatch(s.ctx, snapshotID).Snapshot(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update snapshot: %w", err)
 	}
 
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(result, "snapshot")
 }
 
-func (s *Server) deleteSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID string) (string, error) {
-	_, err := client.SnapshotsApi.SnapshotsDelete(ctx, snapshotID).Execute()
+func (s *Server) deleteSnapshot(snapshotID string) (string, error) {
+	_, err := s.client.SnapshotsApi.SnapshotsDelete(s.ctx, snapshotID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete snapshot: %w", err)
 	}
@@ -1614,7 +1518,7 @@ func (s *Server) deleteSnapshot(client *ionoscloud.APIClient, ctx context.Contex
 	return statusResponse(map[string]string{"status": "deleted", "snapshot_id": snapshotID})
 }
 
-func (s *Server) restoreSnapshot(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID, snapshotID string) (string, error) {
+func (s *Server) restoreSnapshot(datacenterID, volumeID, snapshotID string) (string, error) {
 	properties := ionoscloud.RestoreSnapshotProperties{
 		SnapshotId: &snapshotID,
 	}
@@ -1622,7 +1526,7 @@ func (s *Server) restoreSnapshot(client *ionoscloud.APIClient, ctx context.Conte
 		Properties: &properties,
 	}
 
-	_, err := client.VolumesApi.DatacentersVolumesRestoreSnapshotPost(ctx, datacenterID, volumeID).RestoreSnapshot(restoreSnapshot).Execute()
+	_, err := s.client.VolumesApi.DatacentersVolumesRestoreSnapshotPost(s.ctx, datacenterID, volumeID).RestoreSnapshot(restoreSnapshot).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to restore snapshot: %w", err)
 	}
@@ -1634,35 +1538,25 @@ func (s *Server) restoreSnapshot(client *ionoscloud.APIClient, ctx context.Conte
 // Networking - LANs
 // =============================================================================
 
-func (s *Server) listLans(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	lans, _, err := client.LANsApi.DatacentersLansGet(ctx, datacenterID).Execute()
+func (s *Server) listLans(datacenterID string) (string, error) {
+	lans, _, err := s.client.LANsApi.DatacentersLansGet(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list LANs: %w", err)
 	}
 
-	data, err := json.MarshalIndent(lans, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal LANs: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(lans, "LANs")
 }
 
-func (s *Server) getLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID string) (string, error) {
-	lan, _, err := client.LANsApi.DatacentersLansFindById(ctx, datacenterID, lanID).Execute()
+func (s *Server) getLan(datacenterID, lanID string) (string, error) {
+	lan, _, err := s.client.LANsApi.DatacentersLansFindById(s.ctx, datacenterID, lanID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get LAN: %w", err)
 	}
 
-	data, err := json.MarshalIndent(lan, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal LAN: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(lan, "LAN")
 }
 
-func (s *Server) createLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, public bool) (string, error) {
+func (s *Server) createLan(datacenterID, name string, public bool) (string, error) {
 	properties := ionoscloud.LanProperties{
 		Public: &public,
 	}
@@ -1674,7 +1568,7 @@ func (s *Server) createLan(client *ionoscloud.APIClient, ctx context.Context, da
 		Properties: &properties,
 	}
 
-	result, _, err := client.LANsApi.DatacentersLansPost(ctx, datacenterID).Lan(lan).Execute()
+	result, _, err := s.client.LANsApi.DatacentersLansPost(s.ctx, datacenterID).Lan(lan).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create LAN: %w", err)
 	}
@@ -1682,7 +1576,7 @@ func (s *Server) createLan(client *ionoscloud.APIClient, ctx context.Context, da
 	return marshalResponse(result, "LAN")
 }
 
-func (s *Server) updateLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID, name string, public, publicSet bool) (string, error) {
+func (s *Server) updateLan(datacenterID, lanID, name string, public, publicSet bool) (string, error) {
 	if name == "" && !publicSet {
 		return "", fmt.Errorf("at least one of name or public must be provided")
 	}
@@ -1695,7 +1589,7 @@ func (s *Server) updateLan(client *ionoscloud.APIClient, ctx context.Context, da
 		properties.Public = &public
 	}
 
-	result, _, err := client.LANsApi.DatacentersLansPatch(ctx, datacenterID, lanID).Lan(properties).Execute()
+	result, _, err := s.client.LANsApi.DatacentersLansPatch(s.ctx, datacenterID, lanID).Lan(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update LAN: %w", err)
 	}
@@ -1703,8 +1597,8 @@ func (s *Server) updateLan(client *ionoscloud.APIClient, ctx context.Context, da
 	return marshalResponse(result, "LAN")
 }
 
-func (s *Server) deleteLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID string) (string, error) {
-	_, err := client.LANsApi.DatacentersLansDelete(ctx, datacenterID, lanID).Execute()
+func (s *Server) deleteLan(datacenterID, lanID string) (string, error) {
+	_, err := s.client.LANsApi.DatacentersLansDelete(s.ctx, datacenterID, lanID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete LAN: %w", err)
 	}
@@ -1716,35 +1610,25 @@ func (s *Server) deleteLan(client *ionoscloud.APIClient, ctx context.Context, da
 // Networking - NICs
 // =============================================================================
 
-func (s *Server) listNics(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	nics, _, err := client.NetworkInterfacesApi.DatacentersServersNicsGet(ctx, datacenterID, serverID).Execute()
+func (s *Server) listNics(datacenterID, serverID string) (string, error) {
+	nics, _, err := s.client.NetworkInterfacesApi.DatacentersServersNicsGet(s.ctx, datacenterID, serverID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list NICs: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nics, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal NICs: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nics, "NICs")
 }
 
-func (s *Server) getNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID string) (string, error) {
-	nic, _, err := client.NetworkInterfacesApi.DatacentersServersNicsFindById(ctx, datacenterID, serverID, nicID).Execute()
+func (s *Server) getNic(datacenterID, serverID, nicID string) (string, error) {
+	nic, _, err := s.client.NetworkInterfacesApi.DatacentersServersNicsFindById(s.ctx, datacenterID, serverID, nicID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get NIC: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nic, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal NIC: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nic, "NIC")
 }
 
-func (s *Server) createNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, name string, lan int32, dhcp bool, ips []string) (string, error) {
+func (s *Server) createNic(datacenterID, serverID, name string, lan int32, dhcp bool, ips []string) (string, error) {
 	// Validate LAN ID
 	if lan < 1 {
 		return "", fmt.Errorf("lan must be at least 1, got %d", lan)
@@ -1772,7 +1656,7 @@ func (s *Server) createNic(client *ionoscloud.APIClient, ctx context.Context, da
 		Properties: &properties,
 	}
 
-	result, _, err := client.NetworkInterfacesApi.DatacentersServersNicsPost(ctx, datacenterID, serverID).Nic(nic).Execute()
+	result, _, err := s.client.NetworkInterfacesApi.DatacentersServersNicsPost(s.ctx, datacenterID, serverID).Nic(nic).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create NIC: %w", err)
 	}
@@ -1780,7 +1664,7 @@ func (s *Server) createNic(client *ionoscloud.APIClient, ctx context.Context, da
 	return marshalResponse(result, "NIC")
 }
 
-func (s *Server) updateNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, name string, lan int32, dhcp, dhcpSet bool, ips []string) (string, error) {
+func (s *Server) updateNic(datacenterID, serverID, nicID, name string, lan int32, dhcp, dhcpSet bool, ips []string) (string, error) {
 	if name == "" && lan == 0 && !dhcpSet && len(ips) == 0 {
 		return "", fmt.Errorf("at least one of name, lan, dhcp, or ips must be provided")
 	}
@@ -1806,7 +1690,7 @@ func (s *Server) updateNic(client *ionoscloud.APIClient, ctx context.Context, da
 		properties.Ips = &ips
 	}
 
-	result, _, err := client.NetworkInterfacesApi.DatacentersServersNicsPatch(ctx, datacenterID, serverID, nicID).Nic(properties).Execute()
+	result, _, err := s.client.NetworkInterfacesApi.DatacentersServersNicsPatch(s.ctx, datacenterID, serverID, nicID).Nic(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update NIC: %w", err)
 	}
@@ -1814,8 +1698,8 @@ func (s *Server) updateNic(client *ionoscloud.APIClient, ctx context.Context, da
 	return marshalResponse(result, "NIC")
 }
 
-func (s *Server) deleteNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID string) (string, error) {
-	_, err := client.NetworkInterfacesApi.DatacentersServersNicsDelete(ctx, datacenterID, serverID, nicID).Execute()
+func (s *Server) deleteNic(datacenterID, serverID, nicID string) (string, error) {
+	_, err := s.client.NetworkInterfacesApi.DatacentersServersNicsDelete(s.ctx, datacenterID, serverID, nicID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete NIC: %w", err)
 	}
@@ -1827,35 +1711,25 @@ func (s *Server) deleteNic(client *ionoscloud.APIClient, ctx context.Context, da
 // Networking - IP Blocks
 // =============================================================================
 
-func (s *Server) listIpBlocks(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	ipblocks, _, err := client.IPBlocksApi.IpblocksGet(ctx).Execute()
+func (s *Server) listIpBlocks() (string, error) {
+	ipblocks, _, err := s.client.IPBlocksApi.IpblocksGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list IP blocks: %w", err)
 	}
 
-	data, err := json.MarshalIndent(ipblocks, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal IP blocks: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(ipblocks, "IP blocks")
 }
 
-func (s *Server) getIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID string) (string, error) {
-	ipblock, _, err := client.IPBlocksApi.IpblocksFindById(ctx, ipblockID).Execute()
+func (s *Server) getIpBlock(ipblockID string) (string, error) {
+	ipblock, _, err := s.client.IPBlocksApi.IpblocksFindById(s.ctx, ipblockID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get IP block: %w", err)
 	}
 
-	data, err := json.MarshalIndent(ipblock, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal IP block: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(ipblock, "IP block")
 }
 
-func (s *Server) createIpBlock(client *ionoscloud.APIClient, ctx context.Context, location string, size int32, name string) (string, error) {
+func (s *Server) createIpBlock(location string, size int32, name string) (string, error) {
 	// Validate location
 	if err := validateLocation(location); err != nil {
 		return "", err
@@ -1878,7 +1752,7 @@ func (s *Server) createIpBlock(client *ionoscloud.APIClient, ctx context.Context
 		Properties: &properties,
 	}
 
-	result, _, err := client.IPBlocksApi.IpblocksPost(ctx).Ipblock(ipblock).Execute()
+	result, _, err := s.client.IPBlocksApi.IpblocksPost(s.ctx).Ipblock(ipblock).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create IP block: %w", err)
 	}
@@ -1886,7 +1760,7 @@ func (s *Server) createIpBlock(client *ionoscloud.APIClient, ctx context.Context
 	return marshalResponse(result, "IP block")
 }
 
-func (s *Server) updateIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID, name string) (string, error) {
+func (s *Server) updateIpBlock(ipblockID, name string) (string, error) {
 	if name == "" {
 		return "", fmt.Errorf("name must be provided")
 	}
@@ -1895,7 +1769,7 @@ func (s *Server) updateIpBlock(client *ionoscloud.APIClient, ctx context.Context
 		Name: &name,
 	}
 
-	result, _, err := client.IPBlocksApi.IpblocksPatch(ctx, ipblockID).Ipblock(properties).Execute()
+	result, _, err := s.client.IPBlocksApi.IpblocksPatch(s.ctx, ipblockID).Ipblock(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update IP block: %w", err)
 	}
@@ -1903,8 +1777,8 @@ func (s *Server) updateIpBlock(client *ionoscloud.APIClient, ctx context.Context
 	return marshalResponse(result, "IP block")
 }
 
-func (s *Server) deleteIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID string) (string, error) {
-	_, err := client.IPBlocksApi.IpblocksDelete(ctx, ipblockID).Execute()
+func (s *Server) deleteIpBlock(ipblockID string) (string, error) {
+	_, err := s.client.IPBlocksApi.IpblocksDelete(s.ctx, ipblockID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete IP block: %w", err)
 	}
@@ -1916,35 +1790,25 @@ func (s *Server) deleteIpBlock(client *ionoscloud.APIClient, ctx context.Context
 // Networking - Firewall Rules
 // =============================================================================
 
-func (s *Server) listFirewallRules(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID string) (string, error) {
-	rules, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesGet(ctx, datacenterID, serverID, nicID).Execute()
+func (s *Server) listFirewallRules(datacenterID, serverID, nicID string) (string, error) {
+	rules, _, err := s.client.FirewallRulesApi.DatacentersServersNicsFirewallrulesGet(s.ctx, datacenterID, serverID, nicID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list firewall rules: %w", err)
 	}
 
-	data, err := json.MarshalIndent(rules, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal firewall rules: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(rules, "firewall rules")
 }
 
-func (s *Server) getFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID string) (string, error) {
-	rule, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesFindById(ctx, datacenterID, serverID, nicID, firewallRuleID).Execute()
+func (s *Server) getFirewallRule(datacenterID, serverID, nicID, firewallRuleID string) (string, error) {
+	rule, _, err := s.client.FirewallRulesApi.DatacentersServersNicsFirewallrulesFindById(s.ctx, datacenterID, serverID, nicID, firewallRuleID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get firewall rule: %w", err)
 	}
 
-	data, err := json.MarshalIndent(rule, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal firewall rule: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(rule, "firewall rule")
 }
 
-func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
+func (s *Server) createFirewallRule(datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
 	// Validate protocol
 	if err := validateProtocol(protocol); err != nil {
 		return "", err
@@ -1964,9 +1828,7 @@ func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 	}
 
 	// Validate port range
-	portStartSet := portRangeStart > 0
-	portEndSet := portRangeEnd > 0
-	if err := validatePortRange(portRangeStart, portRangeEnd, portStartSet, portEndSet); err != nil {
+	if err := validatePortRange(portRangeStart, portRangeEnd, "port_range"); err != nil {
 		return "", err
 	}
 
@@ -1990,10 +1852,10 @@ func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 	if targetIP != "" {
 		properties.TargetIp = &targetIP
 	}
-	if portStartSet {
+	if portRangeStart != 0 {
 		properties.PortRangeStart = &portRangeStart
 	}
-	if portEndSet {
+	if portRangeEnd != 0 {
 		properties.PortRangeEnd = &portRangeEnd
 	}
 	if icmpTypeSet {
@@ -2010,7 +1872,7 @@ func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 		Properties: &properties,
 	}
 
-	result, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPost(ctx, datacenterID, serverID, nicID).Firewallrule(rule).Execute()
+	result, _, err := s.client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPost(s.ctx, datacenterID, serverID, nicID).Firewallrule(rule).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create firewall rule: %w", err)
 	}
@@ -2018,7 +1880,7 @@ func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 	return marshalResponse(result, "firewall rule")
 }
 
-func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd int32, portRangeStartSet, portRangeEndSet bool, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
+func (s *Server) updateFirewallRule(datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd int32, portRangeStartSet, portRangeEndSet bool, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
 	// Check if at least one field is provided
 	if name == "" && protocol == "" && sourceMac == "" && sourceIP == "" && targetIP == "" && !portRangeStartSet && !portRangeEndSet && !icmpTypeSet && !icmpCodeSet && ruleType == "" {
 		return "", fmt.Errorf("at least one field must be provided for update")
@@ -2045,7 +1907,7 @@ func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 	}
 
 	// Validate port range
-	if err := validatePortRange(portRangeStart, portRangeEnd, portRangeStartSet, portRangeEndSet); err != nil {
+	if err := validatePortRange(portRangeStart, portRangeEnd, "port_range"); err != nil {
 		return "", err
 	}
 
@@ -2086,7 +1948,7 @@ func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 		properties.Type = &ruleType
 	}
 
-	result, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPatch(ctx, datacenterID, serverID, nicID, firewallRuleID).Firewallrule(properties).Execute()
+	result, _, err := s.client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPatch(s.ctx, datacenterID, serverID, nicID, firewallRuleID).Firewallrule(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update firewall rule: %w", err)
 	}
@@ -2094,8 +1956,8 @@ func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 	return marshalResponse(result, "firewall rule")
 }
 
-func (s *Server) deleteFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID string) (string, error) {
-	_, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesDelete(ctx, datacenterID, serverID, nicID, firewallRuleID).Execute()
+func (s *Server) deleteFirewallRule(datacenterID, serverID, nicID, firewallRuleID string) (string, error) {
+	_, err := s.client.FirewallRulesApi.DatacentersServersNicsFirewallrulesDelete(s.ctx, datacenterID, serverID, nicID, firewallRuleID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete firewall rule: %w", err)
 	}
@@ -2107,35 +1969,25 @@ func (s *Server) deleteFirewallRule(client *ionoscloud.APIClient, ctx context.Co
 // Networking - NAT Gateways
 // =============================================================================
 
-func (s *Server) listNatGateways(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	natgateways, _, err := client.NATGatewaysApi.DatacentersNatgatewaysGet(ctx, datacenterID).Execute()
+func (s *Server) listNatGateways(datacenterID string) (string, error) {
+	natgateways, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysGet(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list NAT gateways: %w", err)
 	}
 
-	data, err := json.MarshalIndent(natgateways, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal NAT gateways: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(natgateways, "NAT gateways")
 }
 
-func (s *Server) getNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID string) (string, error) {
-	natgateway, _, err := client.NATGatewaysApi.DatacentersNatgatewaysFindByNatGatewayId(ctx, datacenterID, natGatewayID).Execute()
+func (s *Server) getNatGateway(datacenterID, natGatewayID string) (string, error) {
+	natgateway, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysFindByNatGatewayId(s.ctx, datacenterID, natGatewayID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get NAT gateway: %w", err)
 	}
 
-	data, err := json.MarshalIndent(natgateway, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal NAT gateway: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(natgateway, "NAT gateway")
 }
 
-func (s *Server) createNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, publicIPs []string, lans []map[string]interface{}) (string, error) {
+func (s *Server) createNatGateway(datacenterID, name string, publicIPs []string, lans []map[string]interface{}) (string, error) {
 	// Validate public IPs
 	for i, ip := range publicIPs {
 		if err := validateIP(ip); err != nil {
@@ -2161,7 +2013,7 @@ func (s *Server) createNatGateway(client *ionoscloud.APIClient, ctx context.Cont
 		Properties: &properties,
 	}
 
-	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysPost(ctx, datacenterID).NatGateway(natGateway).Execute()
+	result, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysPost(s.ctx, datacenterID).NatGateway(natGateway).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create NAT gateway: %w", err)
 	}
@@ -2169,7 +2021,7 @@ func (s *Server) createNatGateway(client *ionoscloud.APIClient, ctx context.Cont
 	return marshalResponse(result, "NAT gateway")
 }
 
-func (s *Server) updateNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, name string, publicIPs []string, lans []map[string]interface{}) (string, error) {
+func (s *Server) updateNatGateway(datacenterID, natGatewayID, name string, publicIPs []string, lans []map[string]interface{}) (string, error) {
 	// Check if at least one field is provided
 	if name == "" && len(publicIPs) == 0 && len(lans) == 0 {
 		return "", fmt.Errorf("at least one field must be provided for update")
@@ -2199,7 +2051,7 @@ func (s *Server) updateNatGateway(client *ionoscloud.APIClient, ctx context.Cont
 		properties.Lans = &natGatewayLans
 	}
 
-	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysPatch(ctx, datacenterID, natGatewayID).NatGatewayProperties(properties).Execute()
+	result, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysPatch(s.ctx, datacenterID, natGatewayID).NatGatewayProperties(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update NAT gateway: %w", err)
 	}
@@ -2207,8 +2059,8 @@ func (s *Server) updateNatGateway(client *ionoscloud.APIClient, ctx context.Cont
 	return marshalResponse(result, "NAT gateway")
 }
 
-func (s *Server) deleteNatGateway(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID string) (string, error) {
-	_, err := client.NATGatewaysApi.DatacentersNatgatewaysDelete(ctx, datacenterID, natGatewayID).Execute()
+func (s *Server) deleteNatGateway(datacenterID, natGatewayID string) (string, error) {
+	_, err := s.client.NATGatewaysApi.DatacentersNatgatewaysDelete(s.ctx, datacenterID, natGatewayID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete NAT gateway: %w", err)
 	}
@@ -2220,8 +2072,8 @@ func (s *Server) deleteNatGateway(client *ionoscloud.APIClient, ctx context.Cont
 // NAT Gateway Rules
 // =============================================================================
 
-func (s *Server) listNatGatewayRules(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID string) (string, error) {
-	rules, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesGet(ctx, datacenterID, natGatewayID).Execute()
+func (s *Server) listNatGatewayRules(datacenterID, natGatewayID string) (string, error) {
+	rules, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysRulesGet(s.ctx, datacenterID, natGatewayID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list NAT gateway rules: %w", err)
 	}
@@ -2229,8 +2081,8 @@ func (s *Server) listNatGatewayRules(client *ionoscloud.APIClient, ctx context.C
 	return marshalResponse(rules, "NAT gateway rules")
 }
 
-func (s *Server) getNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, ruleID string) (string, error) {
-	rule, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesFindByNatGatewayRuleId(ctx, datacenterID, natGatewayID, ruleID).Execute()
+func (s *Server) getNatGatewayRule(datacenterID, natGatewayID, ruleID string) (string, error) {
+	rule, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysRulesFindByNatGatewayRuleId(s.ctx, datacenterID, natGatewayID, ruleID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get NAT gateway rule: %w", err)
 	}
@@ -2287,25 +2139,7 @@ func parseLanConfigurations(lans []map[string]interface{}) ([]ionoscloud.NatGate
 	return natGatewayLans, nil
 }
 
-// validateNatPortRange validates port range for NAT gateway rules
-func validateNatPortRange(start, end int32) error {
-	if start != 0 {
-		if start < 1 || start > 65535 {
-			return fmt.Errorf("target_port_range_start must be between 1-65535, got %d", start)
-		}
-	}
-	if end != 0 {
-		if end < 1 || end > 65535 {
-			return fmt.Errorf("target_port_range_end must be between 1-65535, got %d", end)
-		}
-	}
-	if start != 0 && end != 0 && start > end {
-		return fmt.Errorf("target_port_range_start (%d) cannot be greater than target_port_range_end (%d)", start, end)
-	}
-	return nil
-}
-
-func (s *Server) createNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, name, ruleType, protocol, sourceSubnet, publicIP, targetSubnet string, targetPortRangeStart, targetPortRangeEnd int32) (string, error) {
+func (s *Server) createNatGatewayRule(datacenterID, natGatewayID, name, ruleType, protocol, sourceSubnet, publicIP, targetSubnet string, targetPortRangeStart, targetPortRangeEnd int32) (string, error) {
 	// Validate source subnet (CIDR)
 	if err := validateIP(sourceSubnet); err != nil {
 		return "", fmt.Errorf("invalid source_subnet: %w", err)
@@ -2327,7 +2161,7 @@ func (s *Server) createNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 	}
 
 	// Validate port range
-	if err := validateNatPortRange(targetPortRangeStart, targetPortRangeEnd); err != nil {
+	if err := validatePortRange(targetPortRangeStart, targetPortRangeEnd, "target_port_range"); err != nil {
 		return "", err
 	}
 
@@ -2366,7 +2200,7 @@ func (s *Server) createNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 		Properties: &properties,
 	}
 
-	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesPost(ctx, datacenterID, natGatewayID).NatGatewayRule(rule).Execute()
+	result, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysRulesPost(s.ctx, datacenterID, natGatewayID).NatGatewayRule(rule).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create NAT gateway rule: %w", err)
 	}
@@ -2374,7 +2208,7 @@ func (s *Server) createNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 	return marshalResponse(result, "NAT gateway rule")
 }
 
-func (s *Server) updateNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, ruleID, name, protocol, sourceSubnet, publicIP, targetSubnet string, targetPortRangeStart, targetPortRangeEnd int32, targetPortRangeStartSet, targetPortRangeEndSet bool) (string, error) {
+func (s *Server) updateNatGatewayRule(datacenterID, natGatewayID, ruleID, name, protocol, sourceSubnet, publicIP, targetSubnet string, targetPortRangeStart, targetPortRangeEnd int32, targetPortRangeStartSet, targetPortRangeEndSet bool) (string, error) {
 	// Check if at least one field is provided
 	if name == "" && protocol == "" && sourceSubnet == "" && publicIP == "" && targetSubnet == "" && !targetPortRangeStartSet && !targetPortRangeEndSet {
 		return "", fmt.Errorf("at least one field must be provided for update")
@@ -2402,14 +2236,7 @@ func (s *Server) updateNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 
 	// Validate port range if provided
 	if targetPortRangeStartSet || targetPortRangeEndSet {
-		var start, end int32
-		if targetPortRangeStartSet {
-			start = targetPortRangeStart
-		}
-		if targetPortRangeEndSet {
-			end = targetPortRangeEnd
-		}
-		if err := validateNatPortRange(start, end); err != nil {
+		if err := validatePortRange(targetPortRangeStart, targetPortRangeEnd, "target_port_range"); err != nil {
 			return "", err
 		}
 	}
@@ -2442,7 +2269,7 @@ func (s *Server) updateNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 		properties.TargetPortRange = &portRange
 	}
 
-	result, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesPatch(ctx, datacenterID, natGatewayID, ruleID).NatGatewayRuleProperties(properties).Execute()
+	result, _, err := s.client.NATGatewaysApi.DatacentersNatgatewaysRulesPatch(s.ctx, datacenterID, natGatewayID, ruleID).NatGatewayRuleProperties(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update NAT gateway rule: %w", err)
 	}
@@ -2450,8 +2277,8 @@ func (s *Server) updateNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 	return marshalResponse(result, "NAT gateway rule")
 }
 
-func (s *Server) deleteNatGatewayRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, natGatewayID, ruleID string) (string, error) {
-	_, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesDelete(ctx, datacenterID, natGatewayID, ruleID).Execute()
+func (s *Server) deleteNatGatewayRule(datacenterID, natGatewayID, ruleID string) (string, error) {
+	_, err := s.client.NATGatewaysApi.DatacentersNatgatewaysRulesDelete(s.ctx, datacenterID, natGatewayID, ruleID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete NAT gateway rule: %w", err)
 	}
@@ -2463,35 +2290,25 @@ func (s *Server) deleteNatGatewayRule(client *ionoscloud.APIClient, ctx context.
 // Networking - Private Cross Connects
 // =============================================================================
 
-func (s *Server) listPccs(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	pccs, _, err := client.PrivateCrossConnectsApi.PccsGet(ctx).Execute()
+func (s *Server) listPccs() (string, error) {
+	pccs, _, err := s.client.PrivateCrossConnectsApi.PccsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list Private Cross Connects: %w", err)
 	}
 
-	data, err := json.MarshalIndent(pccs, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Private Cross Connects: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(pccs, "Private Cross Connects")
 }
 
-func (s *Server) getPcc(client *ionoscloud.APIClient, ctx context.Context, pccID string) (string, error) {
-	pcc, _, err := client.PrivateCrossConnectsApi.PccsFindById(ctx, pccID).Execute()
+func (s *Server) getPcc(pccID string) (string, error) {
+	pcc, _, err := s.client.PrivateCrossConnectsApi.PccsFindById(s.ctx, pccID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Private Cross Connect: %w", err)
 	}
 
-	data, err := json.MarshalIndent(pcc, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Private Cross Connect: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(pcc, "Private Cross Connect")
 }
 
-func (s *Server) createPcc(client *ionoscloud.APIClient, ctx context.Context, name, description string) (string, error) {
+func (s *Server) createPcc(name, description string) (string, error) {
 	properties := ionoscloud.PrivateCrossConnectProperties{
 		Name: &name,
 	}
@@ -2503,7 +2320,7 @@ func (s *Server) createPcc(client *ionoscloud.APIClient, ctx context.Context, na
 		Properties: &properties,
 	}
 
-	result, _, err := client.PrivateCrossConnectsApi.PccsPost(ctx).Pcc(pcc).Execute()
+	result, _, err := s.client.PrivateCrossConnectsApi.PccsPost(s.ctx).Pcc(pcc).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to create Private Cross Connect: %w", err)
 	}
@@ -2511,7 +2328,7 @@ func (s *Server) createPcc(client *ionoscloud.APIClient, ctx context.Context, na
 	return marshalResponse(result, "Private Cross Connect")
 }
 
-func (s *Server) updatePcc(client *ionoscloud.APIClient, ctx context.Context, pccID, name, description string) (string, error) {
+func (s *Server) updatePcc(pccID, name, description string) (string, error) {
 	// Check if at least one field is provided
 	if name == "" && description == "" {
 		return "", fmt.Errorf("at least one field must be provided for update")
@@ -2525,7 +2342,7 @@ func (s *Server) updatePcc(client *ionoscloud.APIClient, ctx context.Context, pc
 		properties.Description = &description
 	}
 
-	result, _, err := client.PrivateCrossConnectsApi.PccsPatch(ctx, pccID).Pcc(properties).Execute()
+	result, _, err := s.client.PrivateCrossConnectsApi.PccsPatch(s.ctx, pccID).Pcc(properties).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to update Private Cross Connect: %w", err)
 	}
@@ -2533,8 +2350,8 @@ func (s *Server) updatePcc(client *ionoscloud.APIClient, ctx context.Context, pc
 	return marshalResponse(result, "Private Cross Connect")
 }
 
-func (s *Server) deletePcc(client *ionoscloud.APIClient, ctx context.Context, pccID string) (string, error) {
-	_, err := client.PrivateCrossConnectsApi.PccsDelete(ctx, pccID).Execute()
+func (s *Server) deletePcc(pccID string) (string, error) {
+	_, err := s.client.PrivateCrossConnectsApi.PccsDelete(s.ctx, pccID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to delete Private Cross Connect: %w", err)
 	}
@@ -2546,462 +2363,312 @@ func (s *Server) deletePcc(client *ionoscloud.APIClient, ctx context.Context, pc
 // Load Balancers - Application Load Balancers
 // =============================================================================
 
-func (s *Server) listApplicationLoadBalancers(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	albs, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(ctx, datacenterID).Execute()
+func (s *Server) listApplicationLoadBalancers(datacenterID string) (string, error) {
+	albs, _, err := s.client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list Application Load Balancers: %w", err)
 	}
 
-	data, err := json.MarshalIndent(albs, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Application Load Balancers: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(albs, "Application Load Balancers")
 }
 
-func (s *Server) getApplicationLoadBalancer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, albID string) (string, error) {
-	alb, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersFindByApplicationLoadBalancerId(ctx, datacenterID, albID).Execute()
+func (s *Server) getApplicationLoadBalancer(datacenterID, albID string) (string, error) {
+	alb, _, err := s.client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersFindByApplicationLoadBalancerId(s.ctx, datacenterID, albID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Application Load Balancer: %w", err)
 	}
 
-	data, err := json.MarshalIndent(alb, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Application Load Balancer: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(alb, "Application Load Balancer")
 }
 
-func (s *Server) listAlbForwardingRules(client *ionoscloud.APIClient, ctx context.Context, datacenterID, albID string) (string, error) {
-	rules, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(ctx, datacenterID, albID).Execute()
+func (s *Server) listAlbForwardingRules(datacenterID, albID string) (string, error) {
+	rules, _, err := s.client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(s.ctx, datacenterID, albID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list ALB forwarding rules: %w", err)
 	}
 
-	data, err := json.MarshalIndent(rules, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal ALB forwarding rules: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(rules, "ALB forwarding rules")
 }
 
-func (s *Server) getAlbForwardingRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, albID, ruleID string) (string, error) {
-	rule, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesFindByForwardingRuleId(ctx, datacenterID, albID, ruleID).Execute()
+func (s *Server) getAlbForwardingRule(datacenterID, albID, ruleID string) (string, error) {
+	rule, _, err := s.client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesFindByForwardingRuleId(s.ctx, datacenterID, albID, ruleID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get ALB forwarding rule: %w", err)
 	}
 
-	data, err := json.MarshalIndent(rule, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal ALB forwarding rule: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(rule, "ALB forwarding rule")
 }
 
 // =============================================================================
 // Load Balancers - Network Load Balancers
 // =============================================================================
 
-func (s *Server) listNetworkLoadBalancers(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	nlbs, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(ctx, datacenterID).Execute()
+func (s *Server) listNetworkLoadBalancers(datacenterID string) (string, error) {
+	nlbs, _, err := s.client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(s.ctx, datacenterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list Network Load Balancers: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nlbs, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Network Load Balancers: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nlbs, "Network Load Balancers")
 }
 
-func (s *Server) getNetworkLoadBalancer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, nlbID string) (string, error) {
-	nlb, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersFindByNetworkLoadBalancerId(ctx, datacenterID, nlbID).Execute()
+func (s *Server) getNetworkLoadBalancer(datacenterID, nlbID string) (string, error) {
+	nlb, _, err := s.client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersFindByNetworkLoadBalancerId(s.ctx, datacenterID, nlbID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Network Load Balancer: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nlb, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Network Load Balancer: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nlb, "Network Load Balancer")
 }
 
 // =============================================================================
 // Load Balancers - Target Groups
 // =============================================================================
 
-func (s *Server) listTargetGroups(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	targetGroups, _, err := client.TargetGroupsApi.TargetgroupsGet(ctx).Execute()
+func (s *Server) listTargetGroups() (string, error) {
+	targetGroups, _, err := s.client.TargetGroupsApi.TargetgroupsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list target groups: %w", err)
 	}
 
-	data, err := json.MarshalIndent(targetGroups, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal target groups: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(targetGroups, "target groups")
 }
 
-func (s *Server) getTargetGroup(client *ionoscloud.APIClient, ctx context.Context, targetGroupID string) (string, error) {
-	targetGroup, _, err := client.TargetGroupsApi.TargetgroupsFindByTargetGroupId(ctx, targetGroupID).Execute()
+func (s *Server) getTargetGroup(targetGroupID string) (string, error) {
+	targetGroup, _, err := s.client.TargetGroupsApi.TargetgroupsFindByTargetGroupId(s.ctx, targetGroupID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get target group: %w", err)
 	}
 
-	data, err := json.MarshalIndent(targetGroup, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal target group: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(targetGroup, "target group")
 }
 
 // =============================================================================
 // Kubernetes
 // =============================================================================
 
-func (s *Server) listK8sClusters(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	clusters, _, err := client.KubernetesApi.K8sGet(ctx).Execute()
+func (s *Server) listK8sClusters() (string, error) {
+	clusters, _, err := s.client.KubernetesApi.K8sGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list Kubernetes clusters: %w", err)
 	}
 
-	data, err := json.MarshalIndent(clusters, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Kubernetes clusters: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(clusters, "Kubernetes clusters")
 }
 
-func (s *Server) getK8sCluster(client *ionoscloud.APIClient, ctx context.Context, k8sClusterID string) (string, error) {
-	cluster, _, err := client.KubernetesApi.K8sFindByClusterId(ctx, k8sClusterID).Execute()
+func (s *Server) getK8sCluster(k8sClusterID string) (string, error) {
+	cluster, _, err := s.client.KubernetesApi.K8sFindByClusterId(s.ctx, k8sClusterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get Kubernetes cluster: %w", err)
 	}
 
-	data, err := json.MarshalIndent(cluster, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Kubernetes cluster: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(cluster, "Kubernetes cluster")
 }
 
-func (s *Server) getK8sKubeconfig(client *ionoscloud.APIClient, ctx context.Context, k8sClusterID string) (string, error) {
-	kubeconfig, _, err := client.KubernetesApi.K8sKubeconfigGet(ctx, k8sClusterID).Execute()
+func (s *Server) getK8sKubeconfig(k8sClusterID string) (string, error) {
+	kubeconfig, _, err := s.client.KubernetesApi.K8sKubeconfigGet(s.ctx, k8sClusterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get kubeconfig: %w", err)
 	}
 
-	data, err := json.MarshalIndent(kubeconfig, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal kubeconfig: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(kubeconfig, "kubeconfig")
 }
 
-func (s *Server) listK8sNodepools(client *ionoscloud.APIClient, ctx context.Context, k8sClusterID string) (string, error) {
-	nodepools, _, err := client.KubernetesApi.K8sNodepoolsGet(ctx, k8sClusterID).Execute()
+func (s *Server) listK8sNodepools(k8sClusterID string) (string, error) {
+	nodepools, _, err := s.client.KubernetesApi.K8sNodepoolsGet(s.ctx, k8sClusterID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list node pools: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nodepools, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal node pools: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nodepools, "node pools")
 }
 
-func (s *Server) getK8sNodepool(client *ionoscloud.APIClient, ctx context.Context, k8sClusterID, nodepoolID string) (string, error) {
-	nodepool, _, err := client.KubernetesApi.K8sNodepoolsFindById(ctx, k8sClusterID, nodepoolID).Execute()
+func (s *Server) getK8sNodepool(k8sClusterID, nodepoolID string) (string, error) {
+	nodepool, _, err := s.client.KubernetesApi.K8sNodepoolsFindById(s.ctx, k8sClusterID, nodepoolID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get node pool: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nodepool, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal node pool: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nodepool, "node pool")
 }
 
-func (s *Server) listK8sNodes(client *ionoscloud.APIClient, ctx context.Context, k8sClusterID, nodepoolID string) (string, error) {
-	nodes, _, err := client.KubernetesApi.K8sNodepoolsNodesGet(ctx, k8sClusterID, nodepoolID).Execute()
+func (s *Server) listK8sNodes(k8sClusterID, nodepoolID string) (string, error) {
+	nodes, _, err := s.client.KubernetesApi.K8sNodepoolsNodesGet(s.ctx, k8sClusterID, nodepoolID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list nodes: %w", err)
 	}
 
-	data, err := json.MarshalIndent(nodes, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal nodes: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(nodes, "nodes")
 }
 
-func (s *Server) getK8sNode(client *ionoscloud.APIClient, ctx context.Context, k8sClusterID, nodepoolID, nodeID string) (string, error) {
-	node, _, err := client.KubernetesApi.K8sNodepoolsNodesFindById(ctx, k8sClusterID, nodepoolID, nodeID).Execute()
+func (s *Server) getK8sNode(k8sClusterID, nodepoolID, nodeID string) (string, error) {
+	node, _, err := s.client.KubernetesApi.K8sNodepoolsNodesFindById(s.ctx, k8sClusterID, nodepoolID, nodeID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get node: %w", err)
 	}
 
-	data, err := json.MarshalIndent(node, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal node: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(node, "node")
 }
 
-func (s *Server) listK8sVersions(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	versions, _, err := client.KubernetesApi.K8sVersionsGet(ctx).Execute()
+func (s *Server) listK8sVersions() (string, error) {
+	versions, _, err := s.client.KubernetesApi.K8sVersionsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list Kubernetes versions: %w", err)
 	}
 
-	data, err := json.MarshalIndent(versions, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal Kubernetes versions: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(versions, "Kubernetes versions")
 }
 
 // =============================================================================
 // User Management - Users
 // =============================================================================
 
-func (s *Server) listUsers(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	users, _, err := client.UserManagementApi.UmUsersGet(ctx).Execute()
+func (s *Server) listUsers() (string, error) {
+	users, _, err := s.client.UserManagementApi.UmUsersGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list users: %w", err)
 	}
 
-	data, err := json.MarshalIndent(users, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal users: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(users, "users")
 }
 
-func (s *Server) getUser(client *ionoscloud.APIClient, ctx context.Context, userID string) (string, error) {
-	user, _, err := client.UserManagementApi.UmUsersFindById(ctx, userID).Execute()
+func (s *Server) getUser(userID string) (string, error) {
+	user, _, err := s.client.UserManagementApi.UmUsersFindById(s.ctx, userID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get user: %w", err)
 	}
 
-	data, err := json.MarshalIndent(user, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal user: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(user, "user")
 }
 
 // =============================================================================
 // User Management - Groups
 // =============================================================================
 
-func (s *Server) listGroups(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	groups, _, err := client.UserManagementApi.UmGroupsGet(ctx).Execute()
+func (s *Server) listGroups() (string, error) {
+	groups, _, err := s.client.UserManagementApi.UmGroupsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list groups: %w", err)
 	}
 
-	data, err := json.MarshalIndent(groups, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal groups: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(groups, "groups")
 }
 
-func (s *Server) getGroup(client *ionoscloud.APIClient, ctx context.Context, groupID string) (string, error) {
-	group, _, err := client.UserManagementApi.UmGroupsFindById(ctx, groupID).Execute()
+func (s *Server) getGroup(groupID string) (string, error) {
+	group, _, err := s.client.UserManagementApi.UmGroupsFindById(s.ctx, groupID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get group: %w", err)
 	}
 
-	data, err := json.MarshalIndent(group, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal group: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(group, "group")
 }
 
-func (s *Server) listGroupMembers(client *ionoscloud.APIClient, ctx context.Context, groupID string) (string, error) {
-	members, _, err := client.UserManagementApi.UmGroupsUsersGet(ctx, groupID).Execute()
+func (s *Server) listGroupMembers(groupID string) (string, error) {
+	members, _, err := s.client.UserManagementApi.UmGroupsUsersGet(s.ctx, groupID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list group members: %w", err)
 	}
 
-	data, err := json.MarshalIndent(members, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal group members: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(members, "group members")
 }
 
-func (s *Server) listUserGroups(client *ionoscloud.APIClient, ctx context.Context, userID string) (string, error) {
-	groups, _, err := client.UserManagementApi.UmUsersGroupsGet(ctx, userID).Execute()
+func (s *Server) listUserGroups(userID string) (string, error) {
+	groups, _, err := s.client.UserManagementApi.UmUsersGroupsGet(s.ctx, userID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list user groups: %w", err)
 	}
 
-	data, err := json.MarshalIndent(groups, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal user groups: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(groups, "user groups")
 }
 
 // =============================================================================
 // User Management - S3 Keys
 // =============================================================================
 
-func (s *Server) listS3Keys(client *ionoscloud.APIClient, ctx context.Context, userID string) (string, error) {
-	keys, _, err := client.UserS3KeysApi.UmUsersS3keysGet(ctx, userID).Execute()
+func (s *Server) listS3Keys(userID string) (string, error) {
+	keys, _, err := s.client.UserS3KeysApi.UmUsersS3keysGet(s.ctx, userID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list S3 keys: %w", err)
 	}
 
-	data, err := json.MarshalIndent(keys, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal S3 keys: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(keys, "S3 keys")
 }
 
-func (s *Server) getS3Key(client *ionoscloud.APIClient, ctx context.Context, userID, keyID string) (string, error) {
-	key, _, err := client.UserS3KeysApi.UmUsersS3keysFindByKeyId(ctx, userID, keyID).Execute()
+func (s *Server) getS3Key(userID, keyID string) (string, error) {
+	key, _, err := s.client.UserS3KeysApi.UmUsersS3keysFindByKeyId(s.ctx, userID, keyID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get S3 key: %w", err)
 	}
 
-	data, err := json.MarshalIndent(key, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal S3 key: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(key, "S3 key")
 }
 
 // =============================================================================
 // User Management - Contract
 // =============================================================================
 
-func (s *Server) getContract(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	contract, _, err := client.ContractResourcesApi.ContractsGet(ctx).Execute()
+func (s *Server) getContract() (string, error) {
+	contract, _, err := s.client.ContractResourcesApi.ContractsGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get contract: %w", err)
 	}
 
-	data, err := json.MarshalIndent(contract, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal contract: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(contract, "contract")
 }
 
-func (s *Server) listResources(client *ionoscloud.APIClient, ctx context.Context, resourceType string) (string, error) {
+func (s *Server) listResources(resourceType string) (string, error) {
 	var resources ionoscloud.Resources
 	var err error
 
 	if resourceType != "" {
-		resources, _, err = client.UserManagementApi.UmResourcesFindByType(ctx, resourceType).Execute()
+		resources, _, err = s.client.UserManagementApi.UmResourcesFindByType(s.ctx, resourceType).Execute()
 	} else {
-		resources, _, err = client.UserManagementApi.UmResourcesGet(ctx).Execute()
+		resources, _, err = s.client.UserManagementApi.UmResourcesGet(s.ctx).Execute()
 	}
 
 	if err != nil {
 		return "", fmt.Errorf("failed to list resources: %w", err)
 	}
 
-	data, err := json.MarshalIndent(resources, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal resources: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(resources, "resources")
 }
 
 // =============================================================================
 // DNS
 // =============================================================================
 
-func (s *Server) listDnsZones(client *dns.APIClient, ctx context.Context) (string, error) {
-	zones, _, err := client.ZonesApi.ZonesGet(ctx).Execute()
+func (s *Server) listDnsZones() (string, error) {
+	zones, _, err := s.dnsClient.ZonesApi.ZonesGet(s.ctx).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list DNS zones: %w", err)
 	}
 
-	data, err := json.MarshalIndent(zones, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal DNS zones: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(zones, "DNS zones")
 }
 
-func (s *Server) getDnsZone(client *dns.APIClient, ctx context.Context, zoneID string) (string, error) {
-	zone, _, err := client.ZonesApi.ZonesFindById(ctx, zoneID).Execute()
+func (s *Server) getDnsZone(zoneID string) (string, error) {
+	zone, _, err := s.dnsClient.ZonesApi.ZonesFindById(s.ctx, zoneID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get DNS zone: %w", err)
 	}
 
-	data, err := json.MarshalIndent(zone, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal DNS zone: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(zone, "DNS zone")
 }
 
-func (s *Server) listDnsRecords(client *dns.APIClient, ctx context.Context, zoneID string) (string, error) {
-	records, _, err := client.RecordsApi.ZonesRecordsGet(ctx, zoneID).Execute()
+func (s *Server) listDnsRecords(zoneID string) (string, error) {
+	records, _, err := s.dnsClient.RecordsApi.ZonesRecordsGet(s.ctx, zoneID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to list DNS records: %w", err)
 	}
 
-	data, err := json.MarshalIndent(records, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal DNS records: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(records, "DNS records")
 }
 
-func (s *Server) getDnsRecord(client *dns.APIClient, ctx context.Context, zoneID, recordID string) (string, error) {
-	record, _, err := client.RecordsApi.ZonesRecordsFindById(ctx, zoneID, recordID).Execute()
+func (s *Server) getDnsRecord(zoneID, recordID string) (string, error) {
+	record, _, err := s.dnsClient.RecordsApi.ZonesRecordsFindById(s.ctx, zoneID, recordID).Execute()
 	if err != nil {
 		return "", fmt.Errorf("failed to get DNS record: %w", err)
 	}
 
-	data, err := json.MarshalIndent(record, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal DNS record: %w", err)
-	}
-
-	return string(data), nil
+	return marshalResponse(record, "DNS record")
 }

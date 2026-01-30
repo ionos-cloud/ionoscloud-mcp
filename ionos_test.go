@@ -2481,31 +2481,29 @@ func TestValidateProtocol(t *testing.T) {
 
 func TestValidatePortRange(t *testing.T) {
 	tests := []struct {
-		name     string
-		start    int32
-		end      int32
-		startSet bool
-		endSet   bool
-		wantErr  bool
+		name    string
+		start   int32
+		end     int32
+		wantErr bool
 	}{
-		{"both unset is valid", 0, 0, false, false, false},
-		{"valid single port", 22, 22, true, true, false},
-		{"valid port range", 80, 443, true, true, false},
-		{"only start set", 22, 0, true, false, false},
-		{"only end set", 0, 443, false, true, false},
-		{"start too low", 0, 0, true, false, true},
-		{"start too high", 70000, 0, true, false, true},
-		{"end too low", 0, 0, false, true, true},
-		{"end too high", 0, 70000, false, true, true},
-		{"start greater than end", 443, 80, true, true, true},
+		{"both unset is valid", 0, 0, false},
+		{"valid single port", 22, 22, false},
+		{"valid port range", 80, 443, false},
+		{"only start set", 22, 0, false},
+		{"only end set", 0, 443, false},
+		{"start too low", -1, 0, true},
+		{"start too high", 70000, 0, true},
+		{"end too low", 0, -1, true},
+		{"end too high", 0, 70000, true},
+		{"start greater than end", 443, 80, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validatePortRange(tt.start, tt.end, tt.startSet, tt.endSet)
+			err := validatePortRange(tt.start, tt.end, "port_range")
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validatePortRange(%d, %d, %v, %v) error = %v, wantErr %v",
-					tt.start, tt.end, tt.startSet, tt.endSet, err, tt.wantErr)
+				t.Errorf("validatePortRange(%d, %d, %q) error = %v, wantErr %v",
+					tt.start, tt.end, "port_range", err, tt.wantErr)
 			}
 		})
 	}
@@ -2802,7 +2800,7 @@ func TestValidateNatPortRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateNatPortRange(tt.start, tt.end)
+			err := validatePortRange(tt.start, tt.end, "target_port_range")
 			if tt.wantErr && err == nil {
 				t.Error("Expected error but got nil")
 			} else if !tt.wantErr && err != nil {
