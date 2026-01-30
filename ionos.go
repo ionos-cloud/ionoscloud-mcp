@@ -305,6 +305,36 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("lan_id is required")
 		}
 		return s.getLan(s.client, s.ctx, datacenterID, lanID)
+	case "create_lan":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		public, _ := arguments["public"].(bool)
+		return s.createLan(s.client, s.ctx, datacenterID, name, public)
+	case "update_lan":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		lanID, ok := arguments["lan_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("lan_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		public, publicSet := arguments["public"].(bool)
+		return s.updateLan(s.client, s.ctx, datacenterID, lanID, name, public, publicSet)
+	case "delete_lan":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		lanID, ok := arguments["lan_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("lan_id is required")
+		}
+		return s.deleteLan(s.client, s.ctx, datacenterID, lanID)
 	// Networking - NICs
 	case "list_nics":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -330,6 +360,73 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("nic_id is required")
 		}
 		return s.getNic(s.client, s.ctx, datacenterID, serverID, nicID)
+	case "create_nic":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		lan, ok := arguments["lan"].(float64)
+		if !ok {
+			return "", fmt.Errorf("lan is required")
+		}
+		name, _ := arguments["name"].(string)
+		dhcp, _ := arguments["dhcp"].(bool)
+		// Handle ips as a slice of interfaces and convert to strings
+		var ips []string
+		if ipsRaw, ok := arguments["ips"].([]interface{}); ok {
+			for _, ip := range ipsRaw {
+				if ipStr, ok := ip.(string); ok {
+					ips = append(ips, ipStr)
+				}
+			}
+		}
+		return s.createNic(s.client, s.ctx, datacenterID, serverID, name, int32(lan), dhcp, ips)
+	case "update_nic":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		nicID, ok := arguments["nic_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nic_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		var lan int32
+		if lanFloat, ok := arguments["lan"].(float64); ok {
+			lan = int32(lanFloat)
+		}
+		dhcp, dhcpSet := arguments["dhcp"].(bool)
+		var ips []string
+		if ipsRaw, ok := arguments["ips"].([]interface{}); ok {
+			for _, ip := range ipsRaw {
+				if ipStr, ok := ip.(string); ok {
+					ips = append(ips, ipStr)
+				}
+			}
+		}
+		return s.updateNic(s.client, s.ctx, datacenterID, serverID, nicID, name, lan, dhcp, dhcpSet, ips)
+	case "delete_nic":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		nicID, ok := arguments["nic_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nic_id is required")
+		}
+		return s.deleteNic(s.client, s.ctx, datacenterID, serverID, nicID)
 	// Networking - IP Blocks
 	case "list_ipblocks":
 		return s.listIpBlocks(s.client, s.ctx)
@@ -339,6 +436,30 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("ipblock_id is required")
 		}
 		return s.getIpBlock(s.client, s.ctx, ipblockID)
+	case "create_ipblock":
+		location, ok := arguments["location"].(string)
+		if !ok {
+			return "", fmt.Errorf("location is required")
+		}
+		size, ok := arguments["size"].(float64)
+		if !ok {
+			return "", fmt.Errorf("size is required")
+		}
+		name, _ := arguments["name"].(string)
+		return s.createIpBlock(s.client, s.ctx, location, int32(size), name)
+	case "update_ipblock":
+		ipblockID, ok := arguments["ipblock_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("ipblock_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		return s.updateIpBlock(s.client, s.ctx, ipblockID, name)
+	case "delete_ipblock":
+		ipblockID, ok := arguments["ipblock_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("ipblock_id is required")
+		}
+		return s.deleteIpBlock(s.client, s.ctx, ipblockID)
 	// Networking - Firewall Rules
 	case "list_firewall_rules":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -372,6 +493,108 @@ func (s *Server) executeTool(name string, arguments map[string]interface{}) (str
 			return "", fmt.Errorf("firewallrule_id is required")
 		}
 		return s.getFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, firewallRuleID)
+	case "create_firewall_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		nicID, ok := arguments["nic_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nic_id is required")
+		}
+		protocol, ok := arguments["protocol"].(string)
+		if !ok {
+			return "", fmt.Errorf("protocol is required")
+		}
+		name, _ := arguments["name"].(string)
+		sourceMac, _ := arguments["source_mac"].(string)
+		sourceIP, _ := arguments["source_ip"].(string)
+		targetIP, _ := arguments["target_ip"].(string)
+		var portRangeStart, portRangeEnd int32
+		if prs, ok := arguments["port_range_start"].(float64); ok {
+			portRangeStart = int32(prs)
+		}
+		if pre, ok := arguments["port_range_end"].(float64); ok {
+			portRangeEnd = int32(pre)
+		}
+		var icmpType, icmpCode int32
+		icmpTypeSet, icmpCodeSet := false, false
+		if it, ok := arguments["icmp_type"].(float64); ok {
+			icmpType = int32(it)
+			icmpTypeSet = true
+		}
+		if ic, ok := arguments["icmp_code"].(float64); ok {
+			icmpCode = int32(ic)
+			icmpCodeSet = true
+		}
+		ruleType, _ := arguments["type"].(string)
+		return s.createFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP, portRangeStart, portRangeEnd, icmpType, icmpCode, icmpTypeSet, icmpCodeSet, ruleType)
+	case "update_firewall_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		nicID, ok := arguments["nic_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nic_id is required")
+		}
+		firewallRuleID, ok := arguments["firewallrule_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("firewallrule_id is required")
+		}
+		name, _ := arguments["name"].(string)
+		protocol, _ := arguments["protocol"].(string)
+		sourceMac, _ := arguments["source_mac"].(string)
+		sourceIP, _ := arguments["source_ip"].(string)
+		targetIP, _ := arguments["target_ip"].(string)
+		var portRangeStart, portRangeEnd int32
+		portRangeStartSet, portRangeEndSet := false, false
+		if prs, ok := arguments["port_range_start"].(float64); ok {
+			portRangeStart = int32(prs)
+			portRangeStartSet = true
+		}
+		if pre, ok := arguments["port_range_end"].(float64); ok {
+			portRangeEnd = int32(pre)
+			portRangeEndSet = true
+		}
+		var icmpType, icmpCode int32
+		icmpTypeSet, icmpCodeSet := false, false
+		if it, ok := arguments["icmp_type"].(float64); ok {
+			icmpType = int32(it)
+			icmpTypeSet = true
+		}
+		if ic, ok := arguments["icmp_code"].(float64); ok {
+			icmpCode = int32(ic)
+			icmpCodeSet = true
+		}
+		ruleType, _ := arguments["type"].(string)
+		return s.updateFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP, portRangeStart, portRangeEnd, portRangeStartSet, portRangeEndSet, icmpType, icmpCode, icmpTypeSet, icmpCodeSet, ruleType)
+	case "delete_firewall_rule":
+		datacenterID, ok := arguments["datacenter_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("datacenter_id is required")
+		}
+		serverID, ok := arguments["server_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("server_id is required")
+		}
+		nicID, ok := arguments["nic_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("nic_id is required")
+		}
+		firewallRuleID, ok := arguments["firewallrule_id"].(string)
+		if !ok {
+			return "", fmt.Errorf("firewallrule_id is required")
+		}
+		return s.deleteFirewallRule(s.client, s.ctx, datacenterID, serverID, nicID, firewallRuleID)
 	// Networking - NAT Gateways
 	case "list_nat_gateways":
 		datacenterID, ok := arguments["datacenter_id"].(string)
@@ -1141,6 +1364,66 @@ func (s *Server) getLan(client *ionoscloud.APIClient, ctx context.Context, datac
 	return string(data), nil
 }
 
+func (s *Server) createLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, name string, public bool) (string, error) {
+	properties := ionoscloud.LanProperties{
+		Public: &public,
+	}
+	if name != "" {
+		properties.Name = &name
+	}
+
+	lan := ionoscloud.Lan{
+		Properties: &properties,
+	}
+
+	result, _, err := client.LANsApi.DatacentersLansPost(ctx, datacenterID).Lan(lan).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create LAN: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal LAN: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID, name string, public, publicSet bool) (string, error) {
+	if name == "" && !publicSet {
+		return "", fmt.Errorf("at least one of name or public must be provided")
+	}
+
+	properties := ionoscloud.LanProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if publicSet {
+		properties.Public = &public
+	}
+
+	result, _, err := client.LANsApi.DatacentersLansPatch(ctx, datacenterID, lanID).Lan(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update LAN: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal LAN: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteLan(client *ionoscloud.APIClient, ctx context.Context, datacenterID, lanID string) (string, error) {
+	_, err := client.LANsApi.DatacentersLansDelete(ctx, datacenterID, lanID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete LAN: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "lan_id": lanID})
+}
+
 // =============================================================================
 // Networking - NICs
 // =============================================================================
@@ -1171,6 +1454,81 @@ func (s *Server) getNic(client *ionoscloud.APIClient, ctx context.Context, datac
 	}
 
 	return string(data), nil
+}
+
+func (s *Server) createNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, name string, lan int32, dhcp bool, ips []string) (string, error) {
+	// Validate LAN ID
+	if lan < 1 {
+		return "", fmt.Errorf("lan must be at least 1, got %d", lan)
+	}
+
+	properties := ionoscloud.NicProperties{
+		Lan:  &lan,
+		Dhcp: &dhcp,
+	}
+	if name != "" {
+		properties.Name = &name
+	}
+	if len(ips) > 0 {
+		properties.Ips = &ips
+	}
+
+	nic := ionoscloud.Nic{
+		Properties: &properties,
+	}
+
+	result, _, err := client.NetworkInterfacesApi.DatacentersServersNicsPost(ctx, datacenterID, serverID).Nic(nic).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create NIC: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal NIC: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, name string, lan int32, dhcp, dhcpSet bool, ips []string) (string, error) {
+	if name == "" && lan == 0 && !dhcpSet && len(ips) == 0 {
+		return "", fmt.Errorf("at least one of name, lan, dhcp, or ips must be provided")
+	}
+
+	properties := ionoscloud.NicProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if lan > 0 {
+		properties.Lan = &lan
+	}
+	if dhcpSet {
+		properties.Dhcp = &dhcp
+	}
+	if len(ips) > 0 {
+		properties.Ips = &ips
+	}
+
+	result, _, err := client.NetworkInterfacesApi.DatacentersServersNicsPatch(ctx, datacenterID, serverID, nicID).Nic(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update NIC: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal NIC: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteNic(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID string) (string, error) {
+	_, err := client.NetworkInterfacesApi.DatacentersServersNicsDelete(ctx, datacenterID, serverID, nicID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete NIC: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "nic_id": nicID})
 }
 
 // =============================================================================
@@ -1205,6 +1563,68 @@ func (s *Server) getIpBlock(client *ionoscloud.APIClient, ctx context.Context, i
 	return string(data), nil
 }
 
+func (s *Server) createIpBlock(client *ionoscloud.APIClient, ctx context.Context, location string, size int32, name string) (string, error) {
+	// Validate size
+	if size < 1 {
+		return "", fmt.Errorf("size must be at least 1, got %d", size)
+	}
+
+	properties := ionoscloud.IpBlockProperties{
+		Location: &location,
+		Size:     &size,
+	}
+	if name != "" {
+		properties.Name = &name
+	}
+
+	ipblock := ionoscloud.IpBlock{
+		Properties: &properties,
+	}
+
+	result, _, err := client.IPBlocksApi.IpblocksPost(ctx).Ipblock(ipblock).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create IP block: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal IP block: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID, name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("name must be provided")
+	}
+
+	properties := ionoscloud.IpBlockProperties{
+		Name: &name,
+	}
+
+	result, _, err := client.IPBlocksApi.IpblocksPatch(ctx, ipblockID).Ipblock(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update IP block: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal IP block: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteIpBlock(client *ionoscloud.APIClient, ctx context.Context, ipblockID string) (string, error) {
+	_, err := client.IPBlocksApi.IpblocksDelete(ctx, ipblockID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete IP block: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "ipblock_id": ipblockID})
+}
+
 // =============================================================================
 // Networking - Firewall Rules
 // =============================================================================
@@ -1235,6 +1655,121 @@ func (s *Server) getFirewallRule(client *ionoscloud.APIClient, ctx context.Conte
 	}
 
 	return string(data), nil
+}
+
+func (s *Server) createFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
+	// Validate protocol
+	validProtocols := map[string]bool{"TCP": true, "UDP": true, "ICMP": true, "ICMPv6": true, "GRE": true, "ESP": true, "AH": true, "ANY": true}
+	if !validProtocols[protocol] {
+		return "", fmt.Errorf("invalid protocol: %s (valid: TCP, UDP, ICMP, ICMPv6, GRE, ESP, AH, ANY)", protocol)
+	}
+
+	properties := ionoscloud.FirewallruleProperties{
+		Protocol: &protocol,
+	}
+	if name != "" {
+		properties.Name = &name
+	}
+	if sourceMac != "" {
+		properties.SourceMac = &sourceMac
+	}
+	if sourceIP != "" {
+		properties.SourceIp = &sourceIP
+	}
+	if targetIP != "" {
+		properties.TargetIp = &targetIP
+	}
+	if portRangeStart > 0 {
+		properties.PortRangeStart = &portRangeStart
+	}
+	if portRangeEnd > 0 {
+		properties.PortRangeEnd = &portRangeEnd
+	}
+	if icmpTypeSet {
+		properties.IcmpType = &icmpType
+	}
+	if icmpCodeSet {
+		properties.IcmpCode = &icmpCode
+	}
+	if ruleType != "" {
+		properties.Type = &ruleType
+	}
+
+	rule := ionoscloud.FirewallRule{
+		Properties: &properties,
+	}
+
+	result, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPost(ctx, datacenterID, serverID, nicID).Firewallrule(rule).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to create firewall rule: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal firewall rule: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) updateFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID, name, protocol, sourceMac, sourceIP, targetIP string, portRangeStart, portRangeEnd int32, portRangeStartSet, portRangeEndSet bool, icmpType, icmpCode int32, icmpTypeSet, icmpCodeSet bool, ruleType string) (string, error) {
+	// Check if at least one field is provided
+	if name == "" && protocol == "" && sourceMac == "" && sourceIP == "" && targetIP == "" && !portRangeStartSet && !portRangeEndSet && !icmpTypeSet && !icmpCodeSet && ruleType == "" {
+		return "", fmt.Errorf("at least one field must be provided for update")
+	}
+
+	properties := ionoscloud.FirewallruleProperties{}
+	if name != "" {
+		properties.Name = &name
+	}
+	if protocol != "" {
+		properties.Protocol = &protocol
+	}
+	if sourceMac != "" {
+		properties.SourceMac = &sourceMac
+	}
+	if sourceIP != "" {
+		properties.SourceIp = &sourceIP
+	}
+	if targetIP != "" {
+		properties.TargetIp = &targetIP
+	}
+	if portRangeStartSet {
+		properties.PortRangeStart = &portRangeStart
+	}
+	if portRangeEndSet {
+		properties.PortRangeEnd = &portRangeEnd
+	}
+	if icmpTypeSet {
+		properties.IcmpType = &icmpType
+	}
+	if icmpCodeSet {
+		properties.IcmpCode = &icmpCode
+	}
+	if ruleType != "" {
+		properties.Type = &ruleType
+	}
+
+	result, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPatch(ctx, datacenterID, serverID, nicID, firewallRuleID).Firewallrule(properties).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to update firewall rule: %w", err)
+	}
+
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal firewall rule: %w", err)
+	}
+
+	return string(data), nil
+}
+
+func (s *Server) deleteFirewallRule(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID, nicID, firewallRuleID string) (string, error) {
+	_, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesDelete(ctx, datacenterID, serverID, nicID, firewallRuleID).Execute()
+	if err != nil {
+		return "", fmt.Errorf("failed to delete firewall rule: %w", err)
+	}
+
+	return statusResponse(map[string]string{"status": "deleted", "firewallrule_id": firewallRuleID})
 }
 
 // =============================================================================

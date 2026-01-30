@@ -648,6 +648,72 @@ func (s *Server) registerTools() {
 				"required": ["datacenter_id", "lan_id"]
 			}`),
 		},
+		{
+			Name:        "create_lan",
+			Description: "Create a new LAN in a data center",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the LAN"
+					},
+					"public": {
+						"type": "boolean",
+						"description": "Whether the LAN is public (has internet access)"
+					}
+				},
+				"required": ["datacenter_id"]
+			}`),
+		},
+		{
+			Name:        "update_lan",
+			Description: "Update an existing LAN",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"lan_id": {
+						"type": "string",
+						"description": "The ID of the LAN to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the LAN"
+					},
+					"public": {
+						"type": "boolean",
+						"description": "Whether the LAN is public"
+					}
+				},
+				"required": ["datacenter_id", "lan_id"]
+			}`),
+		},
+		{
+			Name:        "delete_lan",
+			Description: "Delete a LAN",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"lan_id": {
+						"type": "string",
+						"description": "The ID of the LAN to delete"
+					}
+				},
+				"required": ["datacenter_id", "lan_id"]
+			}`),
+		},
 		// Networking - NICs
 		{
 			Name:        "list_nics",
@@ -689,6 +755,102 @@ func (s *Server) registerTools() {
 				"required": ["datacenter_id", "server_id", "nic_id"]
 			}`),
 		},
+		{
+			Name:        "create_nic",
+			Description: "Create a new NIC attached to a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"lan": {
+						"type": "integer",
+						"description": "The LAN ID to connect the NIC to"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the NIC"
+					},
+					"dhcp": {
+						"type": "boolean",
+						"description": "Whether DHCP is enabled (default: true)"
+					},
+					"ips": {
+						"type": "array",
+						"items": {"type": "string"},
+						"description": "List of IP addresses to assign to the NIC"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "lan"]
+			}`),
+		},
+		{
+			Name:        "update_nic",
+			Description: "Update an existing NIC",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the NIC"
+					},
+					"lan": {
+						"type": "integer",
+						"description": "The new LAN ID"
+					},
+					"dhcp": {
+						"type": "boolean",
+						"description": "Whether DHCP is enabled"
+					},
+					"ips": {
+						"type": "array",
+						"items": {"type": "string"},
+						"description": "New list of IP addresses"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id"]
+			}`),
+		},
+		{
+			Name:        "delete_nic",
+			Description: "Delete a NIC from a server",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC to delete"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id"]
+			}`),
+		},
 		// Networking - IP Blocks
 		{
 			Name:        "list_ipblocks",
@@ -708,6 +870,60 @@ func (s *Server) registerTools() {
 					"ipblock_id": {
 						"type": "string",
 						"description": "The ID of the IP block"
+					}
+				},
+				"required": ["ipblock_id"]
+			}`),
+		},
+		{
+			Name:        "create_ipblock",
+			Description: "Reserve a block of public IP addresses",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"location": {
+						"type": "string",
+						"description": "The location/region for the IP block (e.g., us/las, de/fra)"
+					},
+					"size": {
+						"type": "integer",
+						"description": "The number of IP addresses to reserve"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the IP block"
+					}
+				},
+				"required": ["location", "size"]
+			}`),
+		},
+		{
+			Name:        "update_ipblock",
+			Description: "Update an IP block name",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"ipblock_id": {
+						"type": "string",
+						"description": "The ID of the IP block to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the IP block"
+					}
+				},
+				"required": ["ipblock_id", "name"]
+			}`),
+		},
+		{
+			Name:        "delete_ipblock",
+			Description: "Release an IP block",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"ipblock_id": {
+						"type": "string",
+						"description": "The ID of the IP block to delete"
 					}
 				},
 				"required": ["ipblock_id"]
@@ -757,6 +973,160 @@ func (s *Server) registerTools() {
 					"firewallrule_id": {
 						"type": "string",
 						"description": "The ID of the firewall rule"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id", "firewallrule_id"]
+			}`),
+		},
+		{
+			Name:        "create_firewall_rule",
+			Description: "Create a new firewall rule on a NIC",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC"
+					},
+					"name": {
+						"type": "string",
+						"description": "The name of the firewall rule"
+					},
+					"protocol": {
+						"type": "string",
+						"description": "The protocol (TCP, UDP, ICMP, ICMPv6, GRE, ESP, AH, ANY)"
+					},
+					"source_mac": {
+						"type": "string",
+						"description": "Only traffic from this MAC address is allowed"
+					},
+					"source_ip": {
+						"type": "string",
+						"description": "Only traffic from this IP address/CIDR is allowed"
+					},
+					"target_ip": {
+						"type": "string",
+						"description": "Only traffic to this IP address/CIDR is allowed"
+					},
+					"port_range_start": {
+						"type": "integer",
+						"description": "Start port of the allowed port range (1-65534)"
+					},
+					"port_range_end": {
+						"type": "integer",
+						"description": "End port of the allowed port range (1-65534)"
+					},
+					"icmp_type": {
+						"type": "integer",
+						"description": "ICMP type (for ICMP protocol)"
+					},
+					"icmp_code": {
+						"type": "integer",
+						"description": "ICMP code (for ICMP protocol)"
+					},
+					"type": {
+						"type": "string",
+						"description": "The type of firewall rule (INGRESS or EGRESS)"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id", "protocol"]
+			}`),
+		},
+		{
+			Name:        "update_firewall_rule",
+			Description: "Update an existing firewall rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC"
+					},
+					"firewallrule_id": {
+						"type": "string",
+						"description": "The ID of the firewall rule to update"
+					},
+					"name": {
+						"type": "string",
+						"description": "The new name for the firewall rule"
+					},
+					"protocol": {
+						"type": "string",
+						"description": "The new protocol"
+					},
+					"source_mac": {
+						"type": "string",
+						"description": "The new source MAC address"
+					},
+					"source_ip": {
+						"type": "string",
+						"description": "The new source IP address/CIDR"
+					},
+					"target_ip": {
+						"type": "string",
+						"description": "The new target IP address/CIDR"
+					},
+					"port_range_start": {
+						"type": "integer",
+						"description": "The new start port"
+					},
+					"port_range_end": {
+						"type": "integer",
+						"description": "The new end port"
+					},
+					"icmp_type": {
+						"type": "integer",
+						"description": "The new ICMP type"
+					},
+					"icmp_code": {
+						"type": "integer",
+						"description": "The new ICMP code"
+					},
+					"type": {
+						"type": "string",
+						"description": "The new firewall rule type (INGRESS or EGRESS)"
+					}
+				},
+				"required": ["datacenter_id", "server_id", "nic_id", "firewallrule_id"]
+			}`),
+		},
+		{
+			Name:        "delete_firewall_rule",
+			Description: "Delete a firewall rule",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"datacenter_id": {
+						"type": "string",
+						"description": "The ID of the data center"
+					},
+					"server_id": {
+						"type": "string",
+						"description": "The ID of the server"
+					},
+					"nic_id": {
+						"type": "string",
+						"description": "The ID of the NIC"
+					},
+					"firewallrule_id": {
+						"type": "string",
+						"description": "The ID of the firewall rule to delete"
 					}
 				},
 				"required": ["datacenter_id", "server_id", "nic_id", "firewallrule_id"]

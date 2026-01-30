@@ -74,49 +74,49 @@ The server currently has **42 READ-only tools** (list/get operations). This plan
 
 ---
 
-## Priority 2: Networking CRUD
+## Priority 2: Networking CRUD ✅ COMPLETED
 
 ### 2.1 LAN Operations
-- [ ] `create_lan` - Create a LAN in a datacenter
+- [x] `create_lan` - Create a LAN in a datacenter
   - Parameters: datacenter_id, name, public (boolean)
   - Test: Create LAN, verify properties
-- [ ] `update_lan` - Update LAN properties
+- [x] `update_lan` - Update LAN properties
   - Parameters: datacenter_id, lan_id, name, public
   - Test: Update LAN, verify changes
-- [ ] `delete_lan` - Delete a LAN
+- [x] `delete_lan` - Delete a LAN
   - Parameters: datacenter_id, lan_id
   - Test: Delete LAN created in tests
 
 ### 2.2 NIC Operations
-- [ ] `create_nic` - Create a NIC on a server
+- [x] `create_nic` - Create a NIC on a server
   - Parameters: datacenter_id, server_id, name, lan, dhcp (boolean), ips (optional)
   - Test: Create NIC, verify attachment to server
-- [ ] `update_nic` - Update NIC properties
+- [x] `update_nic` - Update NIC properties
   - Parameters: datacenter_id, server_id, nic_id, name, lan, ips
   - Test: Update NIC, verify changes
-- [ ] `delete_nic` - Delete a NIC
+- [x] `delete_nic` - Delete a NIC
   - Parameters: datacenter_id, server_id, nic_id
   - Test: Delete NIC created in tests
 
 ### 2.3 IP Block Operations
-- [ ] `create_ipblock` - Reserve a block of public IPs
+- [x] `create_ipblock` - Reserve a block of public IPs
   - Parameters: location, size, name
   - Test: Reserve IPs, verify allocation
-- [ ] `update_ipblock` - Update IP block name
+- [x] `update_ipblock` - Update IP block name
   - Parameters: ipblock_id, name
   - Test: Update IP block name
-- [ ] `delete_ipblock` - Release an IP block
+- [x] `delete_ipblock` - Release an IP block
   - Parameters: ipblock_id
   - Test: Release IP block created in tests
 
 ### 2.4 Firewall Rule Operations
-- [ ] `create_firewall_rule` - Create a firewall rule on a NIC
+- [x] `create_firewall_rule` - Create a firewall rule on a NIC
   - Parameters: datacenter_id, server_id, nic_id, name, protocol, source_mac, source_ip, target_ip, port_range_start, port_range_end, icmp_type, icmp_code, type (INGRESS/EGRESS)
   - Test: Create firewall rule, verify it exists
-- [ ] `update_firewall_rule` - Update firewall rule
+- [x] `update_firewall_rule` - Update firewall rule
   - Parameters: datacenter_id, server_id, nic_id, firewallrule_id, + same as create
   - Test: Update rule, verify changes
-- [ ] `delete_firewall_rule` - Delete a firewall rule
+- [x] `delete_firewall_rule` - Delete a firewall rule
   - Parameters: datacenter_id, server_id, nic_id, firewallrule_id
   - Test: Delete rule created in tests
 
