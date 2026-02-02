@@ -186,7 +186,7 @@ func TestValidateVolumeType(t *testing.T) {
 		{"valid DAS", "DAS", false},
 		{"invalid type", "INVALID", true},
 		{"lowercase hdd", "hdd", true},
-		{"empty type", "", true},
+		{"empty type is valid (optional)", "", false},
 	}
 
 	for _, tt := range tests {
@@ -209,7 +209,7 @@ func TestValidateBusType(t *testing.T) {
 		{"valid IDE", "IDE", false},
 		{"invalid type", "SCSI", true},
 		{"lowercase virtio", "virtio", true},
-		{"empty type", "", true},
+		{"empty type is valid (optional)", "", false},
 	}
 
 	for _, tt := range tests {
