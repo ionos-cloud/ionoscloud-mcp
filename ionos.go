@@ -5,204 +5,129 @@ import (
 	"encoding/json"
 	"fmt"
 
-	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
+	compute "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func (s *Server) executeTool(name string, arguments map[string]interface{}) (string, error) {
-	switch name {
-	case "list_datacenters":
-		return s.listDatacenters(s.client, s.ctx)
-	case "get_datacenter":
-		datacenterID, ok := arguments["datacenter_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("datacenter_id is required")
-		}
-		return s.getDatacenter(s.client, s.ctx, datacenterID)
-	case "list_servers":
-		datacenterID, ok := arguments["datacenter_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("datacenter_id is required")
-		}
-		return s.listServers(s.client, s.ctx, datacenterID)
-	case "get_server":
-		datacenterID, ok := arguments["datacenter_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("datacenter_id is required")
-		}
-		serverID, ok := arguments["server_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("server_id is required")
-		}
-		return s.getServer(s.client, s.ctx, datacenterID, serverID)
-	case "list_volumes":
-		datacenterID, ok := arguments["datacenter_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("datacenter_id is required")
-		}
-		return s.listVolumes(s.client, s.ctx, datacenterID)
-	case "get_volume":
-		datacenterID, ok := arguments["datacenter_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("datacenter_id is required")
-		}
-		volumeID, ok := arguments["volume_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("volume_id is required")
-		}
-		return s.getVolume(s.client, s.ctx, datacenterID, volumeID)
-	case "list_images":
-		return s.listImages(s.client, s.ctx)
-	case "list_locations":
-		return s.listLocations(s.client, s.ctx)
-	case "list_snapshots":
-		return s.listSnapshots(s.client, s.ctx)
-	case "get_snapshot":
-		snapshotID, ok := arguments["snapshot_id"].(string)
-		if !ok {
-			return "", fmt.Errorf("snapshot_id is required")
-		}
-		return s.getSnapshot(s.client, s.ctx, snapshotID)
-	default:
-		return "", fmt.Errorf("unknown tool: %s", name)
-	}
+// Input types for tool parameters.
+
+type DatacenterIDInput struct {
+	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 }
 
-func (s *Server) listDatacenters(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to list datacenters: %w", err)
-	}
-
-	data, err := json.MarshalIndent(datacenters, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal datacenters: %w", err)
-	}
-
-	return string(data), nil
+type ServerIDInput struct {
+	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	ServerID     string `json:"server_id" jsonschema:"the ID of the server"`
 }
 
-func (s *Server) getDatacenter(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	datacenter, _, err := client.DataCentersApi.DatacentersFindById(ctx, datacenterID).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to get datacenter: %w", err)
-	}
-
-	data, err := json.MarshalIndent(datacenter, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal datacenter: %w", err)
-	}
-
-	return string(data), nil
+type VolumeIDInput struct {
+	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	VolumeID     string `json:"volume_id" jsonschema:"the ID of the volume"`
 }
 
-func (s *Server) listServers(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	servers, _, err := client.ServersApi.DatacentersServersGet(ctx, datacenterID).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to list servers: %w", err)
-	}
-
-	data, err := json.MarshalIndent(servers, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal servers: %w", err)
-	}
-
-	return string(data), nil
+type SnapshotIDInput struct {
+	SnapshotID string `json:"snapshot_id" jsonschema:"the ID of the snapshot"`
 }
 
-func (s *Server) getServer(client *ionoscloud.APIClient, ctx context.Context, datacenterID, serverID string) (string, error) {
-	server, _, err := client.ServersApi.DatacentersServersFindById(ctx, datacenterID, serverID).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to get server: %w", err)
+// toResult marshals an API response into an MCP text result.
+func toResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
+	if apiErr != nil {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: apiErr.Error()},
+			},
+			IsError: true,
+		}, nil, nil
 	}
-
-	data, err := json.MarshalIndent(server, "", "  ")
+	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal server: %w", err)
+		return nil, nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
-
-	return string(data), nil
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(bytes)},
+		},
+	}, nil, nil
 }
 
-func (s *Server) listVolumes(client *ionoscloud.APIClient, ctx context.Context, datacenterID string) (string, error) {
-	volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, datacenterID).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to list volumes: %w", err)
-	}
+func registerTools(server *mcp.Server, client *compute.APIClient) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_datacenters",
+		Description: "List all virtual data centers in your IONOS Cloud account",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Execute()
+		return toResult(datacenters, err)
+	})
 
-	data, err := json.MarshalIndent(volumes, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volumes: %w", err)
-	}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_datacenter",
+		Description: "Get details of a specific virtual data center",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+		datacenter, _, err := client.DataCentersApi.DatacentersFindById(ctx, input.DatacenterID).Execute()
+		return toResult(datacenter, err)
+	})
 
-	return string(data), nil
-}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_servers",
+		Description: "List all servers in a data center",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+		servers, _, err := client.ServersApi.DatacentersServersGet(ctx, input.DatacenterID).Execute()
+		return toResult(servers, err)
+	})
 
-func (s *Server) getVolume(client *ionoscloud.APIClient, ctx context.Context, datacenterID, volumeID string) (string, error) {
-	volume, _, err := client.VolumesApi.DatacentersVolumesFindById(ctx, datacenterID, volumeID).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to get volume: %w", err)
-	}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_server",
+		Description: "Get details of a specific server",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ServerIDInput) (*mcp.CallToolResult, any, error) {
+		s, _, err := client.ServersApi.DatacentersServersFindById(ctx, input.DatacenterID, input.ServerID).Execute()
+		return toResult(s, err)
+	})
 
-	data, err := json.MarshalIndent(volume, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal volume: %w", err)
-	}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_volumes",
+		Description: "List all volumes in a data center",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+		volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, input.DatacenterID).Execute()
+		return toResult(volumes, err)
+	})
 
-	return string(data), nil
-}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_volume",
+		Description: "Get details of a specific volume",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input VolumeIDInput) (*mcp.CallToolResult, any, error) {
+		volume, _, err := client.VolumesApi.DatacentersVolumesFindById(ctx, input.DatacenterID, input.VolumeID).Execute()
+		return toResult(volume, err)
+	})
 
-func (s *Server) listImages(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	images, _, err := client.ImagesApi.ImagesGet(ctx).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to list images: %w", err)
-	}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_images",
+		Description: "List all available images (OS templates) in IONOS Cloud",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		images, _, err := client.ImagesApi.ImagesGet(ctx).Execute()
+		return toResult(images, err)
+	})
 
-	data, err := json.MarshalIndent(images, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal images: %w", err)
-	}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_locations",
+		Description: "List all available locations (regions) in IONOS Cloud",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		locations, _, err := client.LocationsApi.LocationsGet(ctx).Execute()
+		return toResult(locations, err)
+	})
 
-	return string(data), nil
-}
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_snapshots",
+		Description: "List all snapshots in your IONOS Cloud account",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+		snapshots, _, err := client.SnapshotsApi.SnapshotsGet(ctx).Execute()
+		return toResult(snapshots, err)
+	})
 
-func (s *Server) listLocations(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	locations, _, err := client.LocationsApi.LocationsGet(ctx).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to list locations: %w", err)
-	}
-
-	data, err := json.MarshalIndent(locations, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal locations: %w", err)
-	}
-
-	return string(data), nil
-}
-
-func (s *Server) listSnapshots(client *ionoscloud.APIClient, ctx context.Context) (string, error) {
-	snapshots, _, err := client.SnapshotsApi.SnapshotsGet(ctx).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to list snapshots: %w", err)
-	}
-
-	data, err := json.MarshalIndent(snapshots, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snapshots: %w", err)
-	}
-
-	return string(data), nil
-}
-
-func (s *Server) getSnapshot(client *ionoscloud.APIClient, ctx context.Context, snapshotID string) (string, error) {
-	snapshot, _, err := client.SnapshotsApi.SnapshotsFindById(ctx, snapshotID).Execute()
-	if err != nil {
-		return "", fmt.Errorf("failed to get snapshot: %w", err)
-	}
-
-	data, err := json.MarshalIndent(snapshot, "", "  ")
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal snapshot: %w", err)
-	}
-
-	return string(data), nil
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_snapshot",
+		Description: "Get details of a specific snapshot",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input SnapshotIDInput) (*mcp.CallToolResult, any, error) {
+		snapshot, _, err := client.SnapshotsApi.SnapshotsFindById(ctx, input.SnapshotID).Execute()
+		return toResult(snapshot, err)
+	})
 }
