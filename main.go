@@ -6,7 +6,8 @@ import (
 	"log"
 	"os"
 
-	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
+	compute "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -16,16 +17,14 @@ const (
 )
 
 func main() {
-	username := os.Getenv("IONOS_USERNAME")
-	password := os.Getenv("IONOS_PASSWORD")
-	token := os.Getenv("IONOS_TOKEN")
+	cfg := shared.NewConfigurationFromEnv()
 
-	if username == "" && token == "" {
-		fmt.Fprintf(os.Stderr, "Warning: No IONOS Cloud credentials found. Set IONOS_USERNAME/IONOS_PASSWORD or IONOS_TOKEN environment variables.\n")
+	if cfg.Token == "" {
+		fmt.Fprintf(os.Stderr, "Error: IONOS_TOKEN environment variable is required.\n")
+		os.Exit(1)
 	}
 
-	configuration := ionoscloud.NewConfiguration(username, password, token, "")
-	client := ionoscloud.NewAPIClient(configuration)
+	client := compute.NewAPIClient(cfg)
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    serverName,

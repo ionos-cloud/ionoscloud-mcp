@@ -48,20 +48,13 @@ go build -o ionoscloud-mcp .
 
 ## Configuration
 
-The server requires IONOS Cloud API credentials to be set as environment variables. You can use either:
+The server requires an IONOS Cloud API token set as an environment variable:
 
-- Username and password authentication:
-  ```bash
-  export IONOS_USERNAME="your-username"
-  export IONOS_PASSWORD="your-password"
-  ```
+```bash
+export IONOS_TOKEN="your-api-token"
+```
 
-- Token-based authentication:
-  ```bash
-  export IONOS_TOKEN="your-api-token"
-  ```
-
-You can obtain your API credentials from the [IONOS Cloud DCD](https://dcd.ionos.com/).
+You can generate a token from the [IONOS Cloud DCD](https://dcd.ionos.com/) under Management > Token Management.
 
 ## Usage
 
@@ -74,22 +67,6 @@ The server uses stdio for communication following the MCP protocol. To run the s
 ### Integration with MCP Clients
 
 To use this server with an MCP client (like Claude Desktop), add it to your MCP settings:
-
-```json
-{
-  "mcpServers": {
-    "ionoscloud": {
-      "command": "/path/to/ionoscloud-mcp",
-      "env": {
-        "IONOS_USERNAME": "your-username",
-        "IONOS_PASSWORD": "your-password"
-      }
-    }
-  }
-}
-```
-
-Or with token authentication:
 
 ```json
 {
@@ -305,14 +282,14 @@ go build -o ionoscloud-mcp .
 ### Dependencies
 
 This project uses minimal external dependencies:
-- [ionos-cloud/sdk-go](https://github.com/ionos-cloud/sdk-go) - Official IONOS Cloud Go SDK
+- [ionos-cloud/sdk-go-bundle](https://github.com/ionos-cloud/sdk-go-bundle) - IONOS Cloud Go SDK Bundle
 
 ## API Documentation
 
 For more information about the IONOS Cloud API, refer to:
 - [IONOS Cloud API Documentation](https://api.ionos.com/docs/)
 - [API Specifications](https://github.com/ionos-cloud/rest-api/tree/main/public)
-- [SDK Documentation](https://github.com/ionos-cloud/sdk-go)
+- [SDK Documentation](https://github.com/ionos-cloud/sdk-go-bundle)
 
 ## License
 

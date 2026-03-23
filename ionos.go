@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	ionoscloud "github.com/ionos-cloud/sdk-go/v6"
+	compute "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -50,7 +50,7 @@ func toResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
 	}, nil, nil
 }
 
-func registerTools(server *mcp.Server, client *ionoscloud.APIClient) {
+func registerTools(server *mcp.Server, client *compute.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_datacenters",
 		Description: "List all virtual data centers in your IONOS Cloud account",

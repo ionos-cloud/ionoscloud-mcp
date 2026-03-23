@@ -33,9 +33,7 @@ The codebase consists of two files:
 
 ### Authentication
 
-The server reads credentials from environment variables at startup:
-- `IONOS_USERNAME` + `IONOS_PASSWORD` for username/password auth
-- `IONOS_TOKEN` for token-based auth
+The server requires `IONOS_TOKEN` environment variable at startup. It exits with an error if the token is not set.
 
 ### Adding New Tools
 
