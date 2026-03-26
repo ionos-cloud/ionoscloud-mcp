@@ -1,6 +1,6 @@
 ---
 subcategory: "Compute Engine"
-page_title: "Snapshots"
+page_title: "Snapshot"
 description: |-
   Tools for listing and inspecting snapshots in IONOS Cloud.
 ---

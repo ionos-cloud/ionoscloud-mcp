@@ -1,6 +1,6 @@
 ---
 subcategory: "Compute Engine"
-page_title: "Images"
+page_title: "Image"
 description: |-
   Tools for listing available images (OS templates) in IONOS Cloud.
 ---

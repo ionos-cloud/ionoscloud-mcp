@@ -1,6 +1,6 @@
 ---
 subcategory: "Compute Engine"
-page_title: "Servers"
+page_title: "Server"
 description: |-
   Tools for listing and inspecting servers in IONOS Cloud.
 ---

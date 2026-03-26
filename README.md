@@ -14,12 +14,12 @@ The server provides the following tools for interacting with IONOS Cloud:
 
 | Resource | Tools | Docs |
 |----------|-------|------|
-| Data Centers | `list_datacenters`, `get_datacenter` | [datacenters.md](docs/compute/datacenters.md) |
-| Servers | `list_servers`, `get_server` | [servers.md](docs/compute/servers.md) |
-| Volumes | `list_volumes`, `get_volume` | [volumes.md](docs/compute/volumes.md) |
-| Images | `list_images` | [images.md](docs/compute/images.md) |
-| Locations | `list_locations` | [locations.md](docs/compute/locations.md) |
-| Snapshots | `list_snapshots`, `get_snapshot` | [snapshots.md](docs/compute/snapshots.md) |
+| Data Center | `list_datacenters`, `get_datacenter` | [datacenter.md](docs/compute/datacenter.md) |
+| Server | `list_servers`, `get_server` | [server.md](docs/compute/server.md) |
+| Volume | `list_volumes`, `get_volume` | [volume.md](docs/compute/volume.md) |
+| Image | `list_images` | [image.md](docs/compute/image.md) |
+| Location | `list_locations` | [location.md](docs/compute/location.md) |
+| Snapshot | `list_snapshots`, `get_snapshot` | [snapshot.md](docs/compute/snapshot.md) |
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
 ---
 subcategory: "Compute Engine"
-page_title: "Data Centers"
+page_title: "Data Center"
 description: |-
   Tools for listing and inspecting virtual data centers in IONOS Cloud.
 ---

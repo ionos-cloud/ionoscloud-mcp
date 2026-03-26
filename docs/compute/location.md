@@ -1,6 +1,6 @@
 ---
 subcategory: "Compute Engine"
-page_title: "Locations"
+page_title: "Location"
 description: |-
   Tools for listing available locations (regions) in IONOS Cloud.
 ---

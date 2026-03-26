@@ -1,6 +1,6 @@
 ---
 subcategory: "Compute Engine"
-page_title: "Volumes"
+page_title: "Volume"
 description: |-
   Tools for listing and inspecting volumes in IONOS Cloud.
 ---
