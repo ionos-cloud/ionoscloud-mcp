@@ -1,0 +1,35 @@
+package compute
+
+import (
+	"context"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
+	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIClient) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_application_loadbalancers",
+		Description: "List all application load balancers (ALB) in a data center",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+		albs, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(ctx, input.DatacenterID).Execute()
+		return tools.ToResult(albs, err)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_application_loadbalancer",
+		Description: "Get details of a specific application load balancer (ALB)",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ApplicationLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
+		alb, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersFindByApplicationLoadBalancerId(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Execute()
+		return tools.ToResult(alb, err)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_alb_forwarding_rules",
+		Description: "List all forwarding rules of an application load balancer",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ApplicationLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
+		rules, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Execute()
+		return tools.ToResult(rules, err)
+	})
+}

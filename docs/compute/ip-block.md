@@ -1,0 +1,52 @@
+---
+subcategory: "Compute Engine"
+page_title: "IP Block"
+description: |-
+  Tools for listing and inspecting reserved IP blocks in IONOS Cloud.
+---
+
+# IP Blocks
+
+## list_ip_blocks
+
+Lists all reserved IP blocks in your IONOS Cloud account.
+
+**Parameters:**
+
+None.
+
+**Example:**
+
+```json
+{
+  "name": "list_ip_blocks",
+  "arguments": {}
+}
+```
+
+**API Reference:** [ipblocksGet](https://api.ionos.com/docs/cloud/v6/#tag/IPBlocks/operation/ipblocksGet)
+
+---
+
+## get_ip_block
+
+Gets detailed information about a specific reserved IP block.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `ipblock_id` | string | Yes | The ID of the IP block |
+
+**Example:**
+
+```json
+{
+  "name": "get_ip_block",
+  "arguments": {
+    "ipblock_id": "12345678-1234-1234-1234-123456789012"
+  }
+}
+```
+
+**API Reference:** [ipblocksFindById](https://api.ionos.com/docs/cloud/v6/#tag/IPBlocks/operation/ipblocksFindById)

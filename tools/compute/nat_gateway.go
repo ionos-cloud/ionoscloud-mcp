@@ -1,0 +1,35 @@
+package compute
+
+import (
+	"context"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
+	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+func RegisterNatGatewayTools(server *mcp.Server, client *ionos.APIClient) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_nat_gateways",
+		Description: "List all NAT gateways in a data center",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+		nats, _, err := client.NATGatewaysApi.DatacentersNatgatewaysGet(ctx, input.DatacenterID).Execute()
+		return tools.ToResult(nats, err)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_nat_gateway",
+		Description: "Get details of a specific NAT gateway",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NatGatewayIDInput) (*mcp.CallToolResult, any, error) {
+		nat, _, err := client.NATGatewaysApi.DatacentersNatgatewaysFindByNatGatewayId(ctx, input.DatacenterID, input.NatGatewayID).Execute()
+		return tools.ToResult(nat, err)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_nat_gateway_rules",
+		Description: "List all rules of a specific NAT gateway",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NatGatewayIDInput) (*mcp.CallToolResult, any, error) {
+		rules, _, err := client.NATGatewaysApi.DatacentersNatgatewaysRulesGet(ctx, input.DatacenterID, input.NatGatewayID).Execute()
+		return tools.ToResult(rules, err)
+	})
+}
