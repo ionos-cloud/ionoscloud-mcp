@@ -1,0 +1,77 @@
+---
+subcategory: "Compute Engine"
+page_title: "Request"
+description: |-
+  Tools for listing and inspecting API requests in IONOS Cloud.
+---
+
+# Requests
+
+## list_requests
+
+Lists all API requests in your IONOS Cloud account.
+
+**Parameters:**
+
+None.
+
+**Example:**
+
+```json
+{
+  "name": "list_requests",
+  "arguments": {}
+}
+```
+
+**API Reference:** [requestsGet](https://api.ionos.com/docs/cloud/v6/#tag/Requests/operation/requestsGet)
+
+---
+
+## get_request
+
+Gets detailed information about a specific API request.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `request_id` | string | Yes | The ID of the request |
+
+**Example:**
+
+```json
+{
+  "name": "get_request",
+  "arguments": {
+    "request_id": "12345678-1234-1234-1234-123456789012"
+  }
+}
+```
+
+**API Reference:** [requestsFindById](https://api.ionos.com/docs/cloud/v6/#tag/Requests/operation/requestsFindById)
+
+---
+
+## get_request_status
+
+Gets the status of a specific API request.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `request_id` | string | Yes | The ID of the request |
+
+**Example:**
+
+```json
+{
+  "name": "get_request_status",
+  "arguments": {
+    "request_id": "12345678-1234-1234-1234-123456789012"
+  }
+}
+```
+
+**API Reference:** [requestsStatusGet](https://api.ionos.com/docs/cloud/v6/#tag/Requests/operation/requestsStatusGet)

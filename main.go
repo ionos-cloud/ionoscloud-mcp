@@ -6,7 +6,8 @@ import (
 	"log"
 	"os"
 
-	compute "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
+	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -24,14 +25,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := compute.NewAPIClient(cfg)
+	client := ionos.NewAPIClient(cfg)
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    serverName,
 		Version: serverVersion,
 	}, nil)
 
-	registerTools(server, client)
+	compute.RegisterAll(server, client)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
