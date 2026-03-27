@@ -33,11 +33,12 @@ Test your changes using the MCP protocol:
 
 To add a new tool:
 
-1. Define an input struct in `ionos.go` with `json` and `jsonschema` tags
-2. Add a `mcp.AddTool()` call in `registerTools()` in `ionos.go` with the tool name, description, and handler function
-3. Add the tool to the appropriate `docs/<product>/` resource file (e.g., `docs/compute/server.md`)
-4. Update the tools table in README.md
-5. Test the tool using the MCP protocol
+1. Define an input struct in `tools/inputs.go` with `json` and `jsonschema` tags (non-pointer fields are automatically required)
+2. Add a `mcp.AddTool()` call in the appropriate resource file under `tools/<product>/` (e.g., `tools/compute/server.go`)
+3. Register the new resource file's function in `tools/<product>/register.go` if it's a new resource
+4. Add the tool to the appropriate `docs/<product>/` resource file (e.g., `docs/compute/server.md`)
+5. Update the tools table in `README.md`
+6. Test the tool using the MCP protocol
 
 ## Pull Request Process
 

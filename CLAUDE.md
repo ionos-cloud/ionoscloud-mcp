@@ -20,15 +20,28 @@ make clean      # Remove build artifacts
 
 ## Architecture
 
-The codebase consists of two files:
+```
+main.go                     # Entry point: SDK client init, MCP server, stdio transport
+tools/
+├── helpers.go              # Shared helpers (ToResult) — reusable across products
+├── inputs.go               # Shared input structs with json/jsonschema tags
+└── compute/
+    ├── register.go         # RegisterAll() — calls all per-resource Register*Tools()
+    ├── datacenter.go       # Datacenter tools (list, get)
+    ├── server.go           # Server tools (list, get, sub-resources)
+    ├── volume.go           # Volume tools
+    └── ...                 # One file per resource (20 files total, 50 tools)
+docs/compute/               # One doc file per resource
+```
 
-- **main.go**: Entry point - initializes the IONOS Cloud client, creates the MCP server via `mcp.NewServer()`, registers tools, and runs over `mcp.StdioTransport`.
-- **ionos.go**: Tool definitions and IONOS Cloud API implementations. Input types use Go structs with `jsonschema` tags for automatic schema inference. All tools are registered in `registerTools()` using the generic `mcp.AddTool()`.
+- **main.go**: Initializes the IONOS Cloud client, creates the MCP server via `mcp.NewServer()`, calls `compute.RegisterAll()`, and runs over `mcp.StdioTransport`.
+- **tools/**: Shared input structs and helpers in the parent package, product-specific tools in sub-packages.
+- **tools/compute/**: One file per resource. Each file exports a `Register*Tools()` function that adds tools via `mcp.AddTool()`.
 
 ### Request Flow
 
 1. The official MCP SDK handles all JSON-RPC protocol framing over stdio
-2. Tools are registered with typed Go structs - the SDK auto-generates JSON schemas and validates inputs
+2. Tools are registered with typed Go structs — the SDK auto-generates JSON schemas and validates inputs
 3. Each tool handler calls the IONOS Cloud SDK and returns results as `mcp.TextContent`
 
 ### Authentication
@@ -37,9 +50,10 @@ The server requires `IONOS_TOKEN` environment variable at startup. It exits with
 
 ### Adding New Tools
 
-1. Define an input struct in ionos.go with `json` and `jsonschema` tags (non-pointer fields are automatically required)
-2. Add a `mcp.AddTool()` call in `registerTools()` with the tool name, description, and handler function
-3. The handler receives the typed input struct and returns `(*mcp.CallToolResult, any, error)`
+1. Define an input struct in `tools/inputs.go` with `json` and `jsonschema` tags (non-pointer fields are automatically required)
+2. Add a `mcp.AddTool()` call in the appropriate resource file under `tools/compute/` (e.g., `tools/compute/server.go`)
+3. If it's a new resource, create a new file and register it in `tools/compute/register.go`
+4. The handler receives the typed input struct and returns `(*mcp.CallToolResult, any, error)`
 
 ## Testing MCP Protocol
 
