@@ -1,0 +1,50 @@
+---
+subcategory: "Compute Engine"
+page_title: "Data Center"
+description: |-
+  Tools for listing and inspecting virtual data centers in IONOS Cloud.
+---
+
+# Data Centers
+
+## list_datacenters
+
+Lists all virtual data centers in your IONOS Cloud account.
+
+**Parameters:** None
+
+**Example:**
+
+```json
+{
+  "name": "list_datacenters",
+  "arguments": {}
+}
+```
+
+**API Reference:** [datacentersGet](https://api.ionos.com/docs/cloud/v6/#tag/Data-Centers/operation/datacentersGet)
+
+---
+
+## get_datacenter
+
+Gets detailed information about a specific virtual data center.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `datacenter_id` | string | Yes | The ID of the data center |
+
+**Example:**
+
+```json
+{
+  "name": "get_datacenter",
+  "arguments": {
+    "datacenter_id": "12345678-1234-1234-1234-123456789012"
+  }
+}
+```
+
+**API Reference:** [datacentersFindById](https://api.ionos.com/docs/cloud/v6/#tag/Data-Centers/operation/datacentersFindById)

@@ -2,34 +2,24 @@
 
 This project implements a Model Context Protocol (MCP) server that allows LLMs to interact with IONOS Cloud resources. The server is written in Go and uses the official IONOS Cloud SDK.
 
+## What is MCP?
+
+The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard that allows AI assistants to connect to external tools and data sources. It defines a JSON-RPC 2.0 interface over stdio (or HTTP) through which an LLM client can discover and invoke tools provided by a server. This MCP server exposes IONOS Cloud infrastructure operations as tools, enabling AI assistants like Claude to list, inspect, and manage your cloud resources through natural language. It is designed for developers and platform engineers who want to interact with IONOS Cloud programmatically through an AI-powered workflow.
+
 ## Features
 
 The server provides the following tools for interacting with IONOS Cloud:
 
-### Data Centers
-- **list_datacenters**: List all virtual data centers in your IONOS Cloud account
-- **get_datacenter**: Get details of a specific virtual data center
+### [Compute Engine](docs/compute/)
 
-### Servers
-- **list_servers**: List all servers in a data center
-- **get_server**: Get details of a specific server
-
-### Volumes
-- **list_volumes**: List all volumes in a data center
-- **get_volume**: Get details of a specific volume
-
-### Images & Snapshots
-- **list_images**: List all available images (OS templates)
-- **list_snapshots**: List all snapshots in your account
-- **get_snapshot**: Get details of a specific snapshot
-
-### Locations
-- **list_locations**: List all available locations (regions) in IONOS Cloud
-
-## Prerequisites
-
-- Go 1.20 or higher (tested with Go 1.24)
-- IONOS Cloud account with API credentials
+| Resource | Tools | Docs |
+|----------|-------|------|
+| Data Center | `list_datacenters`, `get_datacenter` | [datacenter.md](docs/compute/datacenter.md) |
+| Server | `list_servers`, `get_server` | [server.md](docs/compute/server.md) |
+| Volume | `list_volumes`, `get_volume` | [volume.md](docs/compute/volume.md) |
+| Image | `list_images` | [image.md](docs/compute/image.md) |
+| Location | `list_locations` | [location.md](docs/compute/location.md) |
+| Snapshot | `list_snapshots`, `get_snapshot` | [snapshot.md](docs/compute/snapshot.md) |
 
 ## Installation
 
@@ -48,9 +38,10 @@ go build -o ionoscloud-mcp .
 
 ## Configuration
 
-The server requires an IONOS Cloud API token set as an environment variable:
+You need an IONOS Cloud account with API credentials. Set the token as an environment variable:
 
 ```bash
+# Token-based authentication
 export IONOS_TOKEN="your-api-token"
 ```
 
@@ -81,170 +72,6 @@ To use this server with an MCP client (like Claude Desktop), add it to your MCP 
 }
 ```
 
-## Available Tools
-
-### list_datacenters
-
-Lists all virtual data centers in your IONOS Cloud account.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_datacenters",
-  "arguments": {}
-}
-```
-
-### get_datacenter
-
-Gets detailed information about a specific data center.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-
-**Example:**
-```json
-{
-  "name": "get_datacenter",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012"
-  }
-}
-```
-
-### list_servers
-
-Lists all servers in a specific data center.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-
-**Example:**
-```json
-{
-  "name": "list_servers",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012"
-  }
-}
-```
-
-### get_server
-
-Gets detailed information about a specific server.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-- `server_id` (string, required): The ID of the server
-
-**Example:**
-```json
-{
-  "name": "get_server",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012",
-    "server_id": "87654321-4321-4321-4321-210987654321"
-  }
-}
-```
-
-### list_volumes
-
-Lists all volumes in a specific data center.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-
-**Example:**
-```json
-{
-  "name": "list_volumes",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012"
-  }
-}
-```
-
-### get_volume
-
-Gets detailed information about a specific volume.
-
-**Parameters:**
-- `datacenter_id` (string, required): The ID of the data center
-- `volume_id` (string, required): The ID of the volume
-
-**Example:**
-```json
-{
-  "name": "get_volume",
-  "arguments": {
-    "datacenter_id": "12345678-1234-1234-1234-123456789012",
-    "volume_id": "11111111-1111-1111-1111-111111111111"
-  }
-}
-```
-
-### list_images
-
-Lists all available images (OS templates) in IONOS Cloud.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_images",
-  "arguments": {}
-}
-```
-
-### list_locations
-
-Lists all available locations (regions) in IONOS Cloud.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_locations",
-  "arguments": {}
-}
-```
-
-### list_snapshots
-
-Lists all snapshots in your IONOS Cloud account.
-
-**Parameters:** None
-
-**Example:**
-```json
-{
-  "name": "list_snapshots",
-  "arguments": {}
-}
-```
-
-### get_snapshot
-
-Gets detailed information about a specific snapshot.
-
-**Parameters:**
-- `snapshot_id` (string, required): The ID of the snapshot
-
-**Example:**
-```json
-{
-  "name": "get_snapshot",
-  "arguments": {
-    "snapshot_id": "22222222-2222-2222-2222-222222222222"
-  }
-}
-```
-
 ## Development
 
 ### Testing the MCP Protocol
@@ -252,14 +79,21 @@ Gets detailed information about a specific snapshot.
 You can test the server's MCP protocol implementation using stdin/stdout:
 
 ```bash
-# Test initialization
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | ./ionoscloud-mcp
+# Initialize and list tools
+{
+  echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}'
+  echo '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+  echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+  sleep 1
+} | ./ionoscloud-mcp
 
-# List available tools
-echo '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | ./ionoscloud-mcp
-
-# Call a tool (example - requires valid credentials)
-echo '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_datacenters","arguments":{}}}' | ./ionoscloud-mcp
+# Call a tool (requires valid IONOS_TOKEN)
+{
+  echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0.1.0"}}}'
+  echo '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+  echo '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_datacenters","arguments":{}}}'
+  sleep 1
+} | ./ionoscloud-mcp
 ```
 
 ### Building from Source
