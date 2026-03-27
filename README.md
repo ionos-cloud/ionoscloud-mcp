@@ -21,11 +21,6 @@ The server provides the following tools for interacting with IONOS Cloud:
 | Location | `list_locations` | [location.md](docs/compute/location.md) |
 | Snapshot | `list_snapshots`, `get_snapshot` | [snapshot.md](docs/compute/snapshot.md) |
 
-## Prerequisites
-
-- Go 1.20 or higher (tested with Go 1.24)
-- IONOS Cloud account with API credentials
-
 ## Installation
 
 1. Clone the repository:
@@ -43,7 +38,7 @@ go build -o ionoscloud-mcp .
 
 ## Configuration
 
-The server requires an IONOS Cloud API token set as an environment variable:
+You need an IONOS Cloud account with API credentials. Set the token as an environment variable:
 
 ```bash
 # Token-based authentication
