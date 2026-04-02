@@ -33,3 +33,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# claude 
+.claude/
+.claude-flow/
+.swarm/
+.mcp.json
