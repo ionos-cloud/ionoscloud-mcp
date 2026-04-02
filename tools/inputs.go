@@ -4,6 +4,8 @@ package tools
 // Each struct maps to the JSON schema that the MCP SDK auto-generates
 // for a tool's input. Non-pointer fields are treated as required.
 
+// Compute input types
+
 type DatacenterIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 }
@@ -95,4 +97,23 @@ type RequestIDInput struct {
 
 type TemplateIDInput struct {
 	TemplateID string `json:"template_id" jsonschema:"the ID of the template"`
+}
+
+// DNS input types
+
+type ZoneIDInput struct {
+	ZoneID string `json:"zone_id" jsonschema:"the ID of the DNS zone"`
+}
+
+type RecordIDInput struct {
+	ZoneID   string `json:"zone_id" jsonschema:"the ID of the DNS zone"`
+	RecordID string `json:"record_id" jsonschema:"the ID of the DNS record"`
+}
+
+type ReverseRecordIDInput struct {
+	ReverseRecordID string `json:"reverse_record_id" jsonschema:"the ID of the reverse DNS record"`
+}
+
+type SecondaryZoneIDInput struct {
+	SecondaryZoneID string `json:"secondary_zone_id" jsonschema:"the ID of the secondary DNS zone"`
 }
