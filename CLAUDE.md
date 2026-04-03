@@ -25,18 +25,29 @@ main.go                     # Entry point: SDK client init, MCP server, stdio tr
 tools/
 ├── helpers.go              # Shared helpers (ToResult) — reusable across products
 ├── inputs.go               # Shared input structs with json/jsonschema tags
-└── compute/
+├── compute/
+│   ├── register.go         # RegisterAll() — calls all per-resource Register*Tools()
+│   ├── datacenter.go       # Datacenter tools (list, get)
+│   ├── server.go           # Server tools (list, get, sub-resources)
+│   ├── volume.go           # Volume tools
+│   └── ...                 # One file per resource (20 files, 50 tools)
+└── dns/
     ├── register.go         # RegisterAll() — calls all per-resource Register*Tools()
-    ├── datacenter.go       # Datacenter tools (list, get)
-    ├── server.go           # Server tools (list, get, sub-resources)
-    ├── volume.go           # Volume tools
-    └── ...                 # One file per resource (20 files total, 50 tools)
-docs/compute/               # One doc file per resource
+    ├── zone.go             # Zone tools (list, get)
+    ├── record.go           # Record tools (list all, list by zone, get, list secondary)
+    ├── reverse_record.go   # Reverse record tools (list, get)
+    ├── secondary_zone.go   # Secondary zone tools (list, get, AXFR status)
+    ├── dnssec.go           # DNSSEC key tools (list by zone)
+    └── quota.go            # Quota tools (get)
+docs/
+├── compute/                # One doc file per compute resource
+└── dns/                    # One doc file per DNS resource
 ```
 
-- **main.go**: Initializes the IONOS Cloud client, creates the MCP server via `mcp.NewServer()`, calls `compute.RegisterAll()`, and runs over `mcp.StdioTransport`.
+- **main.go**: Initializes IONOS Cloud clients (compute + DNS), creates the MCP server via `mcp.NewServer()`, calls `compute.RegisterAll()` and `dns.RegisterAll()`, and runs over `mcp.StdioTransport`.
 - **tools/**: Shared input structs and helpers in the parent package, product-specific tools in sub-packages.
 - **tools/compute/**: One file per resource. Each file exports a `Register*Tools()` function that adds tools via `mcp.AddTool()`.
+- **tools/dns/**: Same pattern as compute. Each product has its own SDK client (`dns.APIClient` vs `compute.APIClient`), both initialized from the same `shared.Configuration`.
 
 ### Request Flow
 
@@ -51,9 +62,10 @@ The server requires `IONOS_TOKEN` environment variable at startup. It exits with
 ### Adding New Tools
 
 1. Define an input struct in `tools/inputs.go` with `json` and `jsonschema` tags (non-pointer fields are automatically required)
-2. Add a `mcp.AddTool()` call in the appropriate resource file under `tools/compute/` (e.g., `tools/compute/server.go`)
-3. If it's a new resource, create a new file and register it in `tools/compute/register.go`
-4. The handler receives the typed input struct and returns `(*mcp.CallToolResult, any, error)`
+2. Add a `mcp.AddTool()` call in the appropriate resource file under `tools/<product>/` (e.g., `tools/compute/server.go`, `tools/dns/zone.go`)
+3. If it's a new resource, create a new file and register it in `tools/<product>/register.go`
+4. If it's a new product, create a new sub-package, add a `RegisterAll()` function, create a new SDK client in `main.go`, and call `RegisterAll()` from `main()`
+5. The handler receives the typed input struct and returns `(*mcp.CallToolResult, any, error)`
 
 ## Testing MCP Protocol
 

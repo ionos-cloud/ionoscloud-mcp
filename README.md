@@ -6,35 +6,12 @@ This project implements a Model Context Protocol (MCP) server that allows LLMs t
 
 The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard that allows AI assistants to connect to external tools and data sources. It defines a JSON-RPC 2.0 interface over stdio (or HTTP) through which an LLM client can discover and invoke tools provided by a server. This MCP server exposes IONOS Cloud infrastructure operations as tools, enabling AI assistants like Claude to list, inspect, and manage your cloud resources through natural language. It is designed for developers and platform engineers who want to interact with IONOS Cloud programmatically through an AI-powered workflow.
 
-## Features
+## Supported Products
 
-The server provides the following tools for interacting with IONOS Cloud:
-
-### [Compute Engine](docs/compute/)
-
-| Resource | Tools | Docs |
-|----------|-------|------|
-| Data Center | `list_datacenters`, `get_datacenter` | [datacenter.md](docs/compute/datacenter.md) |
-| Server | `list_servers`, `get_server` | [server.md](docs/compute/server.md) |
-| Server Sub-Resources | `list_server_volumes`, `list_server_cdroms`, `list_server_gpus`, `get_server_gpu`, `get_server_remote_console` | [server-subresources.md](docs/compute/server-subresources.md) |
-| Volume | `list_volumes`, `get_volume` | [volume.md](docs/compute/volume.md) |
-| NIC | `list_nics`, `get_nic` | [nic.md](docs/compute/nic.md) |
-| LAN | `list_lans`, `get_lan`, `list_lan_nics` | [lan.md](docs/compute/lan.md) |
-| Firewall Rule | `list_firewall_rules`, `get_firewall_rule` | [firewall-rule.md](docs/compute/firewall-rule.md) |
-| IP Block | `list_ip_blocks`, `get_ip_block` | [ip-block.md](docs/compute/ip-block.md) |
-| Load Balancer | `list_loadbalancers`, `get_loadbalancer`, `list_loadbalancer_nics` | [loadbalancer.md](docs/compute/loadbalancer.md) |
-| Network Load Balancer | `list_network_loadbalancers`, `get_network_loadbalancer`, `list_nlb_forwarding_rules` | [network-loadbalancer.md](docs/compute/network-loadbalancer.md) |
-| Application Load Balancer | `list_application_loadbalancers`, `get_application_loadbalancer`, `list_alb_forwarding_rules` | [application-loadbalancer.md](docs/compute/application-loadbalancer.md) |
-| Target Group | `list_target_groups`, `get_target_group` | [target-group.md](docs/compute/target-group.md) |
-| NAT Gateway | `list_nat_gateways`, `get_nat_gateway`, `list_nat_gateway_rules` | [nat-gateway.md](docs/compute/nat-gateway.md) |
-| Private Cross-Connect | `list_private_cross_connects`, `get_private_cross_connect` | [private-cross-connect.md](docs/compute/private-cross-connect.md) |
-| Security Group | `list_security_groups`, `get_security_group`, `list_security_group_rules`, `get_security_group_rule` | [security-group.md](docs/compute/security-group.md) |
-| Image | `list_images` | [image.md](docs/compute/image.md) |
-| Location | `list_locations` | [location.md](docs/compute/location.md) |
-| Snapshot | `list_snapshots`, `get_snapshot` | [snapshot.md](docs/compute/snapshot.md) |
-| Contract | `get_contract` | [contract.md](docs/compute/contract.md) |
-| Request | `list_requests`, `get_request`, `get_request_status` | [request.md](docs/compute/request.md) |
-| Template | `list_templates`, `get_template` | [template.md](docs/compute/template.md) |
+| Product | Tools | Resources | Docs |
+|---------|-------|-----------|------|
+| [Compute Engine](docs/compute/) | 50 | Data Centers, Servers, Volumes, NICs, LANs, Firewall Rules, IP Blocks, Load Balancers, NAT Gateways, Security Groups, and more | [docs/compute/](docs/compute/) |
+| [DNS](docs/dns/) | 14 | Zones, Zone Files, Records, Reverse Records, Secondary Zones, DNSSEC, Quota | [docs/dns/](docs/dns/) |
 
 ## Installation
 

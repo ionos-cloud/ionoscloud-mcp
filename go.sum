@@ -11,6 +11,8 @@ github.com/google/jsonschema-go v0.4.2 h1:tmrUohrwoLZZS/P3x7ex0WAVknEkBZM46iALbc
 github.com/google/jsonschema-go v0.4.2/go.mod h1:r5quNTdLOYEz95Ru18zA0ydNbBuYoo9tgaYcxEYhJVE=
 github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.5 h1:5hcoAct+oL1gfIbqFFZb7YuLuFKhr14A12l9/r5EyEg=
 github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.5/go.mod h1:Di8RE6oFsmWDOgZWHp7RgLPRstIjvcC4YZkRotquHaY=
+github.com/ionos-cloud/sdk-go-bundle/products/dns/v2 v2.2.0 h1:LsRmU3eb6MeI+t3OP3kEVvP0TSp0UzPRmw1GWLRbu/0=
+github.com/ionos-cloud/sdk-go-bundle/products/dns/v2 v2.2.0/go.mod h1:S8SBfF2bJkW902JKSQ/O6zn3sXPgeLvaa8hUG/oycNg=
 github.com/ionos-cloud/sdk-go-bundle/shared v0.1.6 h1:mN5ZC7dTGD0SpEmbGJwa9QBStF0DvV1O9tp2nakLCo0=
 github.com/ionos-cloud/sdk-go-bundle/shared v0.1.6/go.mod h1:E5MtZ15l6L5wn7JmjL5ccSvGcX5Dk7G8s882X1ZH6dM=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
