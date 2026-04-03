@@ -40,6 +40,11 @@ func ToRawResult(resp *shared.APIResponse, apiErr error) (*mcp.CallToolResult, a
 			IsError: true,
 		}, nil, nil
 	}
+
+	if resp == nil {
+		return nil, nil, fmt.Errorf("empty response from API")
+	}
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(resp.Payload)},
