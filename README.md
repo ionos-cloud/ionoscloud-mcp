@@ -11,7 +11,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 | Product | Tools | Resources | Docs |
 |---------|-------|-----------|------|
 | [Compute Engine](docs/compute/) | 50 | Data Centers, Servers, Volumes, NICs, LANs, Firewall Rules, IP Blocks, Load Balancers, NAT Gateways, Security Groups, and more | [docs/compute/](docs/compute/) |
-| [DNS](docs/dns/) | 13 | Zones, Records, Reverse Records, Secondary Zones, DNSSEC, Quota | [docs/dns/](docs/dns/) |
+| [DNS](docs/dns/) | 14 | Zones, Zone Files, Records, Reverse Records, Secondary Zones, DNSSEC, Quota | [docs/dns/](docs/dns/) |
 
 ## Installation
 

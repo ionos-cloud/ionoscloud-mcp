@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -24,6 +25,24 @@ func ToResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: string(bytes)},
+		},
+	}, nil, nil
+}
+
+// ToRawResult returns the raw response payload as an MCP text result.
+// Use this for API endpoints that return non-JSON content (e.g. zone files).
+func ToRawResult(resp *shared.APIResponse, apiErr error) (*mcp.CallToolResult, any, error) {
+	if apiErr != nil {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: apiErr.Error()},
+			},
+			IsError: true,
+		}, nil, nil
+	}
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(resp.Payload)},
 		},
 	}, nil, nil
 }

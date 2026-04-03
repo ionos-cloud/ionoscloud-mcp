@@ -24,4 +24,12 @@ func RegisterZoneTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		zone, _, err := client.ZonesApi.ZonesFindById(ctx, input.ZoneID).Execute()
 		return tools.ToResult(zone, err)
 	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_dns_zone_file",
+		Description: "Get the zone file (BIND format) for a specific DNS zone",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ZoneIDInput) (*mcp.CallToolResult, any, error) {
+		resp, err := client.ZoneFilesApi.ZonesZonefileGet(ctx, input.ZoneID).Execute()
+		return tools.ToRawResult(resp, err)
+	})
 }
