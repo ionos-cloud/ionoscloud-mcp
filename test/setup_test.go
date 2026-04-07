@@ -101,7 +101,7 @@ func setup(t *testing.T) *testSetup {
 	compute.RegisterAll(server, computeClient)
 	dns.RegisterAll(server, dnsClient)
 
-	//in-memory pipe between MCP client and server (replaces stdio)
+	// in-memory pipe between MCP client and server (replaces stdio)
 	ct, st := mcp.NewInMemoryTransports()
 
 	ctx := context.Background()
