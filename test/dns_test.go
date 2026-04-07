@@ -49,30 +49,30 @@ func TestDnsToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Zones
-		{"list_dns_zones", map[string]any{}, "/zones"},
-		{"get_dns_zone", map[string]any{"zone_id": zone}, "/zones/" + zone},
-		{"get_dns_zone_file", map[string]any{"zone_id": zone}, "/zones/" + zone + "/zonefile"},
+		{"list_dns_zones", map[string]any{}, []string{"/zones"}},
+		{"get_dns_zone", map[string]any{"zone_id": zone}, []string{"/zones/" + zone}},
+		{"get_dns_zone_file", map[string]any{"zone_id": zone}, []string{"/zones/" + zone + "/zonefile"}},
 
 		// Records
-		{"list_dns_records", map[string]any{}, "/records"},
-		{"list_dns_zone_records", map[string]any{"zone_id": zone}, "/zones/" + zone + "/records"},
-		{"get_dns_record", map[string]any{"zone_id": zone, "record_id": record}, "/zones/" + zone + "/records/" + record},
-		{"list_dns_secondary_zone_records", map[string]any{"secondary_zone_id": secondaryZone}, "/secondaryzones/" + secondaryZone + "/records"},
+		{"list_dns_records", map[string]any{}, []string{"/records"}},
+		{"list_dns_zone_records", map[string]any{"zone_id": zone}, []string{"/zones/" + zone + "/records"}},
+		{"get_dns_record", map[string]any{"zone_id": zone, "record_id": record}, []string{"/zones/" + zone + "/records/" + record}},
+		{"list_dns_secondary_zone_records", map[string]any{"secondary_zone_id": secondaryZone}, []string{"/secondaryzones/" + secondaryZone + "/records"}},
 
 		// Reverse Records
-		{"list_dns_reverse_records", map[string]any{}, "/reverserecords"},
-		{"get_dns_reverse_record", map[string]any{"reverse_record_id": reverseRecord}, "/reverserecords/" + reverseRecord},
+		{"list_dns_reverse_records", map[string]any{}, []string{"/reverserecords"}},
+		{"get_dns_reverse_record", map[string]any{"reverse_record_id": reverseRecord}, []string{"/reverserecords/" + reverseRecord}},
 
 		// Secondary Zones
-		{"list_dns_secondary_zones", map[string]any{}, "/secondaryzones"},
-		{"get_dns_secondary_zone", map[string]any{"secondary_zone_id": secondaryZone}, "/secondaryzones/" + secondaryZone},
-		{"get_dns_secondary_zone_axfr", map[string]any{"secondary_zone_id": secondaryZone}, "/secondaryzones/" + secondaryZone + "/axfr"},
+		{"list_dns_secondary_zones", map[string]any{}, []string{"/secondaryzones"}},
+		{"get_dns_secondary_zone", map[string]any{"secondary_zone_id": secondaryZone}, []string{"/secondaryzones/" + secondaryZone}},
+		{"get_dns_secondary_zone_axfr", map[string]any{"secondary_zone_id": secondaryZone}, []string{"/secondaryzones/" + secondaryZone + "/axfr"}},
 
 		// DNSSEC
-		{"list_dns_zone_dnssec_keys", map[string]any{"zone_id": zone}, "/zones/" + zone + "/keys"},
+		{"list_dns_zone_dnssec_keys", map[string]any{"zone_id": zone}, []string{"/zones/" + zone + "/keys"}},
 
 		// Quota
-		{"get_dns_quota", map[string]any{}, "/quota"},
+		{"get_dns_quota", map[string]any{}, []string{"/quota"}},
 	}
 
 	ctx := context.Background()
@@ -88,12 +88,14 @@ func TestDnsToolEndpoints(t *testing.T) {
 				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
 			}
 
-			req, ok := h.log.lastRequest()
-			if !ok {
-				t.Fatalf("CallTool(%q) made no HTTP request", tt.name)
+			reqs := h.log.allRequests()
+			if len(reqs) != len(tt.wantPaths) {
+				t.Fatalf("CallTool(%q) made %d requests, want %d", tt.name, len(reqs), len(tt.wantPaths))
 			}
-			if req.Path != tt.wantPath {
-				t.Errorf("CallTool(%q) path = %q, want %q", tt.name, req.Path, tt.wantPath)
+			for i, req := range reqs {
+				if req.Path != tt.wantPaths[i] {
+					t.Errorf("CallTool(%q) request[%d] path = %q, want %q", tt.name, i, req.Path, tt.wantPaths[i])
+				}
 			}
 		})
 	}

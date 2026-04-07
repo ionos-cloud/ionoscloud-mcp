@@ -62,94 +62,94 @@ func TestComputeToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Datacenters
-		{"list_datacenters", map[string]any{}, "/cloudapi/v6/datacenters"},
-		{"get_datacenter", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc},
+		{"list_datacenters", map[string]any{}, []string{"/cloudapi/v6/datacenters"}},
+		{"get_datacenter", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc}},
 
 		// Servers
-		{"list_servers", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/servers"},
-		{"get_server", map[string]any{"datacenter_id": dc, "server_id": srv}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv},
-		{"list_server_volumes", map[string]any{"datacenter_id": dc, "server_id": srv}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/volumes"},
-		{"list_server_cdroms", map[string]any{"datacenter_id": dc, "server_id": srv}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/cdroms"},
-		{"list_server_gpus", map[string]any{"datacenter_id": dc, "server_id": srv}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/gpus"},
-		{"get_server_gpu", map[string]any{"datacenter_id": dc, "server_id": srv, "gpu_id": "gpu-1"}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/gpus/gpu-1"},
-		{"get_server_remote_console", map[string]any{"datacenter_id": dc, "server_id": srv}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/remoteconsole"},
+		{"list_servers", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers"}},
+		{"get_server", map[string]any{"datacenter_id": dc, "server_id": srv}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv}},
+		{"list_server_volumes", map[string]any{"datacenter_id": dc, "server_id": srv}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/volumes"}},
+		{"list_server_cdroms", map[string]any{"datacenter_id": dc, "server_id": srv}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/cdroms"}},
+		{"list_server_gpus", map[string]any{"datacenter_id": dc, "server_id": srv}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/gpus"}},
+		{"get_server_gpu", map[string]any{"datacenter_id": dc, "server_id": srv, "gpu_id": "gpu-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/gpus/gpu-1"}},
+		{"get_server_remote_console", map[string]any{"datacenter_id": dc, "server_id": srv}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/remoteconsole"}},
 
 		// Volumes
-		{"list_volumes", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/volumes"},
-		{"get_volume", map[string]any{"datacenter_id": dc, "volume_id": "vol-1"}, "/cloudapi/v6/datacenters/" + dc + "/volumes/vol-1"},
+		{"list_volumes", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/volumes"}},
+		{"get_volume", map[string]any{"datacenter_id": dc, "volume_id": "vol-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/volumes/vol-1"}},
 
 		// NICs
-		{"list_nics", map[string]any{"datacenter_id": dc, "server_id": srv}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics"},
-		{"get_nic", map[string]any{"datacenter_id": dc, "server_id": srv, "nic_id": nic}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics/" + nic},
+		{"list_nics", map[string]any{"datacenter_id": dc, "server_id": srv}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics"}},
+		{"get_nic", map[string]any{"datacenter_id": dc, "server_id": srv, "nic_id": nic}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics/" + nic}},
 
 		// LANs
-		{"list_lans", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/lans"},
-		{"get_lan", map[string]any{"datacenter_id": dc, "lan_id": "lan-1"}, "/cloudapi/v6/datacenters/" + dc + "/lans/lan-1"},
-		{"list_lan_nics", map[string]any{"datacenter_id": dc, "lan_id": "lan-1"}, "/cloudapi/v6/datacenters/" + dc + "/lans/lan-1/nics"},
+		{"list_lans", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/lans"}},
+		{"get_lan", map[string]any{"datacenter_id": dc, "lan_id": "lan-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/lans/lan-1"}},
+		{"list_lan_nics", map[string]any{"datacenter_id": dc, "lan_id": "lan-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/lans/lan-1/nics"}},
 
 		// Firewall Rules
-		{"list_firewall_rules", map[string]any{"datacenter_id": dc, "server_id": srv, "nic_id": nic}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics/" + nic + "/firewallrules"},
-		{"get_firewall_rule", map[string]any{"datacenter_id": dc, "server_id": srv, "nic_id": nic, "firewallrule_id": "fw-1"}, "/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics/" + nic + "/firewallrules/fw-1"},
+		{"list_firewall_rules", map[string]any{"datacenter_id": dc, "server_id": srv, "nic_id": nic}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics/" + nic + "/firewallrules"}},
+		{"get_firewall_rule", map[string]any{"datacenter_id": dc, "server_id": srv, "nic_id": nic, "firewallrule_id": "fw-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/servers/" + srv + "/nics/" + nic + "/firewallrules/fw-1"}},
 
 		// IP Blocks
-		{"list_ip_blocks", map[string]any{}, "/cloudapi/v6/ipblocks"},
-		{"get_ip_block", map[string]any{"ipblock_id": "ip-1"}, "/cloudapi/v6/ipblocks/ip-1"},
+		{"list_ip_blocks", map[string]any{}, []string{"/cloudapi/v6/ipblocks"}},
+		{"get_ip_block", map[string]any{"ipblock_id": "ip-1"}, []string{"/cloudapi/v6/ipblocks/ip-1"}},
 
 		// Load Balancers
-		{"list_loadbalancers", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/loadbalancers"},
-		{"get_loadbalancer", map[string]any{"datacenter_id": dc, "loadbalancer_id": "lb-1"}, "/cloudapi/v6/datacenters/" + dc + "/loadbalancers/lb-1"},
-		{"list_loadbalancer_nics", map[string]any{"datacenter_id": dc, "loadbalancer_id": "lb-1"}, "/cloudapi/v6/datacenters/" + dc + "/loadbalancers/lb-1/balancednics"},
+		{"list_loadbalancers", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/loadbalancers"}},
+		{"get_loadbalancer", map[string]any{"datacenter_id": dc, "loadbalancer_id": "lb-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/loadbalancers/lb-1"}},
+		{"list_loadbalancer_nics", map[string]any{"datacenter_id": dc, "loadbalancer_id": "lb-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/loadbalancers/lb-1/balancednics"}},
 
 		// Network Load Balancers
-		{"list_network_loadbalancers", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/networkloadbalancers"},
-		{"get_network_loadbalancer", map[string]any{"datacenter_id": dc, "network_loadbalancer_id": "nlb-1"}, "/cloudapi/v6/datacenters/" + dc + "/networkloadbalancers/nlb-1"},
-		{"list_nlb_forwarding_rules", map[string]any{"datacenter_id": dc, "network_loadbalancer_id": "nlb-1"}, "/cloudapi/v6/datacenters/" + dc + "/networkloadbalancers/nlb-1/forwardingrules"},
+		{"list_network_loadbalancers", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/networkloadbalancers"}},
+		{"get_network_loadbalancer", map[string]any{"datacenter_id": dc, "network_loadbalancer_id": "nlb-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/networkloadbalancers/nlb-1"}},
+		{"list_nlb_forwarding_rules", map[string]any{"datacenter_id": dc, "network_loadbalancer_id": "nlb-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/networkloadbalancers/nlb-1/forwardingrules"}},
 
 		// Application Load Balancers
-		{"list_application_loadbalancers", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/applicationloadbalancers"},
-		{"get_application_loadbalancer", map[string]any{"datacenter_id": dc, "application_loadbalancer_id": "alb-1"}, "/cloudapi/v6/datacenters/" + dc + "/applicationloadbalancers/alb-1"},
-		{"list_alb_forwarding_rules", map[string]any{"datacenter_id": dc, "application_loadbalancer_id": "alb-1"}, "/cloudapi/v6/datacenters/" + dc + "/applicationloadbalancers/alb-1/forwardingrules"},
+		{"list_application_loadbalancers", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/applicationloadbalancers"}},
+		{"get_application_loadbalancer", map[string]any{"datacenter_id": dc, "application_loadbalancer_id": "alb-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/applicationloadbalancers/alb-1"}},
+		{"list_alb_forwarding_rules", map[string]any{"datacenter_id": dc, "application_loadbalancer_id": "alb-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/applicationloadbalancers/alb-1/forwardingrules"}},
 
 		// Target Groups
-		{"list_target_groups", map[string]any{}, "/cloudapi/v6/targetgroups"},
-		{"get_target_group", map[string]any{"target_group_id": "tg-1"}, "/cloudapi/v6/targetgroups/tg-1"},
+		{"list_target_groups", map[string]any{}, []string{"/cloudapi/v6/targetgroups"}},
+		{"get_target_group", map[string]any{"target_group_id": "tg-1"}, []string{"/cloudapi/v6/targetgroups/tg-1"}},
 
 		// NAT Gateways
-		{"list_nat_gateways", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/natgateways"},
-		{"get_nat_gateway", map[string]any{"datacenter_id": dc, "nat_gateway_id": "nat-1"}, "/cloudapi/v6/datacenters/" + dc + "/natgateways/nat-1"},
-		{"list_nat_gateway_rules", map[string]any{"datacenter_id": dc, "nat_gateway_id": "nat-1"}, "/cloudapi/v6/datacenters/" + dc + "/natgateways/nat-1/rules"},
+		{"list_nat_gateways", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/natgateways"}},
+		{"get_nat_gateway", map[string]any{"datacenter_id": dc, "nat_gateway_id": "nat-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/natgateways/nat-1"}},
+		{"list_nat_gateway_rules", map[string]any{"datacenter_id": dc, "nat_gateway_id": "nat-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/natgateways/nat-1/rules"}},
 
 		// Private Cross-Connects
-		{"list_private_cross_connects", map[string]any{}, "/cloudapi/v6/pccs"},
-		{"get_private_cross_connect", map[string]any{"pcc_id": "pcc-1"}, "/cloudapi/v6/pccs/pcc-1"},
+		{"list_private_cross_connects", map[string]any{}, []string{"/cloudapi/v6/pccs"}},
+		{"get_private_cross_connect", map[string]any{"pcc_id": "pcc-1"}, []string{"/cloudapi/v6/pccs/pcc-1"}},
 
 		// Security Groups
-		{"list_security_groups", map[string]any{"datacenter_id": dc}, "/cloudapi/v6/datacenters/" + dc + "/securitygroups"},
-		{"get_security_group", map[string]any{"datacenter_id": dc, "security_group_id": "sg-1"}, "/cloudapi/v6/datacenters/" + dc + "/securitygroups/sg-1"},
-		{"list_security_group_rules", map[string]any{"datacenter_id": dc, "security_group_id": "sg-1"}, "/cloudapi/v6/datacenters/" + dc + "/securitygroups/sg-1/rules"},
-		{"get_security_group_rule", map[string]any{"datacenter_id": dc, "security_group_id": "sg-1", "rule_id": "rule-1"}, "/cloudapi/v6/datacenters/" + dc + "/securitygroups/sg-1/rules/rule-1"},
+		{"list_security_groups", map[string]any{"datacenter_id": dc}, []string{"/cloudapi/v6/datacenters/" + dc + "/securitygroups"}},
+		{"get_security_group", map[string]any{"datacenter_id": dc, "security_group_id": "sg-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/securitygroups/sg-1"}},
+		{"list_security_group_rules", map[string]any{"datacenter_id": dc, "security_group_id": "sg-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/securitygroups/sg-1/rules"}},
+		{"get_security_group_rule", map[string]any{"datacenter_id": dc, "security_group_id": "sg-1", "rule_id": "rule-1"}, []string{"/cloudapi/v6/datacenters/" + dc + "/securitygroups/sg-1/rules/rule-1"}},
 
 		// Contract
-		{"get_contract", map[string]any{}, "/cloudapi/v6/contracts"},
+		{"get_contract", map[string]any{}, []string{"/cloudapi/v6/contracts"}},
 
 		// Requests
-		{"list_requests", map[string]any{}, "/cloudapi/v6/requests"},
-		{"get_request", map[string]any{"request_id": "req-1"}, "/cloudapi/v6/requests/req-1"},
-		{"get_request_status", map[string]any{"request_id": "req-1"}, "/cloudapi/v6/requests/req-1/status"},
+		{"list_requests", map[string]any{}, []string{"/cloudapi/v6/requests"}},
+		{"get_request", map[string]any{"request_id": "req-1"}, []string{"/cloudapi/v6/requests/req-1"}},
+		{"get_request_status", map[string]any{"request_id": "req-1"}, []string{"/cloudapi/v6/requests/req-1/status"}},
 
 		// Templates
-		{"list_templates", map[string]any{}, "/cloudapi/v6/templates"},
-		{"get_template", map[string]any{"template_id": "tpl-1"}, "/cloudapi/v6/templates/tpl-1"},
+		{"list_templates", map[string]any{}, []string{"/cloudapi/v6/templates"}},
+		{"get_template", map[string]any{"template_id": "tpl-1"}, []string{"/cloudapi/v6/templates/tpl-1"}},
 
 		// Images
-		{"list_images", map[string]any{}, "/cloudapi/v6/images"},
+		{"list_images", map[string]any{}, []string{"/cloudapi/v6/images"}},
 
 		// Locations
-		{"list_locations", map[string]any{}, "/cloudapi/v6/locations"},
+		{"list_locations", map[string]any{}, []string{"/cloudapi/v6/locations"}},
 
 		// Snapshots
-		{"list_snapshots", map[string]any{}, "/cloudapi/v6/snapshots"},
-		{"get_snapshot", map[string]any{"snapshot_id": "snap-1"}, "/cloudapi/v6/snapshots/snap-1"},
+		{"list_snapshots", map[string]any{}, []string{"/cloudapi/v6/snapshots"}},
+		{"get_snapshot", map[string]any{"snapshot_id": "snap-1"}, []string{"/cloudapi/v6/snapshots/snap-1"}},
 	}
 
 	ctx := context.Background()
@@ -165,12 +165,14 @@ func TestComputeToolEndpoints(t *testing.T) {
 				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
 			}
 
-			req, ok := h.log.lastRequest()
-			if !ok {
-				t.Fatalf("CallTool(%q) made no HTTP request", tt.name)
+			reqs := h.log.allRequests()
+			if len(reqs) != len(tt.wantPaths) {
+				t.Fatalf("CallTool(%q) made %d requests, want %d", tt.name, len(reqs), len(tt.wantPaths))
 			}
-			if req.Path != tt.wantPath {
-				t.Errorf("CallTool(%q) path = %q, want %q", tt.name, req.Path, tt.wantPath)
+			for i, req := range reqs {
+				if req.Path != tt.wantPaths[i] {
+					t.Errorf("CallTool(%q) request[%d] path = %q, want %q", tt.name, i, req.Path, tt.wantPaths[i])
+				}
 			}
 		})
 	}

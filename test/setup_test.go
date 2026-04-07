@@ -32,26 +32,27 @@ type testSetup struct {
 	log     *requestLog
 }
 
-// toolTest maps a tool name and args to the expected HTTP path
+// toolTest maps a tool name and args to the expected HTTP paths (in order)
 type toolTest struct {
-	name     string
-	args     map[string]any
-	wantPath string
+	name      string
+	args      map[string]any
+	wantPaths []string
 }
 
 func (r *requestLog) record(path string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	r.requests = append(r.requests, recordedRequest{Path: path})
 }
 
-func (r *requestLog) lastRequest() (recordedRequest, bool) {
+func (r *requestLog) allRequests() []recordedRequest {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if len(r.requests) == 0 {
-		return recordedRequest{}, false
-	}
-	return r.requests[len(r.requests)-1], true
+
+	cp := make([]recordedRequest, len(r.requests))
+	copy(cp, r.requests)
+	return cp
 }
 
 func (r *requestLog) clear() {
