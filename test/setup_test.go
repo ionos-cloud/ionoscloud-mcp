@@ -15,9 +15,10 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// recordedRequest stores a single HTTP request path.
+// recordedRequest stores the HTTP method and path of a request.
 type recordedRequest struct {
-	Path string
+	Method string
+	Path   string
 }
 
 // requestLog records HTTP requests hitting the test server
@@ -32,18 +33,18 @@ type testSetup struct {
 	log     *requestLog
 }
 
-// toolTest maps a tool name and args to the expected HTTP paths (in order)
+// toolTest maps a tool name and args to the expected HTTP methods and paths (in order)
 type toolTest struct {
-	name      string
-	args      map[string]any
-	wantPaths []string
+	name        string
+	args        map[string]any
+	wantMethods []string
+	wantPaths   []string
 }
 
-func (r *requestLog) record(path string) {
+func (r *requestLog) record(method, path string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
-	r.requests = append(r.requests, recordedRequest{Path: path})
+	r.requests = append(r.requests, recordedRequest{Method: method, Path: path})
 }
 
 func (r *requestLog) allRequests() []recordedRequest {
@@ -68,7 +69,7 @@ func setup(t *testing.T) *testSetup {
 
 	// local server replaces the real api.ionos.com
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.record(r.URL.Path)
+		log.record(r.Method, r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{}`))
