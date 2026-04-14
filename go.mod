@@ -12,6 +12,7 @@ require (
 require (
 	github.com/aws/aws-sdk-go v1.55.7 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
+	github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect

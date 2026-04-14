@@ -12,6 +12,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 |---------|-------|-----------|------|
 | [Compute Engine](docs/compute/) | 50 | Data Centers, Servers, Volumes, NICs, LANs, Firewall Rules, IP Blocks, Load Balancers, NAT Gateways, Security Groups, and more | [docs/compute/](docs/compute/) |
 | [DNS](docs/dns/) | 14 | Zones, Zone Files, Records, Reverse Records, Secondary Zones, DNSSEC, Quota | [docs/dns/](docs/dns/) |
+| [Billing](docs/billing/) | 14 | Profile, Invoices, EVN (provisioning intervals), Traffic, Usage, Utilization, Product pricing catalog | [docs/billing/](docs/billing/) |
 
 ## Installation
 
@@ -99,6 +100,7 @@ go build -o ionoscloud-mcp .
 ### Available Make Targets
 
 - `make build` - Build the binary
+- `make test` - Run tests
 - `make clean` - Remove build artifacts
 - `make fmt` - Format code
 - `make vet` - Run go vet
