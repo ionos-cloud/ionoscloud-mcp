@@ -7,9 +7,9 @@ description: |-
 
 # EVN (Provisioning Itemized Data)
 
-EVN (Event Notification) data provides per-resource usage intervals grouped by datacenter. Each record tracks when a resource (server, volume, IP, etc.) was provisioned and for how long.
+EVN (Provisioning Itemized Data) provides per-resource usage intervals grouped by datacenter. Each record tracks when a resource (server, volume, IP, etc.) was provisioned and for how long.
 
-The response drops the `evnCSV` duplicate field from the API — only the structured `datacenters` array is returned.
+The response drops the `evnCSV` duplicate field from the API and returns the structured `metadata` and `datacenters` fields.
 
 ## billing_evn
 
