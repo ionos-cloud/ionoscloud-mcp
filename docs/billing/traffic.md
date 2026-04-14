@@ -7,7 +7,7 @@ description: |-
 
 # Traffic
 
-Network traffic data shows inbound and outbound byte totals per datacenter and per NIC. The response returns only the structured `trafficObj` field — CSV and array duplicate representations from the API are dropped.
+Network traffic data shows inbound and outbound byte totals per datacenter and per NIC. The response returns the structured `trafficObj` field together with `metadata`, while CSV and array duplicate representations from the API are dropped.
 
 ## billing_traffic
 
