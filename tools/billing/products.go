@@ -2,6 +2,7 @@ package billing
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
@@ -25,12 +26,17 @@ func RegisterProductTools(server *mcp.Server, client *sdk.APIClient) {
 			"If the user asks a broad question like 'what are the prices' or 'show me all products', do NOT guess keywords or call this tool multiple times — instead ask the user which specific product or category they are interested in. " +
 			"Examples of valid filters: 'RAM', 'core', 'storage', 'Kubernetes', 'Postgres', 'network', 'Windows'.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingProductsInput) (*mcp.CallToolResult, any, error) {
+		filter := strings.TrimSpace(input.Filter)
+		if filter == "" {
+			return tools.ToResult(nil, fmt.Errorf("filter is required: provide a keyword to search products by (e.g. 'RAM', 'Kubernetes', 'storage')"))
+		}
+
 		products, _, err := client.ProductsApi.ProductsGet(ctx, input.Contract).Execute()
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
 
-		filterLower := strings.ToLower(input.Filter)
+		filterLower := strings.ToLower(filter)
 		var filtered []sdk.Product
 		for _, p := range products.GetProducts() {
 			if p.GetDeprecated() {
@@ -44,7 +50,7 @@ func RegisterProductTools(server *mcp.Server, client *sdk.APIClient) {
 
 		result := cleanProducts{
 			Metadata:      products.Metadata,
-			AppliedFilter: input.Filter,
+			AppliedFilter: filter,
 			MatchCount:    len(filtered),
 			Products:      filtered,
 		}
