@@ -3,16 +3,27 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// ValidatePeriod checks that period is a valid YYYY-MM string (e.g. "2026-04")
+// ValidatePeriod checks that period is a valid YYYY-MM string (e.g. "2026-04").
+// Leading/trailing whitespace is trimmed before parsing.
 func ValidatePeriod(period string) error {
-	if _, err := time.Parse("2006-01", period); err != nil {
+	if _, err := time.Parse("2006-01", strings.TrimSpace(period)); err != nil {
 		return fmt.Errorf("invalid period %q: must be YYYY-MM format (e.g. 2026-04)", period)
+	}
+	return nil
+}
+
+// ValidateDate checks that date is a valid YYYY-MM-DD string (e.g. "2026-04-15").
+// Leading/trailing whitespace is trimmed before parsing.
+func ValidateDate(date string) error {
+	if _, err := time.Parse("2006-01-02", strings.TrimSpace(date)); err != nil {
+		return fmt.Errorf("invalid date %q: must be YYYY-MM-DD format (e.g. 2026-04-15)", date)
 	}
 	return nil
 }

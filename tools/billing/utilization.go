@@ -32,6 +32,9 @@ func RegisterUtilizationTools(server *mcp.Server, client *sdk.APIClient) {
 		Name:        "billing_utilization_daily",
 		Description: "Get high-granularity resource utilization for a specific date (YYYY-MM-DD). Use this for day-level analysis within a month. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingDateInput) (*mcp.CallToolResult, any, error) {
+		if err := tools.ValidateDate(input.Date); err != nil {
+			return tools.ToResult(nil, err)
+		}
 		utilization, _, err := client.UtilizationApi.UtilizationDailyFindByDate(ctx, input.Contract, input.Date).Execute()
 		return tools.ToResult(utilization, err)
 	})
