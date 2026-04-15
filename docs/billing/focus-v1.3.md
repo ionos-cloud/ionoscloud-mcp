@@ -1,6 +1,6 @@
 # FOCUS v1.3 — Billing Output Reference
 
-All billing tool responses MUST use FOCUS v1.3 column names and value constraints.
+Assistant-formatted billing output, and any post-processed normalized output derived from billing tool responses, MUST use FOCUS v1.3 column names and value constraints. Raw billing tool responses may continue to use the Billing API's JSON field names.
 Spec: https://focus.finops.org/focus-specification/v1-3/
 
 ## Columns (Cost & Usage Dataset)
