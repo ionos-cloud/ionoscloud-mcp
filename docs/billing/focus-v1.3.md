@@ -132,11 +132,12 @@ ServiceCategory allowed: `AI and Machine Learning` · `Analytics` · `Business A
 
 | Tool | ChargeCategory | ChargeFrequency | Key Mappings |
 |---|---|---|---|
-| list_billing_invoices / get_billing_invoice | Per line type: fee→Usage, tax→Tax, credit→Credit, refund→Adjustment | Recurring or One-Time | id→InvoiceId, amount→BilledCost, unit→BillingCurrency, date→BillingPeriodStart |
-| list_billing_usage / get_billing_usage_by_datacenter | Usage | Usage-Based | CPU-hours/GB-hours→ConsumedQuantity+ConsumedUnit, id→RegionId |
-| list_billing_traffic / list_billing_traffic_by_period | Usage | Usage-Based | In/Out→ConsumedQuantity, "Byte"→ConsumedUnit, vdcUUID→RegionId, ip→ResourceId |
-| list_billing_utilization / list_billing_utilization_by_period / get_billing_utilization_daily | Usage | Usage-Based | CPU/RAM/storage metrics→ConsumedQuantity+ConsumedUnit, resourceId→ResourceId |
-| list_billing_evn / list_billing_evn_by_period | Usage | Recurring | Provisioning intervals→ChargePeriodStart/End, resourceUUID→ResourceId |
+| list_billing_invoices | Per line type: fee→Usage, tax→Tax, credit→Credit, refund→Adjustment | Recurring or One-Time | id→InvoiceId, amount→BilledCost, unit→BillingCurrency, date→BillingPeriodStart |
+| get_billing_invoice | Per line type (same as above) | Recurring or One-Time | metadata.invoiceId→InvoiceId, metadata.startDate→BillingPeriodStart, metadata.endDate→BillingPeriodEnd; per datacenter: id→ResourceId, name→ResourceName, location→RegionId; per meter: amount→BilledCost, rate→ListUnitPrice, quantity→ConsumedQuantity |
+| list_billing_usage / get_billing_usage_by_datacenter | Usage | Usage-Based | CPU-hours/GB-hours→ConsumedQuantity+ConsumedUnit, id→ResourceId, name→ResourceName, location→RegionId |
+| list_billing_traffic / list_billing_traffic_by_period | Usage | Usage-Based | In/Out→ConsumedQuantity, "Byte"→ConsumedUnit, vdcUUID→ResourceId, vdcName→ResourceName, ip→ResourceId (NIC rows) |
+| list_billing_utilization / list_billing_utilization_by_period / get_billing_utilization_daily | Usage | Usage-Based | ConsumedQuantity+ConsumedUnit from quantity; resourceId→ResourceId, name→ResourceName, region→RegionId (meter-level); DC has id+name but no location field |
+| list_billing_evn / list_billing_evn_by_period | Usage | Recurring | from/to→ChargePeriodStart/End, resourceUUID→ResourceId; vdcUUID→datacenter identifier (no location field — cannot map to RegionId) |
 | list_billing_products | — | — | Reference only for SkuId, ListUnitPrice, PricingUnit lookups |
 | get_billing_profile | — | — | contractId→BillingAccountId, customerId→SubAccountId |
 

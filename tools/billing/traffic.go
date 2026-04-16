@@ -14,6 +14,26 @@ type cleanTraffic struct {
 	TrafficObj *sdk.TrafficTrafficObj `json:"trafficObj,omitempty"`
 }
 
+// filterTrafficObj drops date entries where both In and Out are nil (no traffic recorded).
+func filterTrafficObj(obj *sdk.TrafficTrafficObj) {
+	if obj == nil {
+		return
+	}
+	for i, vdc := range obj.Vdc {
+		obj.Vdc[i].Dates = filterDates(vdc.Dates)
+	}
+}
+
+func filterDates(entries []sdk.TrafficEntry) []sdk.TrafficEntry {
+	var out []sdk.TrafficEntry
+	for _, e := range entries {
+		if e.In != nil || e.Out != nil {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
 func RegisterTrafficTools(server *mcp.Server, client *sdk.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_billing_traffic",
@@ -23,6 +43,7 @@ func RegisterTrafficTools(server *mcp.Server, client *sdk.APIClient) {
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
+		filterTrafficObj(traffic.TrafficObj)
 		result := cleanTraffic{
 			Metadata:   traffic.Metadata,
 			TrafficObj: traffic.TrafficObj,
@@ -41,6 +62,7 @@ func RegisterTrafficTools(server *mcp.Server, client *sdk.APIClient) {
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
+		filterTrafficObj(traffic.TrafficObj)
 		result := cleanTraffic{
 			Metadata:   traffic.Metadata,
 			TrafficObj: traffic.TrafficObj,
