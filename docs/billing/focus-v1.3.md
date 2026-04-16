@@ -132,13 +132,13 @@ ServiceCategory allowed: `AI and Machine Learning` · `Analytics` · `Business A
 
 | Tool | ChargeCategory | ChargeFrequency | Key Mappings |
 |---|---|---|---|
-| billing_invoice(s) | Per line type: fee→Usage, tax→Tax, credit→Credit, refund→Adjustment | Recurring or One-Time | id→InvoiceId, amount→BilledCost, unit→BillingCurrency, date→BillingPeriodStart |
-| billing_usage / by_datacenter | Usage | Usage-Based | CPU-hours/GB-hours→ConsumedQuantity+ConsumedUnit, id→RegionId |
-| billing_traffic / by_period | Usage | Usage-Based | In/Out→ConsumedQuantity, "Byte"→ConsumedUnit, vdcUUID→RegionId, ip→ResourceId |
-| billing_utilization / by_period/day | Usage | Usage-Based | CPU/RAM/storage metrics→ConsumedQuantity+ConsumedUnit, resourceId→ResourceId |
-| billing_evn / by_period | Usage | Recurring | Provisioning intervals→ChargePeriodStart/End, resourceUUID→ResourceId |
-| billing_products | — | — | Reference only for SkuId, ListUnitPrice, PricingUnit lookups |
-| billing_profile | — | — | contractId→BillingAccountId, customerId→SubAccountId |
+| list_billing_invoices / get_billing_invoice | Per line type: fee→Usage, tax→Tax, credit→Credit, refund→Adjustment | Recurring or One-Time | id→InvoiceId, amount→BilledCost, unit→BillingCurrency, date→BillingPeriodStart |
+| list_billing_usage / get_billing_usage_by_datacenter | Usage | Usage-Based | CPU-hours/GB-hours→ConsumedQuantity+ConsumedUnit, id→RegionId |
+| list_billing_traffic / list_billing_traffic_by_period | Usage | Usage-Based | In/Out→ConsumedQuantity, "Byte"→ConsumedUnit, vdcUUID→RegionId, ip→ResourceId |
+| list_billing_utilization / list_billing_utilization_by_period / get_billing_utilization_daily | Usage | Usage-Based | CPU/RAM/storage metrics→ConsumedQuantity+ConsumedUnit, resourceId→ResourceId |
+| list_billing_evn / list_billing_evn_by_period | Usage | Recurring | Provisioning intervals→ChargePeriodStart/End, resourceUUID→ResourceId |
+| list_billing_products | — | — | Reference only for SkuId, ListUnitPrice, PricingUnit lookups |
+| get_billing_profile | — | — | contractId→BillingAccountId, customerId→SubAccountId |
 
 ## Format Rules
 

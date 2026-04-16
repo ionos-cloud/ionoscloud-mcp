@@ -7,7 +7,7 @@ description: |-
 
 # Products
 
-## billing_products
+## list_billing_products
 
 Searches the IONOS Cloud product and pricing catalog by keyword. Returns all non-deprecated products whose description matches the filter keyword.
 
@@ -17,14 +17,14 @@ Searches the IONOS Cloud product and pricing catalog by keyword. Returns all non
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 | `filter` | string | Yes | Keyword to filter products by description. Examples: `RAM`, `core`, `storage`, `Kubernetes`, `Postgres`, `network`, `Windows` |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_products",
+  "name": "list_billing_products",
   "arguments": {
     "contract": 12345678,
     "filter": "RAM"

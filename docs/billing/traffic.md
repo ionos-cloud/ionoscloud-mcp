@@ -9,7 +9,7 @@ description: |-
 
 Network traffic data shows inbound and outbound byte totals per datacenter and per NIC. The response returns the structured `trafficObj` field together with `metadata`, while CSV and array duplicate representations from the API are dropped.
 
-## billing_traffic
+## list_billing_traffic
 
 Gets network traffic data for the current billing month.
 
@@ -17,13 +17,13 @@ Gets network traffic data for the current billing month.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_traffic",
+  "name": "list_billing_traffic",
   "arguments": {
     "contract": 12345678
   }
@@ -34,7 +34,7 @@ Gets network traffic data for the current billing month.
 
 ---
 
-## billing_traffic_by_period
+## list_billing_traffic_by_period
 
 Gets network traffic data for a specific billing period. One month per call.
 
@@ -44,14 +44,14 @@ If the user requests a range longer than one month, calculate the number of mont
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 | `period` | string | Yes | Billing period in `YYYY-MM` format (e.g. `2026-04`) |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_traffic_by_period",
+  "name": "list_billing_traffic_by_period",
   "arguments": {
     "contract": 12345678,
     "period": "2026-04"

@@ -15,32 +15,32 @@ func TestBillingToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Profile (no contract param — tool calls ProfilesGet directly)
-		{"billing_profile", map[string]any{}, []string{"GET"}, []string{"/billing/profile"}},
+		{"get_billing_profile", map[string]any{}, []string{"GET"}, []string{"/billing/profile"}},
 
 		// EVN
-		{"billing_evn", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/evn"}},
-		{"billing_evn_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/evn/2026-04"}},
+		{"list_billing_evn", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/evn"}},
+		{"list_billing_evn_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/evn/2026-04"}},
 
 		// Invoices
-		{"billing_invoices", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/invoices"}},
-		{"billing_invoices_by_period", map[string]any{"period": "2026-04"}, []string{"GET"}, []string{"/billing/invoices/2026-04"}},
-		{"billing_invoice", map[string]any{"contract": c, "invoice_id": "INV123"}, []string{"GET"}, []string{"/billing/1/invoices/INV123"}},
+		{"list_billing_invoices", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/invoices"}},
+		{"list_billing_invoices_by_period", map[string]any{"period": "2026-04"}, []string{"GET"}, []string{"/billing/invoices/2026-04"}},
+		{"get_billing_invoice", map[string]any{"contract": c, "invoice_id": "INV123"}, []string{"GET"}, []string{"/billing/1/invoices/INV123"}},
 
 		// Traffic
-		{"billing_traffic", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/traffic"}},
-		{"billing_traffic_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/traffic/2026-04"}},
+		{"list_billing_traffic", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/traffic"}},
+		{"list_billing_traffic_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/traffic/2026-04"}},
 
 		// Usage
-		{"billing_usage", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/usage"}},
-		{"billing_usage_by_datacenter", map[string]any{"contract": c, "datacenter_id": "dc-uuid-1"}, []string{"GET"}, []string{"/billing/1/usage/dc-uuid-1"}},
+		{"list_billing_usage", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/usage"}},
+		{"get_billing_usage_by_datacenter", map[string]any{"contract": c, "datacenter_id": "dc-uuid-1"}, []string{"GET"}, []string{"/billing/1/usage/dc-uuid-1"}},
 
 		// Utilization
-		{"billing_utilization", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/utilization"}},
-		{"billing_utilization_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/utilization/2026-04"}},
-		{"billing_utilization_daily", map[string]any{"contract": c, "date": "2026-04-15"}, []string{"GET"}, []string{"/billing/1/utilization/daily/2026-04-15"}},
+		{"list_billing_utilization", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/utilization"}},
+		{"list_billing_utilization_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/utilization/2026-04"}},
+		{"get_billing_utilization_daily", map[string]any{"contract": c, "date": "2026-04-15"}, []string{"GET"}, []string{"/billing/1/utilization/daily/2026-04-15"}},
 
 		// Products
-		{"billing_products", map[string]any{"contract": c, "filter": "RAM"}, []string{"GET"}, []string{"/billing/1/products"}},
+		{"list_billing_products", map[string]any{"contract": c, "filter": "RAM"}, []string{"GET"}, []string{"/billing/1/products"}},
 	}
 
 	ctx := context.Background()
@@ -81,10 +81,10 @@ func TestBillingPeriodValidation(t *testing.T) {
 		name string
 		args map[string]any
 	}{
-		{"billing_evn_by_period", map[string]any{"contract": c, "period": "not-a-period"}},
-		{"billing_invoices_by_period", map[string]any{"period": "2026-13"}},
-		{"billing_traffic_by_period", map[string]any{"contract": c, "period": "04-2026"}},
-		{"billing_utilization_by_period", map[string]any{"contract": c, "period": ""}},
+		{"list_billing_evn_by_period", map[string]any{"contract": c, "period": "not-a-period"}},
+		{"list_billing_invoices_by_period", map[string]any{"period": "2026-13"}},
+		{"list_billing_traffic_by_period", map[string]any{"contract": c, "period": "04-2026"}},
+		{"list_billing_utilization_by_period", map[string]any{"contract": c, "period": ""}},
 	}
 
 	for _, tt := range periodTools {

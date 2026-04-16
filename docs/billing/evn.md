@@ -11,7 +11,7 @@ EVN (Provisioning Itemized Data) provides per-resource usage intervals grouped b
 
 The response drops the `evnCSV` duplicate field from the API and returns the structured `metadata` and `datacenters` fields.
 
-## billing_evn
+## list_billing_evn
 
 Gets EVN data for the current billing month.
 
@@ -19,13 +19,13 @@ Gets EVN data for the current billing month.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_evn",
+  "name": "list_billing_evn",
   "arguments": {
     "contract": 12345678
   }
@@ -36,7 +36,7 @@ Gets EVN data for the current billing month.
 
 ---
 
-## billing_evn_by_period
+## list_billing_evn_by_period
 
 Gets EVN data for a specific billing period. One month per call.
 
@@ -46,14 +46,14 @@ If the user requests a range longer than one month, calculate the number of mont
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 | `period` | string | Yes | Billing period in `YYYY-MM` format (e.g. `2026-04`) |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_evn_by_period",
+  "name": "list_billing_evn_by_period",
   "arguments": {
     "contract": 12345678,
     "period": "2026-04"

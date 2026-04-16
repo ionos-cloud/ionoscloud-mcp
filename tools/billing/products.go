@@ -19,7 +19,7 @@ type cleanProducts struct {
 
 func RegisterProductTools(server *mcp.Server, client *sdk.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "billing_products",
+		Name: "list_billing_products",
 		Description: "Search the IONOS Cloud product/pricing catalog by keyword. " +
 			"Returns non-deprecated products whose description matches the filter. " +
 			"IMPORTANT: Only call this tool when the user has explicitly specified a product or category they want to see pricing for. " +

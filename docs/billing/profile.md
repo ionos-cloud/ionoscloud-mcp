@@ -7,7 +7,7 @@ description: |-
 
 # Profile
 
-## billing_profile
+## get_billing_profile
 
 Gets the billing profile for your IONOS Cloud account, including contract numbers and customer IDs.
 
@@ -19,7 +19,7 @@ Call this first before any other billing tool — the contract number in the res
 
 ```json
 {
-  "name": "billing_profile",
+  "name": "get_billing_profile",
   "arguments": {}
 }
 ```

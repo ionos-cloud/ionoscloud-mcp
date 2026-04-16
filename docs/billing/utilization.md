@@ -9,7 +9,7 @@ description: |-
 
 Utilization data provides per-resource metrics (CPU, RAM, storage, DNS) grouped by datacenter. It is more granular than usage — each record tracks an individual resource instance rather than aggregated totals.
 
-## billing_utilization
+## list_billing_utilization
 
 Gets resource utilization for the current billing period.
 
@@ -17,13 +17,13 @@ Gets resource utilization for the current billing period.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_utilization",
+  "name": "list_billing_utilization",
   "arguments": {
     "contract": 12345678
   }
@@ -34,7 +34,7 @@ Gets resource utilization for the current billing period.
 
 ---
 
-## billing_utilization_by_period
+## list_billing_utilization_by_period
 
 Gets resource utilization for a specific billing period. One month per call.
 
@@ -44,14 +44,14 @@ If the user requests a range longer than one month, calculate the number of mont
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 | `period` | string | Yes | Billing period in `YYYY-MM` format (e.g. `2026-04`) |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_utilization_by_period",
+  "name": "list_billing_utilization_by_period",
   "arguments": {
     "contract": 12345678,
     "period": "2026-04"
@@ -63,7 +63,7 @@ If the user requests a range longer than one month, calculate the number of mont
 
 ---
 
-## billing_utilization_daily
+## get_billing_utilization_daily
 
 Gets resource utilization for a specific date. Use this for day-level analysis within a month — it returns less data than a full-month query.
 
@@ -71,14 +71,14 @@ Gets resource utilization for a specific date. Use this for day-level analysis w
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `contract` | integer | Yes | Contract number from `billing_profile` |
+| `contract` | integer | Yes | Contract number from `get_billing_profile` |
 | `date` | string | Yes | Date in `YYYY-MM-DD` format (e.g. `2026-04-15`) |
 
 **Example:**
 
 ```json
 {
-  "name": "billing_utilization_daily",
+  "name": "get_billing_utilization_daily",
   "arguments": {
     "contract": 12345678,
     "date": "2026-04-15"
