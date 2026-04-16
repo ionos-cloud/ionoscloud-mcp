@@ -117,3 +117,40 @@ type ReverseRecordIDInput struct {
 type SecondaryZoneIDInput struct {
 	SecondaryZoneID string `json:"secondary_zone_id" jsonschema:"the ID of the secondary DNS zone"`
 }
+
+// Billing input types
+// Most billing tools require a contract number — call get_billing_profile first to get it.
+// Exception: list_billing_invoices_by_period is contract-agnostic (the underlying API endpoint does not accept a contract parameter).
+
+type BillingContractInput struct {
+	Contract int32 `json:"contract" jsonschema:"contract number from get_billing_profile"`
+}
+
+type BillingContractPeriodInput struct {
+	Contract int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	Period   string `json:"period" jsonschema:"billing period in YYYY-MM format (e.g. 2026-04). Maximum one month per request — for wider ranges call once per month"`
+}
+
+type BillingInvoiceIDInput struct {
+	Contract  int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	InvoiceID string `json:"invoice_id" jsonschema:"the invoice ID (e.g. GY00350536)"`
+}
+
+type BillingDatacenterInput struct {
+	Contract     int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	DatacenterID string `json:"datacenter_id" jsonschema:"the VDC UUID"`
+}
+
+type BillingDateInput struct {
+	Contract int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	Date     string `json:"date" jsonschema:"date in YYYY-MM-DD format (e.g. 2026-04-15)"`
+}
+
+type BillingPeriodOnlyInput struct {
+	Period string `json:"period" jsonschema:"billing period in YYYY-MM format (e.g. 2026-04)"`
+}
+
+type BillingProductsInput struct {
+	Contract int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	Filter   string `json:"filter" jsonschema:"keyword to filter products by description (e.g. 'RAM', 'Kubernetes', 'Postgres', 'storage'). Use broad terms to find relevant pricing"`
+}

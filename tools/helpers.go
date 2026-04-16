@@ -3,10 +3,27 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// ValidateDate checks that date is a valid YYYY-MM-DD string (e.g. "2026-04-15").
+// Leading/trailing whitespace is trimmed before parsing.
+func ValidateDate(date string) error {
+	if _, err := time.Parse("2006-01-02", strings.TrimSpace(date)); err != nil {
+		return fmt.Errorf("invalid date %q: must be YYYY-MM-DD format (e.g. 2026-04-15)", date)
+	}
+	return nil
+}
+
+// ValidatePeriod checks that period is a valid YYYY-MM string (e.g. "2026-04").
+// Leading/trailing whitespace is trimmed before parsing.
+func ValidatePeriod(period string) error {
+	return ValidateDate(strings.TrimSpace(period) + "-01")
+}
 
 // ToResult marshals an API response into an MCP text result.
 func ToResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
@@ -18,7 +35,7 @@ func ToResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
 			IsError: true,
 		}, nil, nil
 	}
-	bytes, err := json.MarshalIndent(data, "", "  ")
+	bytes, err := json.Marshal(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal response: %w", err)
 	}

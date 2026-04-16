@@ -1,0 +1,72 @@
+package billing
+
+import (
+	"context"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
+	sdk "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+// cleanTraffic holds only the structured trafficObj field, dropping the CSV and array duplicates.
+type cleanTraffic struct {
+	Metadata   *sdk.TrafficMetadata   `json:"metadata,omitempty"`
+	TrafficObj *sdk.TrafficTrafficObj `json:"trafficObj,omitempty"`
+}
+
+// filterTrafficObj drops date entries where both In and Out are nil (no traffic recorded).
+func filterTrafficObj(obj *sdk.TrafficTrafficObj) {
+	if obj == nil {
+		return
+	}
+	for i, vdc := range obj.Vdc {
+		obj.Vdc[i].Dates = filterDates(vdc.Dates)
+	}
+}
+
+func filterDates(entries []sdk.TrafficEntry) []sdk.TrafficEntry {
+	var out []sdk.TrafficEntry
+	for _, e := range entries {
+		if e.In != nil || e.Out != nil {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+func RegisterTrafficTools(server *mcp.Server, client *sdk.APIClient) {
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_billing_traffic",
+		Description: "Get network traffic data for your contract for the current billing month. Returns per-datacenter and per-NIC inbound/outbound traffic in bytes. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingContractInput) (*mcp.CallToolResult, any, error) {
+		traffic, _, err := client.TrafficApi.TrafficGet(ctx, input.Contract).Execute()
+		if err != nil {
+			return tools.ToResult(nil, err)
+		}
+		filterTrafficObj(traffic.TrafficObj)
+		result := cleanTraffic{
+			Metadata:   traffic.Metadata,
+			TrafficObj: traffic.TrafficObj,
+		}
+		return tools.ToResult(result, nil)
+	})
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "list_billing_traffic_by_period",
+		Description: "Get network traffic data for a specific billing period (YYYY-MM). One month per call. If the user requests a range longer than one month, calculate the number of monthly calls required, inform the user, and ask for permission before proceeding. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
+	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingContractPeriodInput) (*mcp.CallToolResult, any, error) {
+		if err := tools.ValidatePeriod(input.Period); err != nil {
+			return tools.ToResult(nil, err)
+		}
+		traffic, _, err := client.TrafficApi.TrafficFindByPeriod(ctx, input.Contract, input.Period).Execute()
+		if err != nil {
+			return tools.ToResult(nil, err)
+		}
+		filterTrafficObj(traffic.TrafficObj)
+		result := cleanTraffic{
+			Metadata:   traffic.Metadata,
+			TrafficObj: traffic.TrafficObj,
+		}
+		return tools.ToResult(result, nil)
+	})
+}

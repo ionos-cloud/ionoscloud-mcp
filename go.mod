@@ -3,6 +3,7 @@ module github.com/ionos-cloud/ionoscloud-mcp
 go 1.25.0
 
 require (
+	github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.0
 	github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.5
 	github.com/ionos-cloud/sdk-go-bundle/products/dns/v2 v2.2.0
 	github.com/ionos-cloud/sdk-go-bundle/shared v0.1.6
