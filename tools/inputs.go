@@ -133,7 +133,7 @@ type BillingContractPeriodInput struct {
 
 type BillingInvoiceIDInput struct {
 	Contract  int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
-	InvoiceID string `json:"invoice_id" jsonschema:"the invoice ID (e.g. GY00350536)"`
+	InvoiceID string `json:"invoice_id" jsonschema:"the invoice ID (e.g. GY00111111)"`
 }
 
 type BillingDatacenterInput struct {

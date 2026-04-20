@@ -70,7 +70,7 @@ Use `list_billing_invoices` first to find available invoice IDs.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `contract` | integer | Yes | Contract number from `get_billing_profile` |
-| `invoice_id` | string | Yes | The invoice ID (e.g. `GY00350536`) |
+| `invoice_id` | string | Yes | The invoice ID (e.g. `GY00111111`) |
 
 **Example:**
 
@@ -79,7 +79,7 @@ Use `list_billing_invoices` first to find available invoice IDs.
   "name": "get_billing_invoice",
   "arguments": {
     "contract": 12345678,
-    "invoice_id": "GY00350536"
+    "invoice_id": "GY00111111"
   }
 }
 ```
