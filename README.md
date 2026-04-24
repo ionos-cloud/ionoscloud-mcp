@@ -13,6 +13,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 | [Compute Engine](docs/compute/) | 50 | Data Centers, Servers, Volumes, NICs, LANs, Firewall Rules, IP Blocks, Load Balancers, NAT Gateways, Security Groups, and more | [docs/compute/](docs/compute/) |
 | [DNS](docs/dns/) | 14 | Zones, Zone Files, Records, Reverse Records, Secondary Zones, DNSSEC, Quota | [docs/dns/](docs/dns/) |
 | [Billing](docs/billing/) | 14 | Profile, Invoices, EVN (provisioning intervals), Traffic, Usage, Utilization, Product pricing catalog | [docs/billing/](docs/billing/) |
+| [Object Storage](docs/objectstorage/) | 23 | Buckets, Bucket Configuration (CORS, encryption, lifecycle, policy, replication, tagging, versioning, Object Lock), Objects, Access Keys, Regions | [docs/objectstorage/](docs/objectstorage/) |
 
 ## Installation
 
@@ -31,14 +32,19 @@ go build -o ionoscloud-mcp .
 
 ## Configuration
 
-You need an IONOS Cloud account with API credentials. Set the token as an environment variable:
+You need an IONOS Cloud account with API credentials. Set the required environment variables:
 
 ```bash
-# Token-based authentication
+# Required: API token for management/control-plane APIs (Compute, DNS, Billing, Object Storage Management)
 export IONOS_TOKEN="your-api-token"
+
+# Optional: S3 credentials for Object Storage data-plane operations
+# Only required if using Object Storage tools (list/inspect buckets, objects, access keys, etc.)
+export IONOS_S3_ACCESS_KEY="your-s3-access-key"
+export IONOS_S3_SECRET_KEY="your-s3-secret-key"
 ```
 
-You can generate a token from the [IONOS Cloud DCD](https://dcd.ionos.com/) under Management > Token Management.
+You can generate a token from the [IONOS Cloud DCD](https://dcd.ionos.com/) under Management > Token Management. S3 credentials for Object Storage can be created in the same interface under Object Storage > Access Keys.
 
 ## Usage
 
@@ -58,12 +64,16 @@ To use this server with an MCP client (like Claude Desktop), add it to your MCP 
     "ionoscloud": {
       "command": "/path/to/ionoscloud-mcp",
       "env": {
-        "IONOS_TOKEN": "your-api-token"
+        "IONOS_TOKEN": "your-api-token",
+        "IONOS_S3_ACCESS_KEY": "your-s3-access-key",
+        "IONOS_S3_SECRET_KEY": "your-s3-secret-key"
       }
     }
   }
 }
 ```
+
+**Note:** `IONOS_TOKEN` is required. The Object Storage credentials are only needed if you plan to use Object Storage tools.
 
 ## Development
 

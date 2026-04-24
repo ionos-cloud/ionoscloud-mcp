@@ -10,9 +10,12 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	dnsSDK "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
+	objstSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2"
+	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -97,6 +100,8 @@ func setup(t *testing.T) *testSetup {
 	computeClient := ionos.NewAPIClient(testCfg())
 	dnsClient := dnsSDK.NewAPIClient(testCfg())
 	billingClient := billSDK.NewAPIClient(testCfg())
+	objstClient := objstSDK.NewAPIClient(testCfg())
+	objmgmtClient := objmgmtSDK.NewAPIClient(testCfg())
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionoscloud-mcp",
@@ -106,6 +111,7 @@ func setup(t *testing.T) *testSetup {
 	compute.RegisterAll(server, computeClient)
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient)
+	objectstorage.RegisterAll(server, objstClient, objmgmtClient)
 
 	// in-memory pipe between MCP client and server (replaces stdio)
 	ct, st := mcp.NewInMemoryTransports()
