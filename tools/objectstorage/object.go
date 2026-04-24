@@ -32,7 +32,14 @@ func RegisterObjectTools(server *mcp.Server, client *sdk.APIClient) {
 		Description: "Check whether an object exists in an Object Storage bucket and retrieve its user-defined metadata (x-amz-meta-* headers). Returns an error if the object does not exist or is not accessible.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ObjectStorageObjectInput) (*mcp.CallToolResult, any, error) {
 		output, _, err := client.ObjectsApi.HeadObject(ctx, input.Bucket, input.Key).Execute()
-		return tools.ToResult(output, err)
+		if err != nil {
+			return tools.ToResult(nil, err)
+		}
+		result := map[string]any{"bucket": input.Bucket, "key": input.Key, "accessible": true}
+		if output != nil && output.Metadata != nil {
+			result["metadata"] = *output.Metadata
+		}
+		return tools.ToResult(result, nil)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{

@@ -14,7 +14,13 @@ func RegisterAccessKeyTools(server *mcp.Server, client *mgmtSDK.APIClient) {
 		Description: "List all Object Storage access keys for the contract. Returns key IDs and metadata but not the secret keys.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		result, _, err := client.AccesskeysApi.AccesskeysGet(ctx).Execute()
-		return tools.ToResult(result, err)
+		if err != nil {
+			return tools.ToResult(nil, err)
+		}
+		for i := range result.Items {
+			result.Items[i].Properties.SecretKey = ""
+		}
+		return tools.ToResult(result, nil)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -22,6 +28,10 @@ func RegisterAccessKeyTools(server *mcp.Server, client *mgmtSDK.APIClient) {
 		Description: "Get details of a specific Object Storage access key by its ID. Returns key metadata but not the secret key.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.AccessKeyIDInput) (*mcp.CallToolResult, any, error) {
 		result, _, err := client.AccesskeysApi.AccesskeysFindById(ctx, input.AccessKeyID).Execute()
-		return tools.ToResult(result, err)
+		if err != nil {
+			return tools.ToResult(nil, err)
+		}
+		result.Properties.SecretKey = ""
+		return tools.ToResult(result, nil)
 	})
 }
