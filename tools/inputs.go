@@ -167,8 +167,10 @@ type ObjectStorageObjectInput struct {
 }
 
 type ObjectStorageListObjectsInput struct {
-	Bucket string  `json:"bucket" jsonschema:"the name of the object storage bucket"`
-	Prefix *string `json:"prefix,omitempty" jsonschema:"optional key prefix to filter results (e.g. 'images/' to list only objects under that path)"`
+	Bucket            string  `json:"bucket" jsonschema:"the name of the object storage bucket"`
+	Prefix            *string `json:"prefix,omitempty" jsonschema:"optional key prefix to filter results (e.g. 'images/' to list only objects under that path)"`
+	ContinuationToken *string `json:"continuation_token,omitempty" jsonschema:"optional pagination token returned by a previous list operation to continue listing objects"`
+	MaxKeys           *int32  `json:"max_keys,omitempty" jsonschema:"optional maximum number of objects to return in a single page"`
 }
 
 type AccessKeyIDInput struct {

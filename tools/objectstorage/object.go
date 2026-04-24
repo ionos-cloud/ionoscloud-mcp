@@ -11,11 +11,17 @@ import (
 func RegisterObjectTools(server *mcp.Server, client *sdk.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_object_storage_objects",
-		Description: "List objects in an Object Storage bucket. Supports an optional prefix to filter by key path (e.g. 'images/' to list only objects under that prefix). Returns up to 1000 objects per call; use the next_continuation_token from the response to page through larger result sets.",
+		Description: "List objects in an Object Storage bucket. Supports an optional prefix to filter by key path (e.g. 'images/' to list only objects under that prefix), an optional continuation_token to continue from a previous page, and an optional max_keys to control page size. Returns up to 1000 objects per call by default; use the next_continuation_token from the response as continuation_token in a subsequent call to page through larger result sets.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ObjectStorageListObjectsInput) (*mcp.CallToolResult, any, error) {
 		listReq := client.ObjectsApi.ListObjectsV2(ctx, input.Bucket)
 		if input.Prefix != nil {
 			listReq = listReq.Prefix(*input.Prefix)
+		}
+		if input.ContinuationToken != nil {
+			listReq = listReq.ContinuationToken(*input.ContinuationToken)
+		}
+		if input.MaxKeys != nil {
+			listReq = listReq.MaxKeys(*input.MaxKeys)
 		}
 		result, _, err := listReq.Execute()
 		return tools.ToResult(result, err)

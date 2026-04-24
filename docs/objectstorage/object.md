@@ -9,7 +9,7 @@ description: |-
 
 ## list_object_storage_objects
 
-Lists objects in an Object Storage bucket. Supports an optional prefix to filter by key path (e.g. `images/` to list only objects under that prefix). Returns up to 1000 objects per call; use the `next_continuation_token` from the response to page through larger result sets.
+Lists objects in an Object Storage bucket. Supports an optional prefix to filter by key path (e.g. `images/` to list only objects under that prefix), an optional `continuation_token` to continue from a previous page, and an optional `max_keys` to control page size. Returns up to 1000 objects per call by default; use the `next_continuation_token` from the response as `continuation_token` in a subsequent call to page through larger result sets.
 
 **Parameters:**
 
@@ -17,8 +17,10 @@ Lists objects in an Object Storage bucket. Supports an optional prefix to filter
 |------|------|----------|-------------|
 | `bucket` | string | Yes | The name of the object storage bucket |
 | `prefix` | string | No | Key prefix to filter results (e.g. `images/`) |
+| `continuation_token` | string | No | Pagination token from a previous response's `next_continuation_token` |
+| `max_keys` | integer | No | Maximum number of objects to return per page (default 1000) |
 
-**Example:**
+**Example — first page:**
 
 ```json
 {
@@ -26,6 +28,19 @@ Lists objects in an Object Storage bucket. Supports an optional prefix to filter
   "arguments": {
     "bucket": "my-bucket",
     "prefix": "images/"
+  }
+}
+```
+
+**Example — next page:**
+
+```json
+{
+  "name": "list_object_storage_objects",
+  "arguments": {
+    "bucket": "my-bucket",
+    "prefix": "images/",
+    "continuation_token": "<token from previous response>"
   }
 }
 ```
