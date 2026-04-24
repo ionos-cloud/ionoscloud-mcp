@@ -5,9 +5,11 @@
 - `[FEA][ionoscloud-mcp]` Add 40 new read-only compute tools covering all ionosctl compute engine resources (networking, load balancers, NAT gateways, security groups, etc.) — 50 tools total - @cavramoniu-ionos
 - `[FEA][ionoscloud-mcp]` Add 14 read-only DNS tools (zones, zone files, records, reverse records, secondary zones, DNSSEC, quota) — 64 tools total - @cavramoniu-ionos
 - `[FEA][ionoscloud-mcp]` Add 14 read-only Billing tools (profile, EVN, invoices, products, traffic, usage, utilization) — 78 tools total; EVN and traffic responses drop CSV/array duplicate fields to reduce output size - @cavramoniu-ionos
+- `[FEA][ionoscloud-mcp]` Add 23 read-only Object Storage tools (buckets, bucket config, objects, access keys, regions) — 101 tools total - @cavramoniu-ionos
 ### Testing
 - `[FEA][ionoscloud-mcp]` Add integration tests for all 64 tools using httptest + MCP in-memory transport — verifies correct API endpoint routing without real credentials - @cavramoniu-ionos
 - `[FEA][ionoscloud-mcp]` Add integration tests for all 14 billing tools — verifies correct API endpoint routing and period validation - @cavramoniu-ionos
+- `[FEA][ionoscloud-mcp]` Add integration tests for all 23 Object Storage tools - @cavramoniu-ionos
 ### Improvements
 - `[IMP][ionoscloud-mcp]` Refactor from hand-rolled JSON-RPC to official MCP Go SDK with typed tool handlers via `mcp.AddTool()` - @avirtopeanu-ionos
 - `[IMP][ionoscloud-mcp]` Refactor monolithic `ionos.go` into per-resource files under `tools/compute/`, move shared helpers and input structs to `tools/` package for cross-product reuse - @cavramoniu-ionos

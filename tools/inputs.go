@@ -154,3 +154,34 @@ type BillingProductsInput struct {
 	Contract int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
 	Filter   string `json:"filter" jsonschema:"keyword to filter products by description (e.g. 'RAM', 'Kubernetes', 'Postgres', 'storage'). Use broad terms to find relevant pricing"`
 }
+
+// Object Storage input types
+
+type ObjectStorageBucketInput struct {
+	Bucket string `json:"bucket" jsonschema:"the name of the object storage bucket"`
+}
+
+type ObjectStorageObjectInput struct {
+	Bucket string `json:"bucket" jsonschema:"the name of the object storage bucket"`
+	Key    string `json:"key" jsonschema:"the object key (path within the bucket)"`
+}
+
+type ObjectStorageListObjectsInput struct {
+	Bucket            string  `json:"bucket" jsonschema:"the name of the object storage bucket"`
+	Prefix            *string `json:"prefix,omitempty" jsonschema:"optional key prefix to filter results (e.g. 'images/' to list only objects under that path)"`
+	ContinuationToken *string `json:"continuation_token,omitempty" jsonschema:"optional pagination token returned by a previous list operation to continue listing objects"`
+	MaxKeys           *int32  `json:"max_keys,omitempty" jsonschema:"optional maximum number of objects to return in a single page"`
+}
+
+type AccessKeyIDInput struct {
+	AccessKeyID string `json:"access_key_id" jsonschema:"the ID of the object storage access key"`
+}
+
+type ObjectStorageRegionInput struct {
+	Region string `json:"region" jsonschema:"the region name (e.g. eu-central-3)"`
+}
+
+type ObjectStorageListObjectVersionsInput struct {
+	Bucket string  `json:"bucket" jsonschema:"the name of the object storage bucket"`
+	Prefix *string `json:"prefix,omitempty" jsonschema:"optional key prefix to filter versions"`
+}
