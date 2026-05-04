@@ -21,5 +21,4 @@
 - `[IMP][ionoscloud-mcp]` Restructure tool docs into `docs/compute/` grouped by resource, fix CONTRIBUTING.md for `mcp.AddTool()` pattern, add "What is MCP?" section and CHANGELOG.md - @cavramoniu-ionos
 - `[IMP][ionoscloud-mcp]` Add documentation for all 50 compute tools in `docs/compute/`, update CONTRIBUTING.md for new project structure - @cavramoniu-ionos
 - `[IMP][ionoscloud-mcp]` Switch JSON responses from `MarshalIndent` to `Marshal` (compact JSON) — ~30% reduction in output size across all tools - @cavramoniu-ionos
-### Documentation
 - `[IMP][ionoscloud-mcp]` Add documentation for Certificate Manager tools (certificate, auto-certificate, provider) in `docs/cert/` - @cavramoniu-ionos
