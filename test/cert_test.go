@@ -16,16 +16,16 @@ func TestCertToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Certificates
-		{"list_certificates", map[string]any{}, []string{"GET"}, []string{"/certificates"}},
-		{"get_certificate", map[string]any{"certificate_id": certificate}, []string{"GET"}, []string{"/certificates/" + certificate}},
+		{"list_cert_certificates", map[string]any{}, []string{"GET"}, []string{"/certificates"}},
+		{"get_cert_certificate", map[string]any{"certificate_id": certificate}, []string{"GET"}, []string{"/certificates/" + certificate}},
 
 		// Auto-Certificates
-		{"list_auto_certificates", map[string]any{}, []string{"GET"}, []string{"/auto-certificates"}},
-		{"get_auto_certificate", map[string]any{"auto_certificate_id": autoCert}, []string{"GET"}, []string{"/auto-certificates/" + autoCert}},
+		{"list_cert_auto_certificates", map[string]any{}, []string{"GET"}, []string{"/auto-certificates"}},
+		{"get_cert_auto_certificate", map[string]any{"auto_certificate_id": autoCert}, []string{"GET"}, []string{"/auto-certificates/" + autoCert}},
 
 		// Providers
-		{"list_providers", map[string]any{}, []string{"GET"}, []string{"/providers"}},
-		{"get_provider", map[string]any{"provider_id": provider}, []string{"GET"}, []string{"/providers/" + provider}},
+		{"list_cert_providers", map[string]any{}, []string{"GET"}, []string{"/providers"}},
+		{"get_cert_provider", map[string]any{"provider_id": provider}, []string{"GET"}, []string{"/providers/" + provider}},
 	}
 
 	ctx := context.Background()

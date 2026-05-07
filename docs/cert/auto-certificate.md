@@ -7,7 +7,7 @@ description: |-
 
 # Auto-Certificates
 
-## list_auto_certificates
+## list_cert_auto_certificates
 
 Lists all auto-certificates in your IONOS Cloud Certificate Manager account.
 
@@ -17,7 +17,7 @@ Lists all auto-certificates in your IONOS Cloud Certificate Manager account.
 
 ```json
 {
-  "name": "list_auto_certificates",
+  "name": "list_cert_auto_certificates",
   "arguments": {}
 }
 ```
@@ -26,7 +26,7 @@ Lists all auto-certificates in your IONOS Cloud Certificate Manager account.
 
 ---
 
-## get_auto_certificate
+## get_cert_auto_certificate
 
 Gets details of a specific auto-certificate by ID.
 
@@ -40,7 +40,7 @@ Gets details of a specific auto-certificate by ID.
 
 ```json
 {
-  "name": "get_auto_certificate",
+  "name": "get_cert_auto_certificate",
   "arguments": {
     "auto_certificate_id": "12345678-1234-1234-1234-123456789012"
   }

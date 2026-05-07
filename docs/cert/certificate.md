@@ -7,7 +7,7 @@ description: |-
 
 # Certificates
 
-## list_certificates
+## list_cert_certificates
 
 Lists all SSL/TLS certificates in your IONOS Cloud Certificate Manager account.
 
@@ -17,7 +17,7 @@ Lists all SSL/TLS certificates in your IONOS Cloud Certificate Manager account.
 
 ```json
 {
-  "name": "list_certificates",
+  "name": "list_cert_certificates",
   "arguments": {}
 }
 ```
@@ -26,7 +26,7 @@ Lists all SSL/TLS certificates in your IONOS Cloud Certificate Manager account.
 
 ---
 
-## get_certificate
+## get_cert_certificate
 
 Gets details of a specific SSL/TLS certificate by ID.
 
@@ -40,7 +40,7 @@ Gets details of a specific SSL/TLS certificate by ID.
 
 ```json
 {
-  "name": "get_certificate",
+  "name": "get_cert_certificate",
   "arguments": {
     "certificate_id": "12345678-1234-1234-1234-123456789012"
   }

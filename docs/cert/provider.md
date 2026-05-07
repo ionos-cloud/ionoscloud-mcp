@@ -7,7 +7,7 @@ description: |-
 
 # Providers
 
-## list_providers
+## list_cert_providers
 
 Lists all certificate providers in your IONOS Cloud Certificate Manager account.
 
@@ -17,7 +17,7 @@ Lists all certificate providers in your IONOS Cloud Certificate Manager account.
 
 ```json
 {
-  "name": "list_providers",
+  "name": "list_cert_providers",
   "arguments": {}
 }
 ```
@@ -26,7 +26,7 @@ Lists all certificate providers in your IONOS Cloud Certificate Manager account.
 
 ---
 
-## get_provider
+## get_cert_provider
 
 Gets details of a specific certificate provider by ID.
 
@@ -40,7 +40,7 @@ Gets details of a specific certificate provider by ID.
 
 ```json
 {
-  "name": "get_provider",
+  "name": "get_cert_provider",
   "arguments": {
     "provider_id": "12345678-1234-1234-1234-123456789012"
   }
