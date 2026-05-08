@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
+	"runtime/debug"
+	"strings"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
-	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	dnsSDK "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
 	objstSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2"
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
@@ -25,18 +28,34 @@ var focusSpec string
 
 const (
 	serverName    = "ionoscloud-mcp"
-	serverVersion = "0.1.0"
+	serverVersion = "1.0.0"
 )
+
+func buildUserAgent() string {
+	bundleVersion := "unknown"
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, dep := range info.Deps {
+			if dep.Path == "github.com/ionos-cloud/sdk-go-bundle/shared" {
+				bundleVersion = strings.TrimPrefix(dep.Version, "v")
+				break
+			}
+		}
+	}
+
+	return fmt.Sprintf("ionoscloud-mcp/%s_ionos-cloud-sdk-go-bundle/%s_os/%s_arch/%s",
+		serverVersion, bundleVersion, runtime.GOOS, runtime.GOARCH)
+}
 
 func main() {
 	cfg := shared.NewConfigurationFromEnv()
+	cfg.UserAgent = buildUserAgent()
 
 	if cfg.Token == "" {
 		fmt.Fprintf(os.Stderr, "Error: IONOS_TOKEN environment variable is required.\n")
 		os.Exit(1)
 	}
 
-	client := ionos.NewAPIClient(cfg)
+	client := computeSDK.NewAPIClient(cfg)
 	dnsClient := dnsSDK.NewAPIClient(cfg)
 	billingClient := billSDK.NewAPIClient(cfg)
 	objmgmtClient := objmgmtSDK.NewAPIClient(cfg)

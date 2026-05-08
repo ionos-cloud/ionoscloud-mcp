@@ -105,7 +105,7 @@ func setup(t *testing.T) *testSetup {
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionoscloud-mcp",
-		Version: "0.1.0-test",
+		Version: "1.0.0-test",
 	}, nil)
 
 	compute.RegisterAll(server, computeClient)
@@ -126,7 +126,7 @@ func setup(t *testing.T) *testSetup {
 	// MCP client used by tests to call tools
 	client := mcp.NewClient(&mcp.Implementation{
 		Name:    "test-client",
-		Version: "0.1.0",
+		Version: "1.0.0",
 	}, nil)
 
 	session, err := client.Connect(ctx, ct, nil)
