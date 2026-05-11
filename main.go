@@ -11,11 +11,13 @@ import (
 	"strings"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
+	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
 	dnsSDK "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
 	objstSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2"
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
@@ -58,6 +60,7 @@ func main() {
 	client := computeSDK.NewAPIClient(cfg)
 	dnsClient := dnsSDK.NewAPIClient(cfg)
 	billingClient := billSDK.NewAPIClient(cfg)
+	certClient := certSDK.NewAPIClient(cfg)
 	objmgmtClient := objmgmtSDK.NewAPIClient(cfg)
 	objstClient := objstSDK.NewAPIClient(cfg)
 
@@ -85,6 +88,7 @@ func main() {
 	compute.RegisterAll(server, client)
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient)
+	cert.RegisterAll(server, certClient)
 	objectstorage.RegisterAll(server, objstClient, objmgmtClient)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

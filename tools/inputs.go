@@ -185,3 +185,17 @@ type ObjectStorageListObjectVersionsInput struct {
 	Bucket string  `json:"bucket" jsonschema:"the name of the object storage bucket"`
 	Prefix *string `json:"prefix,omitempty" jsonschema:"optional key prefix to filter versions"`
 }
+
+// Certificate Manager input types
+
+type CertificateIDInput struct {
+	CertificateID string `json:"certificate_id" jsonschema:"the ID of the certificate"`
+}
+
+type AutoCertificateIDInput struct {
+	AutoCertificateID string `json:"auto_certificate_id" jsonschema:"the ID of the auto-certificate"`
+}
+
+type ProviderIDInput struct {
+	ProviderID string `json:"provider_id" jsonschema:"the ID of the certificate provider"`
+}
