@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
@@ -26,11 +27,11 @@ func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient) {
 		mu.Lock()
 		defer mu.Unlock()
 		if loaded {
-			return textResult("Compute tools are already loaded."), nil, nil
+			return tools.TextResult("Compute tools are already loaded."), nil, nil
 		}
 		compute.RegisterAll(server, client)
 		loaded = true
-		return textResult("Compute tools loaded. The tool list has been updated — you can now call list_servers, list_datacenters, and other compute tools."), nil, nil
+		return tools.TextResult("Compute tools loaded. The tool list has been updated — you can now call list_servers, list_datacenters, and other compute tools."), nil, nil
 	})
 }
 
@@ -48,16 +49,10 @@ func RegisterObjectStorageLoader(server *mcp.Server, client *objstSDK.APIClient,
 		mu.Lock()
 		defer mu.Unlock()
 		if loaded {
-			return textResult("Object Storage tools are already loaded."), nil, nil
+			return tools.TextResult("Object Storage tools are already loaded."), nil, nil
 		}
 		objectstorage.RegisterAll(server, client, mgmtClient)
 		loaded = true
-		return textResult("Object Storage tools loaded. The tool list has been updated — you can now call list_object_storage_buckets and other object storage tools."), nil, nil
+		return tools.TextResult("Object Storage tools loaded. The tool list has been updated — you can now call list_object_storage_buckets and other object storage tools."), nil, nil
 	})
-}
-
-func textResult(text string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{&mcp.TextContent{Text: text}},
-	}
 }
