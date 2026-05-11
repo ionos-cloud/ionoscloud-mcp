@@ -14,6 +14,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 | [DNS](docs/dns/) | 14 | Zones, Zone Files, Records, Reverse Records, Secondary Zones, DNSSEC, Quota | [docs/dns/](docs/dns/) |
 | [Billing](docs/billing/) | 14 | Profile, Invoices, EVN (provisioning intervals), Traffic, Usage, Utilization, Product pricing catalog | [docs/billing/](docs/billing/) |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, Bucket Configuration (CORS, encryption, lifecycle, policy, replication, tagging, versioning, Object Lock), Objects, Access Keys, Regions | [docs/objectstorage/](docs/objectstorage/) |
+| [Certificate Manager](docs/cert/) | 6 | Certificates, Auto-Certificates, Providers | [docs/cert/](docs/cert/) |
 
 ## Installation
 
@@ -35,7 +36,7 @@ go build -o ionoscloud-mcp .
 You need an IONOS Cloud account with API credentials. Set the required environment variables:
 
 ```bash
-# Required: API token for management/control-plane APIs (Compute, DNS, Billing, Object Storage Management)
+# Required: API token for management/control-plane APIs (Compute, DNS, Billing, Certificate Manager, Object Storage Management)
 export IONOS_TOKEN="your-api-token"
 
 # Optional: S3 credentials for Object Storage data-plane operations
