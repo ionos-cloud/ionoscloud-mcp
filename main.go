@@ -10,6 +10,9 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/loader"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
@@ -81,24 +84,12 @@ func main() {
 		}, nil
 	})
 
-	eagerDomains := loader.ParseDomains(os.Getenv("IONOS_DOMAINS"), loader.EagerDomains)
+	dns.RegisterAll(server, dnsClient)
+	billing.RegisterAll(server, billingClient)
+	cert.RegisterAll(server, certClient)
 
-	dl := loader.NewDomainLoader(server, loader.DomainClients{
-		Compute: client,
-		DNS:     dnsClient,
-		Billing: billingClient,
-		Cert:    certClient,
-		ObjSt:   objstClient,
-		ObjMgmt: objmgmtClient,
-	})
-
-	for _, d := range eagerDomains {
-		if _, err := dl.Load(d); err != nil {
-			log.Fatalf("failed to load domain %q: %v", d, err)
-		}
-	}
-
-	loader.RegisterLoaderTools(server, dl)
+	loader.RegisterComputeLoader(server, client)
+	loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
