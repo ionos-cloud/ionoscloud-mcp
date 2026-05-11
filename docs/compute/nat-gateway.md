@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "NAT Gateway"
 description: |-
-  Tools for listing and inspecting NAT gateways in IONOS Cloud.
+  Tools for listing and inspecting NAT gateways in IONOS CLOUD.
 ---
 
 # NAT Gateways

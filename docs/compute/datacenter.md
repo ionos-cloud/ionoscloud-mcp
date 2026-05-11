@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Data Center"
 description: |-
-  Tools for listing and inspecting virtual data centers in IONOS Cloud.
+  Tools for listing and inspecting virtual data centers in IONOS CLOUD.
 ---
 
 # Data Centers
 
 ## list_datacenters
 
-Lists all virtual data centers in your IONOS Cloud account.
+Lists all virtual data centers in your IONOS CLOUD account.
 
 **Parameters:** None
 

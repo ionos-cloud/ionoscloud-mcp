@@ -2,7 +2,7 @@
 subcategory: "Billing"
 page_title: "Utilization"
 description: |-
-  Tools for retrieving high-granularity resource utilization data from IONOS Cloud.
+  Tools for retrieving high-granularity resource utilization data from IONOS CLOUD.
 ---
 
 # Utilization

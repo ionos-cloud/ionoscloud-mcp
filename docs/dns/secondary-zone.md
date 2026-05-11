@@ -2,14 +2,14 @@
 subcategory: "DNS"
 page_title: "Secondary Zone"
 description: |-
-  Tools for listing and inspecting secondary DNS zones in IONOS Cloud.
+  Tools for listing and inspecting secondary DNS zones in IONOS CLOUD.
 ---
 
 # Secondary DNS Zones
 
 ## list_dns_secondary_zones
 
-Lists all secondary DNS zones in your IONOS Cloud account.
+Lists all secondary DNS zones in your IONOS CLOUD account.
 
 **Parameters:** None
 

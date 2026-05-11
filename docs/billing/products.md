@@ -2,14 +2,14 @@
 subcategory: "Billing"
 page_title: "Products"
 description: |-
-  Tool for searching the IONOS Cloud product and pricing catalog.
+  Tool for searching the IONOS CLOUD product and pricing catalog.
 ---
 
 # Products
 
 ## list_billing_products
 
-Searches the IONOS Cloud product and pricing catalog by keyword. Returns all non-deprecated products whose description matches the filter keyword.
+Searches the IONOS CLOUD product and pricing catalog by keyword. Returns all non-deprecated products whose description matches the filter keyword.
 
 **Only call this tool when the user has explicitly specified a product or category.** If the user asks a broad question like "what are the prices" or "show me all products", ask which specific product or category they are interested in before calling. Use a specific filter (e.g. `RAM` rather than `server`) to keep the result set small.
 

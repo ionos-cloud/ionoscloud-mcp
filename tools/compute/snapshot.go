@@ -11,7 +11,7 @@ import (
 func RegisterSnapshotTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_snapshots",
-		Description: "List all snapshots in your IONOS Cloud account",
+		Description: "List all snapshots in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		snapshots, _, err := client.SnapshotsApi.SnapshotsGet(ctx).Execute()
 		return tools.ToResult(snapshots, err)

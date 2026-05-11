@@ -2,7 +2,7 @@
 subcategory: "DNS"
 page_title: "Record"
 description: |-
-  Tools for listing and inspecting DNS records in IONOS Cloud.
+  Tools for listing and inspecting DNS records in IONOS CLOUD.
 ---
 
 # DNS Records

@@ -11,7 +11,7 @@ import (
 func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_ip_blocks",
-		Description: "List all reserved IP blocks in your IONOS Cloud account",
+		Description: "List all reserved IP blocks in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		ipblocks, _, err := client.IPBlocksApi.IpblocksGet(ctx).Execute()
 		return tools.ToResult(ipblocks, err)

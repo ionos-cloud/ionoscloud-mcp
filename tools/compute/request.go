@@ -11,7 +11,7 @@ import (
 func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_requests",
-		Description: "List all API requests in your IONOS Cloud account",
+		Description: "List all API requests in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		requests, _, err := client.RequestsApi.RequestsGet(ctx).Execute()
 		return tools.ToResult(requests, err)

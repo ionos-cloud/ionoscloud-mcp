@@ -2,14 +2,14 @@
 subcategory: "Billing"
 page_title: "Profile"
 description: |-
-  Tool for retrieving the billing profile of your IONOS Cloud account.
+  Tool for retrieving the billing profile of your IONOS CLOUD account.
 ---
 
 # Profile
 
 ## get_billing_profile
 
-Gets the billing profile for your IONOS Cloud account, including contract numbers and customer IDs.
+Gets the billing profile for your IONOS CLOUD account, including contract numbers and customer IDs.
 
 Call this first before any other billing tool — the contract number in the response is required by all subsequent billing tools.
 

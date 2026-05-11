@@ -11,7 +11,7 @@ import (
 func RegisterReverseRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_dns_reverse_records",
-		Description: "List all reverse DNS records in your IONOS Cloud account",
+		Description: "List all reverse DNS records in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		records, _, err := client.ReverseRecordsApi.ReverserecordsGet(ctx).Execute()
 		return tools.ToResult(records, err)

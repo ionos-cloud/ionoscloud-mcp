@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Network Load Balancer"
 description: |-
-  Tools for listing and inspecting network load balancers (NLB) in IONOS Cloud.
+  Tools for listing and inspecting network load balancers (NLB) in IONOS CLOUD.
 ---
 
 # Network Load Balancers

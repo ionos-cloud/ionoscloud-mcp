@@ -2,7 +2,7 @@
 subcategory: "Billing"
 page_title: "Usage"
 description: |-
-  Tools for retrieving aggregated resource usage from IONOS Cloud.
+  Tools for retrieving aggregated resource usage from IONOS CLOUD.
 ---
 
 # Usage

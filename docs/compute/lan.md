@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "LAN"
 description: |-
-  Tools for listing and inspecting LANs in IONOS Cloud.
+  Tools for listing and inspecting LANs in IONOS CLOUD.
 ---
 
 # LANs

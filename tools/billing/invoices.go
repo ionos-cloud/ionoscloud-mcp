@@ -11,7 +11,7 @@ import (
 func RegisterInvoiceTools(server *mcp.Server, client *sdk.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_billing_invoices",
-		Description: "List all invoices for your IONOS Cloud contract. Returns invoice IDs, dates, and amounts. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
+		Description: "List all invoices for your IONOS CLOUD contract. Returns invoice IDs, dates, and amounts. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingContractInput) (*mcp.CallToolResult, any, error) {
 		invoices, _, err := client.InvoicesApi.InvoicesGet(ctx, input.Contract).Execute()
 		return tools.ToResult(invoices, err)

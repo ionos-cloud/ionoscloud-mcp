@@ -2,14 +2,14 @@
 subcategory: "DNS"
 page_title: "Quota"
 description: |-
-  Tools for inspecting DNS quota usage and limits in IONOS Cloud.
+  Tools for inspecting DNS quota usage and limits in IONOS CLOUD.
 ---
 
 # DNS Quota
 
 ## get_dns_quota
 
-Gets DNS quota usage and limits for your IONOS Cloud account.
+Gets DNS quota usage and limits for your IONOS CLOUD account.
 
 **Parameters:** None
 

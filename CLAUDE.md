@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Model Context Protocol (MCP) server that enables LLMs to interact with IONOS Cloud infrastructure. Built with the [official MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) and the IONOS Cloud Go SDK.
+This is a Model Context Protocol (MCP) server that enables LLMs to interact with IONOS CLOUD infrastructure. Built with the [official MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk) and the IONOS CLOUD Go SDK.
 
 ## Build Commands
 
@@ -44,7 +44,7 @@ docs/
 └── dns/                    # One doc file per DNS resource
 ```
 
-- **main.go**: Initializes IONOS Cloud clients (compute + DNS), creates the MCP server via `mcp.NewServer()`, calls `compute.RegisterAll()` and `dns.RegisterAll()`, and runs over `mcp.StdioTransport`.
+- **main.go**: Initializes IONOS CLOUD clients (compute + DNS), creates the MCP server via `mcp.NewServer()`, calls `compute.RegisterAll()` and `dns.RegisterAll()`, and runs over `mcp.StdioTransport`.
 - **tools/**: Shared input structs and helpers in the parent package, product-specific tools in sub-packages.
 - **tools/compute/**: One file per resource. Each file exports a `Register*Tools()` function that adds tools via `mcp.AddTool()`.
 - **tools/dns/**: Same pattern as compute. Each product has its own SDK client (`dns.APIClient` vs `compute.APIClient`), both initialized from the same `shared.Configuration`.
@@ -53,7 +53,7 @@ docs/
 
 1. The official MCP SDK handles all JSON-RPC protocol framing over stdio
 2. Tools are registered with typed Go structs — the SDK auto-generates JSON schemas and validates inputs
-3. Each tool handler calls the IONOS Cloud SDK and returns results as `mcp.TextContent`
+3. Each tool handler calls the IONOS CLOUD SDK and returns results as `mcp.TextContent`
 
 ### Authentication
 

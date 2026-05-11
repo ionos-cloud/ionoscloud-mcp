@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Private Cross-Connect"
 description: |-
-  Tools for listing and inspecting private cross-connects in IONOS Cloud.
+  Tools for listing and inspecting private cross-connects in IONOS CLOUD.
 ---
 
 # Private Cross-Connects
 
 ## list_private_cross_connects
 
-Lists all private cross-connects in your IONOS Cloud account.
+Lists all private cross-connects in your IONOS CLOUD account.
 
 **Parameters:**
 

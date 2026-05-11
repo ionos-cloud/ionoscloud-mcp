@@ -49,9 +49,9 @@ M=Mandatory, C=Conditional, R=Recommended, O=Optional. Null means omit or set nu
 ### Charge Origination
 | Column | Level | Type | Rule |
 |---|---|---|---|
-| InvoiceIssuerName | M | String | "IONOS Cloud" |
-| ServiceProviderName | M | String | "IONOS Cloud" |
-| HostProviderName | R | String | "IONOS Cloud" |
+| InvoiceIssuerName | M | String | "IONOS CLOUD" |
+| ServiceProviderName | M | String | "IONOS CLOUD" |
+| HostProviderName | R | String | "IONOS CLOUD" |
 | InvoiceId | R | String | IONOS invoice ID when available |
 
 ### Location

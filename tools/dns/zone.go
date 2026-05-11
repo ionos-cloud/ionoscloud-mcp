@@ -11,7 +11,7 @@ import (
 func RegisterZoneTools(server *mcp.Server, client *dnsSDK.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_dns_zones",
-		Description: "List all DNS zones in your IONOS Cloud account",
+		Description: "List all DNS zones in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		zones, _, err := client.ZonesApi.ZonesGet(ctx).Execute()
 		return tools.ToResult(zones, err)

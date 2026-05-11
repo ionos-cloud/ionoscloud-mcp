@@ -2,14 +2,14 @@
 subcategory: "DNS"
 page_title: "Reverse Record"
 description: |-
-  Tools for listing and inspecting reverse DNS records in IONOS Cloud.
+  Tools for listing and inspecting reverse DNS records in IONOS CLOUD.
 ---
 
 # Reverse DNS Records
 
 ## list_dns_reverse_records
 
-Lists all reverse DNS records in your IONOS Cloud account.
+Lists all reverse DNS records in your IONOS CLOUD account.
 
 **Parameters:** None
 

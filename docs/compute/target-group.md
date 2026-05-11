@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Target Group"
 description: |-
-  Tools for listing and inspecting target groups in IONOS Cloud.
+  Tools for listing and inspecting target groups in IONOS CLOUD.
 ---
 
 # Target Groups
 
 ## list_target_groups
 
-Lists all target groups in your IONOS Cloud account.
+Lists all target groups in your IONOS CLOUD account.
 
 **Parameters:**
 

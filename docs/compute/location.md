@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Location"
 description: |-
-  Tools for listing available locations (regions) in IONOS Cloud.
+  Tools for listing available locations (regions) in IONOS CLOUD.
 ---
 
 # Locations
 
 ## list_locations
 
-Lists all available locations (regions) in IONOS Cloud.
+Lists all available locations (regions) in IONOS CLOUD.
 
 **Parameters:** None
 

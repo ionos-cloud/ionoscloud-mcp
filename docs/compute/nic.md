@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "NIC"
 description: |-
-  Tools for listing and inspecting network interfaces (NICs) in IONOS Cloud.
+  Tools for listing and inspecting network interfaces (NICs) in IONOS CLOUD.
 ---
 
 # NICs

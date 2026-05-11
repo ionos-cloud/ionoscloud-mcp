@@ -2,7 +2,7 @@
 subcategory: "Object Storage"
 page_title: "Regions"
 description: |-
-  Tools for listing and inspecting Object Storage regions in IONOS Cloud.
+  Tools for listing and inspecting Object Storage regions in IONOS CLOUD.
 ---
 
 # Object Storage Regions

@@ -2,14 +2,14 @@
 subcategory: "Billing"
 page_title: "Invoices"
 description: |-
-  Tools for listing and inspecting IONOS Cloud invoices.
+  Tools for listing and inspecting IONOS CLOUD invoices.
 ---
 
 # Invoices
 
 ## list_billing_invoices
 
-Lists all invoices for your IONOS Cloud contract. Returns invoice IDs, dates, and totals. Use the returned IDs with `get_billing_invoice` to get line-item detail.
+Lists all invoices for your IONOS CLOUD contract. Returns invoice IDs, dates, and totals. Use the returned IDs with `get_billing_invoice` to get line-item detail.
 
 **Parameters:**
 

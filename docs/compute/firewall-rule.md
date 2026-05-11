@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Firewall Rule"
 description: |-
-  Tools for listing and inspecting firewall rules in IONOS Cloud.
+  Tools for listing and inspecting firewall rules in IONOS CLOUD.
 ---
 
 # Firewall Rules
