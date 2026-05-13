@@ -46,6 +46,13 @@ func ToResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
 	}, nil, nil
 }
 
+// TextResult wraps a plain string as an MCP text result.
+func TextResult(text string) *mcp.CallToolResult {
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{&mcp.TextContent{Text: text}},
+	}
+}
+
 // ToRawResult returns the raw response payload as an MCP text result.
 // Use this for API endpoints that return non-JSON content (e.g. zone files).
 func ToRawResult(resp *shared.APIResponse, apiErr error) (*mcp.CallToolResult, any, error) {

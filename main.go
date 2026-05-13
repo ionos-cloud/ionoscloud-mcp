@@ -12,12 +12,11 @@ import (
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/loader"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
-	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
+	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	dnsSDK "github.com/ionos-cloud/sdk-go-bundle/products/dns/v2"
 	objstSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2"
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
@@ -85,11 +84,12 @@ func main() {
 		}, nil
 	})
 
-	compute.RegisterAll(server, client)
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient)
 	cert.RegisterAll(server, certClient)
-	objectstorage.RegisterAll(server, objstClient, objmgmtClient)
+
+	loader.RegisterComputeLoader(server, client)
+	loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
