@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Contract"
 description: |-
-  Tools for inspecting contract and resource limit information in IONOS Cloud.
+  Tools for inspecting contract and resource limit information in IONOS CLOUD.
 ---
 
 # Contract
 
 ## get_contract
 
-Gets contract and resource limit information for your IONOS Cloud account.
+Gets contract and resource limit information for your IONOS CLOUD account.
 
 **Parameters:**
 

@@ -2,7 +2,7 @@
 subcategory: "Object Storage"
 page_title: "Access Keys"
 description: |-
-  Tools for listing and inspecting Object Storage access keys in IONOS Cloud.
+  Tools for listing and inspecting Object Storage access keys in IONOS CLOUD.
 ---
 
 # Object Storage Access Keys

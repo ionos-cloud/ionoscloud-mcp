@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Server Sub-Resources"
 description: |-
-  Tools for listing and inspecting server-attached resources (volumes, CD-ROMs, GPUs, remote console) in IONOS Cloud.
+  Tools for listing and inspecting server-attached resources (volumes, CD-ROMs, GPUs, remote console) in IONOS CLOUD.
 ---
 
 # Server Sub-Resources

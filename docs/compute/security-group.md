@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Security Group"
 description: |-
-  Tools for listing and inspecting security groups and their rules in IONOS Cloud.
+  Tools for listing and inspecting security groups and their rules in IONOS CLOUD.
 ---
 
 # Security Groups

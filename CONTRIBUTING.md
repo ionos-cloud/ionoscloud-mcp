@@ -1,6 +1,6 @@
-# Contributing to IONOS Cloud MCP Server
+# Contributing to IONOS CLOUD MCP Server
 
-Thank you for your interest in contributing to the IONOS Cloud MCP Server!
+Thank you for your interest in contributing to the IONOS CLOUD MCP Server!
 
 ## Development Setup
 

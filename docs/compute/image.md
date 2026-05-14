@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Image"
 description: |-
-  Tools for listing available images (OS templates) in IONOS Cloud.
+  Tools for listing available images (OS templates) in IONOS CLOUD.
 ---
 
 # Images
 
 ## list_images
 
-Lists all available images (OS templates) in IONOS Cloud.
+Lists all available images (OS templates) in IONOS CLOUD.
 
 **Parameters:** None
 

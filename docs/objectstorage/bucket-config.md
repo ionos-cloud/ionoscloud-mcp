@@ -2,7 +2,7 @@
 subcategory: "Object Storage"
 page_title: "Bucket Configuration"
 description: |-
-  Tools for inspecting Object Storage bucket configuration in IONOS Cloud.
+  Tools for inspecting Object Storage bucket configuration in IONOS CLOUD.
 ---
 
 # Object Storage Bucket Configuration

@@ -2,7 +2,7 @@
 subcategory: "DNS"
 page_title: "DNSSEC"
 description: |-
-  Tools for inspecting DNSSEC keys on DNS zones in IONOS Cloud.
+  Tools for inspecting DNSSEC keys on DNS zones in IONOS CLOUD.
 ---
 
 # DNSSEC

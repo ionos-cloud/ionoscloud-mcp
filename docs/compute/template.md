@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Template"
 description: |-
-  Tools for listing and inspecting server templates in IONOS Cloud.
+  Tools for listing and inspecting server templates in IONOS CLOUD.
 ---
 
 # Templates
 
 ## list_templates
 
-Lists all available server templates in IONOS Cloud.
+Lists all available server templates in IONOS CLOUD.
 
 **Parameters:**
 

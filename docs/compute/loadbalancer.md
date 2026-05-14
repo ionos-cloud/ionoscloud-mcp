@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Load Balancer"
 description: |-
-  Tools for listing and inspecting load balancers in IONOS Cloud.
+  Tools for listing and inspecting load balancers in IONOS CLOUD.
 ---
 
 # Load Balancers

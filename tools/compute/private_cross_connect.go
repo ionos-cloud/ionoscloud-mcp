@@ -11,7 +11,7 @@ import (
 func RegisterPrivateCrossConnectTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_private_cross_connects",
-		Description: "List all private cross-connects in your IONOS Cloud account",
+		Description: "List all private cross-connects in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		pccs, _, err := client.PrivateCrossConnectsApi.PccsGet(ctx).Execute()
 		return tools.ToResult(pccs, err)

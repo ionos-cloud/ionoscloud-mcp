@@ -1,10 +1,10 @@
-# IONOS Cloud MCP Server
+# IONOS CLOUD MCP Server
 
-This project implements a Model Context Protocol (MCP) server that allows LLMs to interact with IONOS Cloud resources. The server is written in Go and uses the official IONOS Cloud SDK.
+This project implements a Model Context Protocol (MCP) server that allows LLMs to interact with IONOS CLOUD resources. The server is written in Go and uses the official IONOS CLOUD SDK.
 
 ## What is MCP?
 
-The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard that allows AI assistants to connect to external tools and data sources. It defines a JSON-RPC 2.0 interface over stdio (or HTTP) through which an LLM client can discover and invoke tools provided by a server. This MCP server exposes IONOS Cloud infrastructure operations as tools, enabling AI assistants like Claude to list, inspect, and manage your cloud resources through natural language. It is designed for developers and platform engineers who want to interact with IONOS Cloud programmatically through an AI-powered workflow.
+The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard that allows AI assistants to connect to external tools and data sources. It defines a JSON-RPC 2.0 interface over stdio (or HTTP) through which an LLM client can discover and invoke tools provided by a server. This MCP server exposes IONOS CLOUD infrastructure operations as tools, enabling AI assistants like Claude to list, inspect, and manage your cloud resources through natural language. It is designed for developers and platform engineers who want to interact with IONOS CLOUD programmatically through an AI-powered workflow.
 
 ## Supported Products
 
@@ -33,7 +33,7 @@ go build -o ionoscloud-mcp .
 
 ## Configuration
 
-You need an IONOS Cloud account with API credentials. Set the required environment variables:
+You need an IONOS CLOUD account with API credentials. Set the required environment variables:
 
 ```bash
 # Required: API token for management/control-plane APIs (Compute, DNS, Billing, Certificate Manager, Object Storage Management)
@@ -45,7 +45,7 @@ export IONOS_S3_ACCESS_KEY="your-s3-access-key"
 export IONOS_S3_SECRET_KEY="your-s3-secret-key"
 ```
 
-You can generate a token from the [IONOS Cloud DCD](https://dcd.ionos.com/) under Management > Token Management. S3 credentials for Object Storage can be created in the same interface under Object Storage > Access Keys.
+You can generate a token from the [IONOS CLOUD DCD](https://dcd.ionos.com/) under Management > Token Management. S3 credentials for Object Storage can be created in the same interface under Object Storage > Access Keys.
 
 ## Usage
 
@@ -121,12 +121,12 @@ go build -o ionoscloud-mcp .
 ### Dependencies
 
 This project uses minimal external dependencies:
-- [ionos-cloud/sdk-go-bundle](https://github.com/ionos-cloud/sdk-go-bundle) - IONOS Cloud Go SDK Bundle
+- [ionos-cloud/sdk-go-bundle](https://github.com/ionos-cloud/sdk-go-bundle) - IONOS CLOUD Go SDK Bundle
 
 ## API Documentation
 
-For more information about the IONOS Cloud API, refer to:
-- [IONOS Cloud API Documentation](https://api.ionos.com/docs/)
+For more information about the IONOS CLOUD API, refer to:
+- [IONOS CLOUD API Documentation](https://api.ionos.com/docs/)
 - [API Specifications](https://github.com/ionos-cloud/rest-api/tree/main/public)
 - [SDK Documentation](https://github.com/ionos-cloud/sdk-go-bundle)
 

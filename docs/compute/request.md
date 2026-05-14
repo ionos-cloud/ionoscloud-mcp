@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Request"
 description: |-
-  Tools for listing and inspecting API requests in IONOS Cloud.
+  Tools for listing and inspecting API requests in IONOS CLOUD.
 ---
 
 # Requests
 
 ## list_requests
 
-Lists all API requests in your IONOS Cloud account.
+Lists all API requests in your IONOS CLOUD account.
 
 **Parameters:**
 

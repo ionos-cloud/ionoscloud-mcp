@@ -11,7 +11,7 @@ import (
 func RegisterContractTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_contract",
-		Description: "Get contract and resource limit information for your IONOS Cloud account",
+		Description: "Get contract and resource limit information for your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		contract, _, err := client.ContractResourcesApi.ContractsGet(ctx).Execute()
 		return tools.ToResult(contract, err)

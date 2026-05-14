@@ -2,7 +2,7 @@
 subcategory: "Object Storage"
 page_title: "Buckets"
 description: |-
-  Tools for listing and inspecting Object Storage buckets in IONOS Cloud.
+  Tools for listing and inspecting Object Storage buckets in IONOS CLOUD.
 ---
 
 # Object Storage Buckets

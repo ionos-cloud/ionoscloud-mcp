@@ -11,7 +11,7 @@ import (
 func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_target_groups",
-		Description: "List all target groups in your IONOS Cloud account",
+		Description: "List all target groups in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		tgs, _, err := client.TargetGroupsApi.TargetgroupsGet(ctx).Execute()
 		return tools.ToResult(tgs, err)

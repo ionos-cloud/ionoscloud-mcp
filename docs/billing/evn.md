@@ -2,7 +2,7 @@
 subcategory: "Billing"
 page_title: "EVN"
 description: |-
-  Tools for retrieving provisioning itemized data (EVN) from IONOS Cloud.
+  Tools for retrieving provisioning itemized data (EVN) from IONOS CLOUD.
 ---
 
 # EVN (Provisioning Itemized Data)

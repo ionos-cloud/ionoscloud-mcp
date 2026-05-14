@@ -11,7 +11,7 @@ import (
 func RegisterTemplateTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_templates",
-		Description: "List all available server templates in IONOS Cloud",
+		Description: "List all available server templates in IONOS CLOUD",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		templates, _, err := client.TemplatesApi.TemplatesGet(ctx).Execute()
 		return tools.ToResult(templates, err)

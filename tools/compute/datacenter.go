@@ -11,7 +11,7 @@ import (
 func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_datacenters",
-		Description: "List all virtual data centers in your IONOS Cloud account",
+		Description: "List all virtual data centers in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Execute()
 		return tools.ToResult(datacenters, err)

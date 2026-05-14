@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "Snapshot"
 description: |-
-  Tools for listing and inspecting snapshots in IONOS Cloud.
+  Tools for listing and inspecting snapshots in IONOS CLOUD.
 ---
 
 # Snapshots
 
 ## list_snapshots
 
-Lists all snapshots in your IONOS Cloud account.
+Lists all snapshots in your IONOS CLOUD account.
 
 **Parameters:** None
 

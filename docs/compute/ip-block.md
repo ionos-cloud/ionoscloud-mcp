@@ -2,14 +2,14 @@
 subcategory: "Compute Engine"
 page_title: "IP Block"
 description: |-
-  Tools for listing and inspecting reserved IP blocks in IONOS Cloud.
+  Tools for listing and inspecting reserved IP blocks in IONOS CLOUD.
 ---
 
 # IP Blocks
 
 ## list_ip_blocks
 
-Lists all reserved IP blocks in your IONOS Cloud account.
+Lists all reserved IP blocks in your IONOS CLOUD account.
 
 **Parameters:**
 

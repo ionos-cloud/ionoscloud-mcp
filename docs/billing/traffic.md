@@ -2,7 +2,7 @@
 subcategory: "Billing"
 page_title: "Traffic"
 description: |-
-  Tools for retrieving network traffic billing data from IONOS Cloud.
+  Tools for retrieving network traffic billing data from IONOS CLOUD.
 ---
 
 # Traffic

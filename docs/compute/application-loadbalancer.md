@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Application Load Balancer"
 description: |-
-  Tools for listing and inspecting application load balancers (ALB) in IONOS Cloud.
+  Tools for listing and inspecting application load balancers (ALB) in IONOS CLOUD.
 ---
 
 # Application Load Balancers

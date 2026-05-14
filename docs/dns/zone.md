@@ -2,14 +2,14 @@
 subcategory: "DNS"
 page_title: "Zone"
 description: |-
-  Tools for listing and inspecting DNS zones in IONOS Cloud.
+  Tools for listing and inspecting DNS zones in IONOS CLOUD.
 ---
 
 # DNS Zones
 
 ## list_dns_zones
 
-Lists all DNS zones in your IONOS Cloud account.
+Lists all DNS zones in your IONOS CLOUD account.
 
 **Parameters:** None
 
