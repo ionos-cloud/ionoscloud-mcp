@@ -48,7 +48,7 @@ func main() {
 	cert.RegisterAll(server, certClient)
 
 	loader.RegisterComputeLoader(server, client)
-	loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient)
+	loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)

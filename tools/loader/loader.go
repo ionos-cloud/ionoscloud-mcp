@@ -10,6 +10,7 @@ import (
 	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	objstSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2"
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
+	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -37,7 +38,7 @@ func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient) {
 
 // RegisterObjectStorageLoader registers an MCP tool that lazily loads
 // all Object Storage tools on first call.
-func RegisterObjectStorageLoader(server *mcp.Server, client *objstSDK.APIClient, mgmtClient *objmgmtSDK.APIClient) {
+func RegisterObjectStorageLoader(server *mcp.Server, client *objstSDK.APIClient, mgmtClient *objmgmtSDK.APIClient, cfg *shared.Configuration) {
 	var (
 		mu     sync.Mutex
 		loaded bool
@@ -51,7 +52,7 @@ func RegisterObjectStorageLoader(server *mcp.Server, client *objstSDK.APIClient,
 		if loaded {
 			return tools.TextResult("Object Storage tools are already loaded."), nil, nil
 		}
-		objectstorage.RegisterAll(server, client, mgmtClient)
+		objectstorage.RegisterAll(server, client, mgmtClient, cfg)
 		loaded = true
 		return tools.TextResult("Object Storage tools loaded. The tool list has been updated — you can now call list_object_storage_buckets and other object storage tools."), nil, nil
 	})

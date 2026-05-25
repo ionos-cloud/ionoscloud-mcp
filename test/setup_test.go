@@ -115,7 +115,7 @@ func setup(t *testing.T) *testSetup {
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient)
 	cert.RegisterAll(server, certClient)
-	objectstorage.RegisterAll(server, objstClient, objmgmtClient)
+	objectstorage.RegisterAll(server, objstClient, objmgmtClient, testCfg())
 
 	// in-memory pipe between MCP client and server (replaces stdio)
 	ct, st := mcp.NewInMemoryTransports()
