@@ -56,9 +56,9 @@ func (c *clientCache) forBucket(ctx context.Context, bucket string) (*sdk.APICli
 	if loc.LocationConstraint != nil && *loc.LocationConstraint != "" {
 		region = *loc.LocationConstraint
 	}
-	c.bucketRegion[bucket] = region
 
 	if client, ok := c.byRegion[region]; ok {
+		c.bucketRegion[bucket] = region // cache only after client is confirmed
 		return client, nil
 	}
 
@@ -75,5 +75,6 @@ func (c *clientCache) forBucket(ctx context.Context, bucket string) (*sdk.APICli
 	newCfg.Servers = shared.ServerConfigurations{{URL: endpoint}}
 	client := sdk.NewAPIClient(&newCfg)
 	c.byRegion[region] = client
+	c.bucketRegion[bucket] = region // cache only after client is confirmed
 	return client, nil
 }
