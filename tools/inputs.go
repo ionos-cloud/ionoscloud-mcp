@@ -186,6 +186,16 @@ type ObjectStorageListObjectVersionsInput struct {
 	Prefix *string `json:"prefix,omitempty" jsonschema:"optional key prefix to filter versions"`
 }
 
+// Activity Log input types
+
+type ActivityLogQueryInput struct {
+	Contract  int32   `json:"contract" jsonschema:"the contract number whose activity log to query; reseller/partner users get IDs from list_activitylog_contracts, single-contract users read it from their JWT"`
+	DateStart *string `json:"date_start,omitempty" jsonschema:"optional inclusive start date YYYY-MM-DD (e.g. 2026-05-01)"`
+	DateEnd   *string `json:"date_end,omitempty" jsonschema:"optional inclusive end date YYYY-MM-DD (e.g. 2026-05-11)"`
+	Offset    *int32  `json:"offset,omitempty" jsonschema:"optional 0-based pagination offset"`
+	Limit     *int32  `json:"limit,omitempty" jsonschema:"optional maximum events per page; pass a small value (e.g. 25) unless the user explicitly asked for a bulk scan — logs span years and tens of thousands of events"`
+}
+
 // Certificate Manager input types
 
 type CertificateIDInput struct {

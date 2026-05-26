@@ -1,6 +1,7 @@
 ## Upcoming
 
 ### Features
+- `[FEA][ionoscloud-mcp]` Add 2 read-only Activity Log tools (list contracts, query events) — 109 tools total; events response is compacted (strips `_source` wrapper, `auditVersion`, redundant `contractNumber`, duplicate `sourceService`/`initiator` fields) for ~35% smaller output - @avirtopeanu-ionos
 - `[FEA][ionoscloud-mcp]` Implement MCP server with 10 Compute Engine tools: datacenters, servers, volumes, images, locations, snapshots - @copilot
 - `[FEA][ionoscloud-mcp]` Add 40 new read-only compute tools covering all ionosctl compute engine resources (networking, load balancers, NAT gateways, security groups, etc.) — 50 tools total - @cavramoniu-ionos
 - `[FEA][ionoscloud-mcp]` Add 14 read-only DNS tools (zones, zone files, records, reverse records, secondary zones, DNSSEC, quota) — 64 tools total - @cavramoniu-ionos

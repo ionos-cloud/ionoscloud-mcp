@@ -7,11 +7,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
+	activitylogSDK "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
 	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
@@ -105,12 +107,14 @@ func setup(t *testing.T) *testSetup {
 	certClient := certSDK.NewAPIClient(testCfg())
 	objstClient := objstSDK.NewAPIClient(testCfg())
 	objmgmtClient := objmgmtSDK.NewAPIClient(testCfg())
+	activitylogClient := activitylogSDK.NewAPIClient(testCfg())
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionoscloud-mcp",
 		Version: "1.0.0-test",
 	}, nil)
 
+	activitylog.RegisterAll(server, activitylogClient)
 	compute.RegisterAll(server, computeClient)
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient)
