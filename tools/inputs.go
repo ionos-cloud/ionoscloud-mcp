@@ -150,7 +150,7 @@ type BillingUtilizationInput struct {
 	DatacenterID *string  `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
 	MeterTypes   []string `json:"meter_types,omitempty" jsonschema:"filter to these meter type categories only (client-side); e.g. ['DBAAS','DNS','SERVER']"`
 	Regions      []string `json:"regions,omitempty" jsonschema:"filter to these regions only (client-side); e.g. ['de/fra','es/vit']"`
-	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc — flat list with dc_id/dc_name on each row, datacenters[] omitted; ideal for cost audits on contracts with many datacenters"`
+	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc — flat list with dc_id/dc_name on each row, datacenters[] omitted; ideal for cost audits on contracts with many datacenters. When combined with group_by='datacenter', top_meters[] rows have no meter_id (type+unit aggregates); with group_by='meter', meter_id is the SKU"`
 }
 
 type BillingUtilizationPeriodInput struct {
@@ -161,7 +161,7 @@ type BillingUtilizationPeriodInput struct {
 	DatacenterID *string  `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
 	MeterTypes   []string `json:"meter_types,omitempty" jsonschema:"filter to these meter type categories only (client-side); e.g. ['DBAAS','DNS','SERVER']"`
 	Regions      []string `json:"regions,omitempty" jsonschema:"filter to these regions only (client-side); e.g. ['de/fra']"`
-	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc (flat list, datacenters[] omitted)"`
+	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc (flat list, datacenters[] omitted). When combined with group_by='datacenter', top_meters[] rows have no meter_id"`
 }
 
 type BillingUtilizationDateInput struct {
@@ -172,7 +172,7 @@ type BillingUtilizationDateInput struct {
 	DatacenterID *string  `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
 	MeterTypes   []string `json:"meter_types,omitempty" jsonschema:"filter to these meter type categories only (client-side); e.g. ['DBAAS']"`
 	Regions      []string `json:"regions,omitempty" jsonschema:"filter to these regions only (client-side); e.g. ['de/fra']"`
-	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc (flat list, datacenters[] omitted)"`
+	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc (flat list, datacenters[] omitted). When combined with group_by='datacenter', top_meters[] rows have no meter_id"`
 }
 
 // BillingUsageInput is the input for list_billing_usage.

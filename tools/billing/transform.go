@@ -63,7 +63,7 @@ type CompactUsageResponse struct {
 	EndDate          string              `json:"end_date,omitempty"`
 	ContractID       string              `json:"contract_id,omitempty"`
 	MeterDefinitions map[string]string   `json:"meter_definitions,omitempty"`
-	Datacenters      []CompactUsageDC    `json:"datacenters"`
+	Datacenters      []CompactUsageDC    `json:"datacenters,omitempty"`
 }
 
 type CompactUsageDC struct {
@@ -105,7 +105,8 @@ func compactUtilization(start, end *string, meta *sdk.Metadata, dcs []sdk.Utiliz
 
 	for _, dc := range dcs {
 		dcID := deref(dc.Id)
-		if opts.DatacenterID != nil && *opts.DatacenterID != dcID {
+		// Treat empty-string datacenter_id as unset (avoids accidentally matching DCs with nil ID).
+		if opts.DatacenterID != nil && *opts.DatacenterID != "" && *opts.DatacenterID != dcID {
 			continue
 		}
 
@@ -128,6 +129,11 @@ func compactUtilization(start, end *string, meta *sdk.Metadata, dcs []sdk.Utiliz
 			}
 
 			qty, unit := utilQuantity(m.Quantity)
+			// Guard against malformed SDK responses: NaN/Inf would fail json.Marshal
+			// and break the handler. Treat as missing data and skip.
+			if math.IsNaN(qty) || math.IsInf(qty, 0) {
+				continue
+			}
 			if !opts.IncludeZero && qty == 0 {
 				continue
 			}
@@ -307,7 +313,8 @@ func CompactUsageGet(raw sdk.UsageGet200Response, opts CompactOptions) CompactUs
 	defs := map[string]string{}
 	for _, dc := range raw.Datacenters {
 		dcID := deref(dc.Id)
-		if opts.DatacenterID != nil && *opts.DatacenterID != dcID {
+		// Treat empty-string datacenter_id as unset.
+		if opts.DatacenterID != nil && *opts.DatacenterID != "" && *opts.DatacenterID != dcID {
 			continue
 		}
 

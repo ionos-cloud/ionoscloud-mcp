@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"math"
 	"testing"
 
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
@@ -321,6 +322,110 @@ func TestCompactUtilization_topN(t *testing.T) {
 	}
 	if out.TopMeters[1].Quantity != 100 || out.TopMeters[1].DCID != "dc1" {
 		t.Errorf("top[1] wrong: %+v", out.TopMeters[1])
+	}
+}
+
+func TestCompactUtilization_groupByMeterPlusTopN(t *testing.T) {
+	// group_by=meter aggregates per (meter_id, unit) per DC; top_n then ranks rolled rows globally.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{
+			Id: strp("dc1"), Name: strp("DC1"),
+			Meters: []sdk.UtilizationMeter{
+				utilMeter("M1", "d", "DB", "r", "res1", "n", 2, "u"),
+				utilMeter("M1", "d", "DB", "r", "res2", "n", 3, "u"), // M1 sums to 5
+				utilMeter("M2", "d", "DB", "r", "res3", "n", 1, "u"),
+			},
+		},
+		{
+			Id: strp("dc2"), Name: strp("DC2"),
+			Meters: []sdk.UtilizationMeter{
+				utilMeter("M3", "d", "DB", "r", "res4", "n", 10, "u"),
+			},
+		},
+	})
+	n := int32(2)
+	out := CompactUtilizationGet(raw, CompactOptions{GroupBy: "meter", TopN: &n})
+
+	if out.Datacenters != nil {
+		t.Errorf("Datacenters should be omitted, got %d", len(out.Datacenters))
+	}
+	if len(out.TopMeters) != 2 {
+		t.Fatalf("want 2 top, got %d", len(out.TopMeters))
+	}
+	if out.TopMeters[0].MeterID != "M3" || out.TopMeters[0].Quantity != 10 || out.TopMeters[0].DCID != "dc2" {
+		t.Errorf("top[0] wrong: %+v", out.TopMeters[0])
+	}
+	if out.TopMeters[1].MeterID != "M1" || out.TopMeters[1].Quantity != 5 || out.TopMeters[1].DCID != "dc1" {
+		t.Errorf("top[1] wrong (expected M1 summed to 5): %+v", out.TopMeters[1])
+	}
+	// meter_definitions should be trimmed to surviving meter_ids.
+	if len(out.MeterDefinitions) != 2 {
+		t.Errorf("want 2 definitions (M1, M3), got %v", out.MeterDefinitions)
+	}
+}
+
+func TestCompactUtilization_groupByDatacenterPlusTopN(t *testing.T) {
+	// group_by=datacenter strips meter_id; top_n then ranks (type, unit) aggregates.
+	// Verify top_meters rows have empty meter_id and meter_definitions is empty.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{
+			Id: strp("dc1"), Name: strp("DC1"),
+			Meters: []sdk.UtilizationMeter{
+				utilMeter("M1", "d", "DBAAS", "r", "res", "n", 2, "u"),
+				utilMeter("M2", "d", "DNS", "r", "res", "n", 5, "u"),
+			},
+		},
+	})
+	n := int32(1)
+	out := CompactUtilizationGet(raw, CompactOptions{GroupBy: "datacenter", TopN: &n})
+
+	if len(out.TopMeters) != 1 {
+		t.Fatalf("want 1 top, got %d", len(out.TopMeters))
+	}
+	if out.TopMeters[0].MeterID != "" {
+		t.Errorf("group_by=datacenter should leave meter_id empty, got %q", out.TopMeters[0].MeterID)
+	}
+	if out.TopMeters[0].Type != "DNS" || out.TopMeters[0].Quantity != 5 {
+		t.Errorf("top[0] should be DNS with q=5, got %+v", out.TopMeters[0])
+	}
+	if len(out.MeterDefinitions) != 0 {
+		t.Errorf("meter_definitions should be empty when meter_id is stripped, got %v", out.MeterDefinitions)
+	}
+}
+
+func TestCompactUtilization_nanQuantityDropped(t *testing.T) {
+	nan := float32(math.NaN())
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{
+			Id: strp("dc1"),
+			Meters: []sdk.UtilizationMeter{
+				{
+					MeterId:   strp("M1"),
+					MeterDesc: strp("desc"),
+					Quantity:  &sdk.UtilizationMeterQuantity{Quantity: &nan, Unit: strp("u")},
+				},
+				utilMeter("M2", "d", "DB", "r", "res", "", 5, "u"),
+			},
+		},
+	})
+	out := CompactUtilizationGet(raw, CompactOptions{})
+	if len(out.Datacenters) != 1 || len(out.Datacenters[0].Meters) != 1 {
+		t.Fatalf("want 1 dc with 1 meter (NaN dropped), got %+v", out.Datacenters)
+	}
+	if out.Datacenters[0].Meters[0].MeterID != "M2" {
+		t.Errorf("non-NaN meter should survive, got %v", out.Datacenters[0].Meters[0])
+	}
+}
+
+func TestCompactUtilization_emptyDatacenterIDTreatedAsUnset(t *testing.T) {
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{Id: strp("dc1"), Meters: []sdk.UtilizationMeter{utilMeter("M1", "d", "DB", "r", "res", "", 1, "u")}},
+		{Id: strp("dc2"), Meters: []sdk.UtilizationMeter{utilMeter("M2", "d", "DB", "r", "res", "", 1, "u")}},
+	})
+	empty := ""
+	out := CompactUtilizationGet(raw, CompactOptions{DatacenterID: &empty})
+	if len(out.Datacenters) != 2 {
+		t.Errorf("empty-string datacenter_id should not filter, got %d dcs", len(out.Datacenters))
 	}
 }
 
