@@ -129,7 +129,7 @@ func TestCompact(t *testing.T) {
 	i32 := func(n int32) *int32 { return &n }
 
 	t.Run("empty response", func(t *testing.T) {
-		out := activitylogpkg.Compact(sdk.GetByContractResponse{}, contract)
+		out := activitylogpkg.Compact(sdk.GetByContractResponse{}, contract, activitylogpkg.CompactOptions{IncludeStatusUpdates: true})
 		if len(out.Events) != 0 {
 			t.Errorf("want 0 events, got %d", len(out.Events))
 		}
@@ -144,7 +144,7 @@ func TestCompact(t *testing.T) {
 				Total: i32(42),
 			},
 		}
-		out := activitylogpkg.Compact(raw, contract)
+		out := activitylogpkg.Compact(raw, contract, activitylogpkg.CompactOptions{IncludeStatusUpdates: true})
 		if out.Total != 42 {
 			t.Errorf("want total 42, got %d", out.Total)
 		}
@@ -182,7 +182,7 @@ func TestCompact(t *testing.T) {
 			},
 		}
 
-		out := activitylogpkg.Compact(raw, contract)
+		out := activitylogpkg.Compact(raw, contract, activitylogpkg.CompactOptions{IncludeStatusUpdates: true})
 		if len(out.Events) != 1 {
 			t.Fatalf("want 1 event, got %d", len(out.Events))
 		}
@@ -237,7 +237,7 @@ func TestCompact(t *testing.T) {
 			},
 		}
 
-		out := activitylogpkg.Compact(raw, contract)
+		out := activitylogpkg.Compact(raw, contract, activitylogpkg.CompactOptions{IncludeStatusUpdates: true})
 		if len(out.Events) != 1 {
 			t.Fatalf("want 1 event, got %d", len(out.Events))
 		}
@@ -276,7 +276,7 @@ func TestCompact(t *testing.T) {
 			},
 		}
 
-		out := activitylogpkg.Compact(raw, contract)
+		out := activitylogpkg.Compact(raw, contract, activitylogpkg.CompactOptions{IncludeStatusUpdates: true})
 		if len(out.Events) != 1 {
 			t.Fatalf("want 1 event, got %d", len(out.Events))
 		}
@@ -307,7 +307,7 @@ func TestCompact(t *testing.T) {
 			},
 		}
 
-		out := activitylogpkg.Compact(raw, contract)
+		out := activitylogpkg.Compact(raw, contract, activitylogpkg.CompactOptions{IncludeStatusUpdates: true})
 		if len(out.Events) != 1 {
 			t.Fatalf("want 1 event, got %d", len(out.Events))
 		}

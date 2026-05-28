@@ -47,12 +47,19 @@ type CompactError struct {
 	Messages   []string `json:"messages,omitempty"`
 }
 
+// CompactOptions controls which events are included in the output.
+type CompactOptions struct {
+	IncludeStatusUpdates bool
+	User                 *string
+	EventTypes           []string
+}
+
 // Compact projects a raw GetByContractResponse into CompactResponse.
 //
 // inputContract is the contract number that was passed to GetByContract.
 // Any principal.identity.contractNumber matching this value is dropped
 // from the per-event output (it is guaranteed-redundant for that endpoint).
-func Compact(raw sdk.GetByContractResponse, inputContract int32) CompactResponse {
+func Compact(raw sdk.GetByContractResponse, inputContract int32, opts CompactOptions) CompactResponse {
 	out := CompactResponse{Events: []CompactEvent{}}
 	if raw.Hits == nil {
 		return out
@@ -60,11 +67,29 @@ func Compact(raw sdk.GetByContractResponse, inputContract int32) CompactResponse
 	if raw.Hits.Total != nil {
 		out.Total = *raw.Hits.Total
 	}
+
+	typeSet := make(map[string]bool, len(opts.EventTypes))
+	for _, t := range opts.EventTypes {
+		typeSet[t] = true
+	}
+
 	for _, hit := range raw.Hits.Hits {
 		if hit.Source == nil {
 			continue
 		}
-		out.Events = append(out.Events, compactSource(*hit.Source, inputContract))
+		ev := compactSource(*hit.Source, inputContract)
+
+		if !opts.IncludeStatusUpdates && ev.Type == "RequestStatusUpdate" {
+			continue
+		}
+		if len(typeSet) > 0 && !typeSet[ev.Type] {
+			continue
+		}
+		if opts.User != nil && ev.User != *opts.User {
+			continue
+		}
+
+		out.Events = append(out.Events, ev)
 	}
 	return out
 }
@@ -141,7 +166,11 @@ func compactError(e *sdk.GetByContractResponseHitsHitsSourceEventParamError) *Co
 	if e == nil {
 		return nil
 	}
-	out := &CompactError{HTTPStatus: deref(e.HttpStatus)}
+	var httpStatus string
+	if e.HttpStatus != nil {
+		httpStatus = strconv.Itoa(int(*e.HttpStatus))
+	}
+	out := &CompactError{HTTPStatus: httpStatus}
 	for _, m := range e.Messages {
 		// Messages have nested Message/ErrorCode but the user-facing string is what matters.
 		if msg := messageString(m); msg != "" {

@@ -3,7 +3,7 @@ module github.com/ionos-cloud/ionoscloud-mcp
 go 1.25.0
 
 require (
-	github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2 v2.0.0
+	github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2 v2.0.1
 	github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.0
 	github.com/ionos-cloud/sdk-go-bundle/products/cert/v2 v2.2.1
 	github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.5

@@ -2,10 +2,18 @@ package activitylog
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+const (
+	defaultLimit    = int32(25)
+	defaultLookback = -7 * 24 * time.Hour
+	maxRangeDays    = 90
 )
 
 func RegisterEventTools(server *mcp.Server, client *sdk.APIClient) {
@@ -13,40 +21,66 @@ func RegisterEventTools(server *mcp.Server, client *sdk.APIClient) {
 		Name: "list_activitylog_events",
 		Description: "Query the IONOS CLOUD activity log: full audit trail of API requests made against a contract (who did what, when, on which resource). " +
 			"Requires ACCESS_ACTIVITY_LOG privilege on the token. " +
-			"ALWAYS narrow results with date_start and date_end — logs span years with thousands of events per day. " +
-			"Pass a small limit (e.g. 25) unless the user explicitly asks for bulk data. " +
-			"Response is compacted: _source wrapper removed, auditVersion dropped, redundant contractNumber and duplicate sourceService fields stripped. " +
+			"Defaults: last 7 days, limit 25, RequestStatusUpdate events excluded. " +
+			"Use user filter to narrow to a specific account. Use event_types to restrict to e.g. ['Error','RequestAccepted']. " +
+			"Maximum date range is 90 days — paginate or narrow the window for longer spans. " +
 			"Use list_activitylog_contracts first to look up the contract number if needed.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, in tools.ActivityLogQueryInput) (*mcp.CallToolResult, any, error) {
+		now := time.Now().UTC()
+
+		// Resolve and validate date_start
+		dateStart := now.Add(defaultLookback).Format("2006-01-02")
 		if in.DateStart != nil {
 			if err := tools.ValidateDate(*in.DateStart); err != nil {
 				return tools.ToResult(nil, err)
 			}
+			dateStart = *in.DateStart
 		}
+
+		// Resolve and validate date_end
+		dateEnd := now.Format("2006-01-02")
 		if in.DateEnd != nil {
 			if err := tools.ValidateDate(*in.DateEnd); err != nil {
 				return tools.ToResult(nil, err)
 			}
+			dateEnd = *in.DateEnd
 		}
 
-		req := client.ContractsApi.GetByContract(ctx, in.Contract)
-		if in.DateStart != nil {
-			req = req.DateStart(*in.DateStart)
+		// Enforce 90-day max range
+		start, _ := time.Parse("2006-01-02", dateStart)
+		end, _ := time.Parse("2006-01-02", dateEnd)
+		if end.Before(start) {
+			return tools.ToResult(nil, fmt.Errorf("date_end %q is before date_start %q", dateEnd, dateStart))
 		}
-		if in.DateEnd != nil {
-			req = req.DateEnd(*in.DateEnd)
+		if end.Sub(start).Hours() > maxRangeDays*24 {
+			return tools.ToResult(nil, fmt.Errorf("date range exceeds %d days (%s to %s); narrow the window or paginate", maxRangeDays, dateStart, dateEnd))
 		}
+
+		// Enforce default limit
+		limit := defaultLimit
+		if in.Limit != nil {
+			limit = *in.Limit
+		}
+
+		req := client.ContractsApi.GetByContract(ctx, in.Contract).
+			DateStart(dateStart).
+			DateEnd(dateEnd).
+			Limit(limit)
+
 		if in.Offset != nil {
 			req = req.Offset(*in.Offset)
-		}
-		if in.Limit != nil {
-			req = req.Limit(*in.Limit)
 		}
 
 		raw, _, err := req.Execute()
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
-		return tools.ToResult(Compact(raw, in.Contract), nil)
+
+		opts := CompactOptions{
+			IncludeStatusUpdates: in.IncludeStatusUpdates != nil && *in.IncludeStatusUpdates,
+			User:                 in.User,
+			EventTypes:           in.EventTypes,
+		}
+		return tools.ToResult(Compact(raw, in.Contract, opts), nil)
 	})
 }

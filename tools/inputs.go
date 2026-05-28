@@ -189,11 +189,14 @@ type ObjectStorageListObjectVersionsInput struct {
 // Activity Log input types
 
 type ActivityLogQueryInput struct {
-	Contract  int32   `json:"contract" jsonschema:"the contract number whose activity log to query; reseller/partner users get IDs from list_activitylog_contracts, single-contract users read it from their JWT"`
-	DateStart *string `json:"date_start,omitempty" jsonschema:"optional inclusive start date YYYY-MM-DD (e.g. 2026-05-01)"`
-	DateEnd   *string `json:"date_end,omitempty" jsonschema:"optional inclusive end date YYYY-MM-DD (e.g. 2026-05-11)"`
-	Offset    *int32  `json:"offset,omitempty" jsonschema:"optional 0-based pagination offset"`
-	Limit     *int32  `json:"limit,omitempty" jsonschema:"optional maximum events per page; pass a small value (e.g. 25) unless the user explicitly asked for a bulk scan — logs span years and tens of thousands of events"`
+	Contract             int32    `json:"contract" jsonschema:"the contract number whose activity log to query; reseller/partner users get IDs from list_activitylog_contracts, single-contract users read it from their JWT"`
+	DateStart            *string  `json:"date_start,omitempty" jsonschema:"inclusive start date YYYY-MM-DD; defaults to 7 days ago when omitted"`
+	DateEnd              *string  `json:"date_end,omitempty" jsonschema:"inclusive end date YYYY-MM-DD; defaults to today when omitted; maximum range is 90 days"`
+	Offset               *int32   `json:"offset,omitempty" jsonschema:"0-based pagination offset"`
+	Limit                *int32   `json:"limit,omitempty" jsonschema:"max events to return; defaults to 25; increase only when the user explicitly asks for bulk data"`
+	User                 *string  `json:"user,omitempty" jsonschema:"filter by username (client-side); e.g. 'ionosctl-v6@cloud.ionos.com' — drastically reduces output when investigating a specific user"`
+	EventTypes           []string `json:"event_types,omitempty" jsonschema:"filter to these event types only (client-side); e.g. ['Error','RequestAccepted'] — omit Provision and RequestStatusUpdate to cut ~65% of typical log volume"`
+	IncludeStatusUpdates *bool    `json:"include_status_updates,omitempty" jsonschema:"include RequestStatusUpdate events (default false); these are async provisioning echoes that account for ~55% of log volume and are rarely useful"`
 }
 
 // Certificate Manager input types
