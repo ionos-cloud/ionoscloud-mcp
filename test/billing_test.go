@@ -107,6 +107,76 @@ func TestBillingPeriodValidation(t *testing.T) {
 	}
 }
 
+func TestBillingUtilizationInputValidation(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	c := int32(1)
+
+	// Invalid group_by must produce 0 HTTP requests.
+	cases := []struct {
+		name string
+		tool string
+		args map[string]any
+	}{
+		{"util_get bad group_by", "list_billing_utilization", map[string]any{"contract": c, "group_by": "bogus"}},
+		{"util_period bad group_by", "list_billing_utilization_by_period", map[string]any{"contract": c, "period": "2026-04", "group_by": "bogus"}},
+		{"util_daily bad group_by", "get_billing_utilization_daily", map[string]any{"contract": c, "date": "2026-04-15", "group_by": "bogus"}},
+		{"util_daily bad date", "get_billing_utilization_daily", map[string]any{"contract": c, "date": "not-a-date"}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			h.log.clear()
+			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{Name: tt.tool, Arguments: tt.args})
+			if err != nil {
+				t.Fatalf("CallTool returned protocol error: %v", err)
+			}
+			if reqs := h.log.allRequests(); len(reqs) != 0 {
+				t.Errorf("invalid input made %d HTTP requests, want 0", len(reqs))
+			}
+		})
+	}
+}
+
+func TestBillingCompactionFlagsRouting(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	c := int32(1)
+
+	// Flags do not change endpoint routing — same path regardless of flag combination.
+	cases := []struct {
+		name string
+		tool string
+		args map[string]any
+		path string
+	}{
+		{"util include_zero", "list_billing_utilization", map[string]any{"contract": c, "include_zero": true}, "/billing/1/utilization"},
+		{"util group_by meter", "list_billing_utilization", map[string]any{"contract": c, "group_by": "meter"}, "/billing/1/utilization"},
+		{"util group_by datacenter", "list_billing_utilization", map[string]any{"contract": c, "group_by": "datacenter"}, "/billing/1/utilization"},
+		{"util scope dc", "list_billing_utilization", map[string]any{"contract": c, "datacenter_id": "dc-x"}, "/billing/1/utilization"},
+		{"util scope types", "list_billing_utilization", map[string]any{"contract": c, "meter_types": []string{"DBAAS"}}, "/billing/1/utilization"},
+		{"util scope regions", "list_billing_utilization", map[string]any{"contract": c, "regions": []string{"de/fra"}}, "/billing/1/utilization"},
+		{"usage include_zero", "list_billing_usage", map[string]any{"contract": c, "include_zero": true}, "/billing/1/usage"},
+		{"usage scope dc", "list_billing_usage", map[string]any{"contract": c, "datacenter_id": "dc-y"}, "/billing/1/usage"},
+		{"usage_by_dc include_zero", "get_billing_usage_by_datacenter", map[string]any{"contract": c, "datacenter_id": "dc-z", "include_zero": true}, "/billing/1/usage/dc-z"},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			h.log.clear()
+			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{Name: tt.tool, Arguments: tt.args})
+			if err != nil {
+				t.Fatalf("CallTool returned protocol error: %v", err)
+			}
+			reqs := h.log.allRequests()
+			if len(reqs) != 1 {
+				t.Fatalf("want 1 request, got %d", len(reqs))
+			}
+			if reqs[0].Path != tt.path {
+				t.Errorf("path = %q, want %q", reqs[0].Path, tt.path)
+			}
+		})
+	}
+}
+
 func TestValidatePeriod(t *testing.T) {
 	tests := []struct {
 		period  string
