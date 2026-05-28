@@ -3,6 +3,7 @@ package activitylog
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
@@ -34,7 +35,7 @@ func RegisterEventTools(server *mcp.Server, client *sdk.APIClient) {
 			if err := tools.ValidateDate(*in.DateStart); err != nil {
 				return tools.ToResult(nil, err)
 			}
-			dateStart = *in.DateStart
+			dateStart = strings.TrimSpace(*in.DateStart)
 		}
 
 		// Resolve and validate date_end
@@ -43,23 +44,38 @@ func RegisterEventTools(server *mcp.Server, client *sdk.APIClient) {
 			if err := tools.ValidateDate(*in.DateEnd); err != nil {
 				return tools.ToResult(nil, err)
 			}
-			dateEnd = *in.DateEnd
+			dateEnd = strings.TrimSpace(*in.DateEnd)
 		}
 
 		// Enforce 90-day max range
-		start, _ := time.Parse("2006-01-02", dateStart)
-		end, _ := time.Parse("2006-01-02", dateEnd)
+		start, err := time.Parse("2006-01-02", dateStart)
+		if err != nil {
+			return tools.ToResult(nil, fmt.Errorf("failed to parse date_start %q: %w", dateStart, err))
+		}
+		end, err := time.Parse("2006-01-02", dateEnd)
+		if err != nil {
+			return tools.ToResult(nil, fmt.Errorf("failed to parse date_end %q: %w", dateEnd, err))
+		}
 		if end.Before(start) {
 			return tools.ToResult(nil, fmt.Errorf("date_end %q is before date_start %q", dateEnd, dateStart))
 		}
-		if end.Sub(start).Hours() > maxRangeDays*24 {
-			return tools.ToResult(nil, fmt.Errorf("date range exceeds %d days (%s to %s); narrow the window or paginate", maxRangeDays, dateStart, dateEnd))
+		inclusiveDays := int(end.Sub(start).Hours()/24) + 1
+		if inclusiveDays > maxRangeDays {
+			return tools.ToResult(nil, fmt.Errorf("date range exceeds %d days (%s to %s is %d days); narrow the window or paginate", maxRangeDays, dateStart, dateEnd, inclusiveDays))
 		}
 
-		// Enforce default limit
+		// Validate and apply limit
 		limit := defaultLimit
 		if in.Limit != nil {
+			if *in.Limit <= 0 {
+				return tools.ToResult(nil, fmt.Errorf("limit must be greater than 0, got %d", *in.Limit))
+			}
 			limit = *in.Limit
+		}
+
+		// Validate and apply offset
+		if in.Offset != nil && *in.Offset < 0 {
+			return tools.ToResult(nil, fmt.Errorf("offset must be >= 0, got %d", *in.Offset))
 		}
 
 		req := client.ContractsApi.GetByContract(ctx, in.Contract).

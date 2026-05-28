@@ -323,3 +323,78 @@ func TestCompact(t *testing.T) {
 		}
 	})
 }
+
+func TestActivityLogInputValidation(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	c := int32(1)
+
+	cases := []struct {
+		name string
+		args map[string]any
+	}{
+		{"date_end before date_start", map[string]any{"contract": c, "date_start": "2026-05-10", "date_end": "2026-05-01"}},
+		{"zero limit", map[string]any{"contract": c, "limit": int32(0)}},
+		{"negative limit", map[string]any{"contract": c, "limit": int32(-1)}},
+		{"negative offset", map[string]any{"contract": c, "offset": int32(-1)}},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			h.log.clear()
+
+			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "list_activitylog_events",
+				Arguments: tt.args,
+			})
+			if err != nil {
+				t.Fatalf("CallTool returned protocol error: %v", err)
+			}
+
+			reqs := h.log.allRequests()
+			if len(reqs) != 0 {
+				t.Errorf("invalid input made %d HTTP requests, want 0", len(reqs))
+			}
+		})
+	}
+}
+
+func TestActivityLogClientSideFilters(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	c := int32(12345678)
+
+	// Filters are applied client-side after the API call — tool still routes
+	// to the same endpoint regardless of filter values.
+	filterCases := []struct {
+		name string
+		args map[string]any
+	}{
+		{"user filter", map[string]any{"contract": c, "user": "someone@example.com"}},
+		{"event_types filter", map[string]any{"contract": c, "event_types": []string{"Error", "RequestAccepted"}}},
+		{"include_status_updates true", map[string]any{"contract": c, "include_status_updates": true}},
+		{"include_status_updates false", map[string]any{"contract": c, "include_status_updates": false}},
+	}
+
+	for _, tt := range filterCases {
+		t.Run(tt.name, func(t *testing.T) {
+			h.log.clear()
+
+			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{
+				Name:      "list_activitylog_events",
+				Arguments: tt.args,
+			})
+			if err != nil {
+				t.Fatalf("CallTool returned protocol error: %v", err)
+			}
+
+			reqs := h.log.allRequests()
+			if len(reqs) != 1 {
+				t.Fatalf("want 1 request, got %d", len(reqs))
+			}
+			if reqs[0].Path != "/activitylog/v1/contracts/12345678" {
+				t.Errorf("path = %q, want %q", reqs[0].Path, "/activitylog/v1/contracts/12345678")
+			}
+		})
+	}
+}
