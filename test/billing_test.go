@@ -122,6 +122,8 @@ func TestBillingUtilizationInputValidation(t *testing.T) {
 		{"util_period bad group_by", "list_billing_utilization_by_period", map[string]any{"contract": c, "period": "2026-04", "group_by": "bogus"}},
 		{"util_daily bad group_by", "get_billing_utilization_daily", map[string]any{"contract": c, "date": "2026-04-15", "group_by": "bogus"}},
 		{"util_daily bad date", "get_billing_utilization_daily", map[string]any{"contract": c, "date": "not-a-date"}},
+		{"util_get top_n zero", "list_billing_utilization", map[string]any{"contract": c, "top_n": int32(0)}},
+		{"util_get top_n negative", "list_billing_utilization", map[string]any{"contract": c, "top_n": int32(-5)}},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
@@ -155,6 +157,7 @@ func TestBillingCompactionFlagsRouting(t *testing.T) {
 		{"util scope dc", "list_billing_utilization", map[string]any{"contract": c, "datacenter_id": "dc-x"}, "/billing/1/utilization"},
 		{"util scope types", "list_billing_utilization", map[string]any{"contract": c, "meter_types": []string{"DBAAS"}}, "/billing/1/utilization"},
 		{"util scope regions", "list_billing_utilization", map[string]any{"contract": c, "regions": []string{"de/fra"}}, "/billing/1/utilization"},
+		{"util top_n", "list_billing_utilization", map[string]any{"contract": c, "top_n": int32(10)}, "/billing/1/utilization"},
 		{"usage include_zero", "list_billing_usage", map[string]any{"contract": c, "include_zero": true}, "/billing/1/usage"},
 		{"usage scope dc", "list_billing_usage", map[string]any{"contract": c, "datacenter_id": "dc-y"}, "/billing/1/usage"},
 		{"usage_by_dc include_zero", "get_billing_usage_by_datacenter", map[string]any{"contract": c, "datacenter_id": "dc-z", "include_zero": true}, "/billing/1/usage/dc-z"},

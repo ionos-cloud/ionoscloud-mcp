@@ -238,6 +238,104 @@ func TestCompactUtilization_groupByDatacenter(t *testing.T) {
 	}
 }
 
+func TestCompactUtilization_meterDefinitionsTrimmedToOutput(t *testing.T) {
+	// 3 distinct meters in raw, but top_n=1 keeps only the largest.
+	// meter_definitions should only carry the surviving meter_id.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{
+			Id: strp("dc1"),
+			Meters: []sdk.UtilizationMeter{
+				utilMeter("M1", "Desc1", "DB", "r", "res1", "", 1, "u"),
+				utilMeter("M2", "Desc2", "DB", "r", "res2", "", 100, "u"),
+				utilMeter("M3", "Desc3", "DB", "r", "res3", "", 5, "u"),
+			},
+		},
+	})
+	n := int32(1)
+	out := CompactUtilizationGet(raw, CompactOptions{TopN: &n})
+	if len(out.MeterDefinitions) != 1 || out.MeterDefinitions["M2"] != "Desc2" {
+		t.Errorf("definitions not trimmed to surviving meter_id, got %v", out.MeterDefinitions)
+	}
+}
+
+func TestCompactUtilization_groupByDatacenterEmptiesDefinitions(t *testing.T) {
+	// group_by=datacenter drops meter_id (key becomes type+unit).
+	// meter_definitions should end up empty (or nil) since no meter_ids remain.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{Id: strp("dc1"), Meters: []sdk.UtilizationMeter{utilMeter("M1", "Desc1", "DBAAS", "r", "res", "", 1, "u")}},
+	})
+	out := CompactUtilizationGet(raw, CompactOptions{GroupBy: "datacenter"})
+	if len(out.MeterDefinitions) != 0 {
+		t.Errorf("group_by=datacenter should empty meter_definitions, got %v", out.MeterDefinitions)
+	}
+}
+
+func TestCompactUsage_meterDefinitionsTrimmedToOutput(t *testing.T) {
+	// Two meters, one filtered out by datacenter scope — definitions for filtered meter should not appear.
+	raw := usageResp([]sdk.UsageDataCenter{
+		{Id: strp("dc1"), Meters: []sdk.UsageMeter{usageMeter("M1", "Desc1", "1", "u")}},
+		{Id: strp("dc2"), Meters: []sdk.UsageMeter{usageMeter("M2", "Desc2", "2", "u")}},
+	})
+	want := "dc1"
+	out := CompactUsageGet(raw, CompactOptions{DatacenterID: &want})
+	if len(out.MeterDefinitions) != 1 || out.MeterDefinitions["M1"] != "Desc1" {
+		t.Errorf("usage definitions not trimmed to surviving meters, got %v", out.MeterDefinitions)
+	}
+}
+
+func TestCompactUtilization_quantityRounded(t *testing.T) {
+	// float32 → float64 cast produces noisy decimals like 14.933333396911621.
+	// roundQty should trim to 6 decimals.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{Id: strp("dc1"), Meters: []sdk.UtilizationMeter{utilMeter("M1", "d", "DB", "r", "res", "", 14.9333334, "u")}},
+	})
+	out := CompactUtilizationGet(raw, CompactOptions{})
+	q := out.Datacenters[0].Meters[0].Quantity
+	if q < 14.9 || q > 15.0 {
+		t.Fatalf("quantity out of expected range: %v", q)
+	}
+	// At most 6 decimals after rounding — e.g. 14.933333 (not 14.933333396911621).
+	if q != roundQty(q) {
+		t.Errorf("quantity not rounded to 6 decimals: %v", q)
+	}
+}
+
+func TestCompactUtilization_topN(t *testing.T) {
+	// Three DCs with different total quantities. top_n=2 should return the 2 largest meters globally.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{Id: strp("dc1"), Name: strp("DC1"), Meters: []sdk.UtilizationMeter{utilMeter("M1", "d", "DB", "r", "res1", "", 100, "u"), utilMeter("M2", "d", "DB", "r", "res2", "", 5, "u")}},
+		{Id: strp("dc2"), Name: strp("DC2"), Meters: []sdk.UtilizationMeter{utilMeter("M3", "d", "DB", "r", "res3", "", 50, "u")}},
+		{Id: strp("dc3"), Name: strp("DC3"), Meters: []sdk.UtilizationMeter{utilMeter("M4", "d", "DB", "r", "res4", "", 200, "u")}},
+	})
+	n := int32(2)
+	out := CompactUtilizationGet(raw, CompactOptions{TopN: &n})
+
+	if out.Datacenters != nil {
+		t.Errorf("Datacenters should be omitted in top_n mode, got %d entries", len(out.Datacenters))
+	}
+	if len(out.TopMeters) != 2 {
+		t.Fatalf("want 2 top meters, got %d", len(out.TopMeters))
+	}
+	if out.TopMeters[0].Quantity != 200 || out.TopMeters[0].DCID != "dc3" {
+		t.Errorf("top[0] wrong: %+v", out.TopMeters[0])
+	}
+	if out.TopMeters[1].Quantity != 100 || out.TopMeters[1].DCID != "dc1" {
+		t.Errorf("top[1] wrong: %+v", out.TopMeters[1])
+	}
+}
+
+func TestCompactUtilization_topNLargerThanData(t *testing.T) {
+	// top_n=100 but only 2 meters exist — return both.
+	raw := utilResp([]sdk.UtilizationDataCenter{
+		{Id: strp("dc1"), Meters: []sdk.UtilizationMeter{utilMeter("M1", "d", "DB", "r", "res", "", 1, "u"), utilMeter("M2", "d", "DB", "r", "res", "", 2, "u")}},
+	})
+	n := int32(100)
+	out := CompactUtilizationGet(raw, CompactOptions{TopN: &n})
+	if len(out.TopMeters) != 2 {
+		t.Errorf("want 2 (all), got %d", len(out.TopMeters))
+	}
+}
+
 func TestCompactUtilization_serverIdOmittedWhenNull(t *testing.T) {
 	raw := utilResp([]sdk.UtilizationDataCenter{
 		{Id: strp("dc1"), Meters: []sdk.UtilizationMeter{utilMeter("M1", "d", "DB", "r", "res", "", 1, "u")}},

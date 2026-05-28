@@ -20,7 +20,7 @@ Both usage tools return the same compacted shape. Zero-quantity meters are dropp
 | `start_date` | string | Window start (YYYY-MM-DD) |
 | `end_date` | string | Window end (YYYY-MM-DD) |
 | `contract_id` | string | Contract number |
-| `meter_definitions` | object | Map of `meter_id` → human description |
+| `meter_definitions` | object | Map of `meter_id` → human description. Trimmed to only `meter_id`s present in the emitted rows. |
 | `datacenters` | array | Per-datacenter meter totals |
 
 **Per-datacenter:**

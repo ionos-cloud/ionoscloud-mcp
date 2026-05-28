@@ -28,8 +28,9 @@ All three utilization tools return the same compacted shape (raw SDK output is ~
 | `start_date` | string | Window start (YYYY-MM-DD) |
 | `end_date` | string | Window end (YYYY-MM-DD) |
 | `contract_id` | string | Contract number |
-| `meter_definitions` | object | Map of `meter_id` → human description (e.g. `"DBMP1000": "1h of MongoDB Playground first instance"`) |
-| `datacenters` | array | Per-datacenter meter rows (see below) |
+| `meter_definitions` | object | Map of `meter_id` → human description (e.g. `"DBMP1000": "1h of MongoDB Playground first instance"`). Trimmed to only `meter_id`s present in the emitted rows. Empty/omitted when `group_by=datacenter` (which drops `meter_id`). |
+| `datacenters` | array | Per-datacenter meter rows (see below). Omitted when `top_n` is set. |
+| `top_meters` | array | Flat global ranking by quantity desc. Present only when `top_n` is set. Each row is a per-meter object (see below) plus `dc_id` and `dc_name`. |
 
 **Per-datacenter:**
 
@@ -49,8 +50,15 @@ All three utilization tools return the same compacted shape (raw SDK output is ~
 | `resource_id` | string | Resource UUID |
 | `server_id` | string | Server UUID — omitted when null |
 | `name` | string | Resource name — omitted when empty |
-| `quantity` | number | Consumed amount |
+| `quantity` | number | Consumed amount (rounded to 6 decimals) |
 | `unit` | string | Unit string (e.g. `1G*30Days`, `1hour`) |
+
+**Top-meters row (when `top_n` is set):** all per-meter fields above, plus:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dc_id` | string | Source datacenter UUID |
+| `dc_name` | string | Source datacenter name |
 
 ## Compaction flags (all three tools)
 
@@ -61,6 +69,7 @@ All three utilization tools return the same compacted shape (raw SDK output is ~
 | `datacenter_id` | string | — | Scope to a single datacenter (VDC UUID). |
 | `meter_types` | string[] | — | Filter to these meter type categories only (client-side). E.g. `["DBAAS","DNS"]`. |
 | `regions` | string[] | — | Filter to these regions only (client-side). E.g. `["de/fra","es/vit"]`. |
+| `top_n` | integer | — | Return only the N largest meters globally, sorted by quantity desc. Output shape changes: `datacenters[]` is omitted; `top_meters[]` carries flat rows with `dc_id`/`dc_name` on each. Ideal for cost audits on contracts with many datacenters. |
 
 **Expected sizes** (a representative ~225-datacenter contract):
 
@@ -68,7 +77,9 @@ All three utilization tools return the same compacted shape (raw SDK output is ~
 |------|------|
 | Default (compacted, zero-filter) | ~325 KB |
 | `group_by=meter` | ~80 KB |
-| `group_by=datacenter` | ~10 KB |
+| `group_by=datacenter` | ~57 KB (still large for many DCs — combine with `regions` or `top_n`) |
+| `top_n=10` | <2 KB |
+| `regions=["de/fra"]` + `group_by=datacenter` | <2 KB |
 | `datacenter_id` scope | 5–50 KB depending on DC |
 
 ---
@@ -91,14 +102,27 @@ Gets resource utilization for the current billing period.
 }
 ```
 
-**Example — coarse cost breakdown:**
+**Example — top 5 cost drivers (flat ranking, ideal for cost audits):**
 
 ```json
 {
   "name": "list_billing_utilization",
   "arguments": {
     "contract": 12345678,
-    "group_by": "datacenter"
+    "top_n": 5
+  }
+}
+```
+
+**Example — coarse cost breakdown (scope to one region for large contracts):**
+
+```json
+{
+  "name": "list_billing_utilization",
+  "arguments": {
+    "contract": 12345678,
+    "group_by": "datacenter",
+    "regions": ["de/fra"]
   }
 }
 ```

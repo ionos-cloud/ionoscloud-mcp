@@ -1,6 +1,7 @@
 package billing
 
 import (
+	"math"
 	"sort"
 	"strconv"
 
@@ -14,15 +15,27 @@ type CompactOptions struct {
 	DatacenterID *string  // scope to a single datacenter (utilization + list_billing_usage)
 	MeterTypes   []string // filter by meter type (utilization only)
 	Regions      []string // filter by region (utilization only)
+	TopN         *int32   // when set, return a flat top-N list across datacenters instead of nested data (utilization only)
 }
 
 // CompactUtilizationResponse is the compacted shape for utilization endpoints.
+// When CompactOptions.TopN is set, Datacenters is omitted and TopMeters carries
+// the N largest meters globally (already sorted descending by quantity).
 type CompactUtilizationResponse struct {
-	StartDate        string             `json:"start_date,omitempty"`
-	EndDate          string             `json:"end_date,omitempty"`
-	ContractID       string             `json:"contract_id,omitempty"`
-	MeterDefinitions map[string]string  `json:"meter_definitions,omitempty"`
-	Datacenters      []CompactUtilDC    `json:"datacenters"`
+	StartDate        string                  `json:"start_date,omitempty"`
+	EndDate          string                  `json:"end_date,omitempty"`
+	ContractID       string                  `json:"contract_id,omitempty"`
+	MeterDefinitions map[string]string       `json:"meter_definitions,omitempty"`
+	Datacenters      []CompactUtilDC         `json:"datacenters,omitempty"`
+	TopMeters        []CompactUtilMeterWithDC `json:"top_meters,omitempty"`
+}
+
+// CompactUtilMeterWithDC is a flattened meter row carrying its datacenter context.
+// Used only in TopN mode.
+type CompactUtilMeterWithDC struct {
+	DCID   string `json:"dc_id,omitempty"`
+	DCName string `json:"dc_name,omitempty"`
+	CompactUtilMeter
 }
 
 type CompactUtilDC struct {
@@ -134,7 +147,7 @@ func compactUtilization(start, end *string, meta *sdk.Metadata, dcs []sdk.Utiliz
 				ResourceID: nullableString(m.ResourceId),
 				ServerID:   nullableString(m.ServerId),
 				Name:       deref(m.Name),
-				Quantity:   qty,
+				Quantity:   roundQty(qty),
 				Unit:       unit,
 			})
 		}
@@ -149,10 +162,74 @@ func compactUtilization(start, end *string, meta *sdk.Metadata, dcs []sdk.Utiliz
 		out.Datacenters = applyGroupBy(out.Datacenters, opts.GroupBy)
 	}
 
-	if len(defs) > 0 {
-		out.MeterDefinitions = defs
+	if opts.TopN != nil && *opts.TopN > 0 {
+		out.TopMeters = flattenTopN(out.Datacenters, int(*opts.TopN))
+		out.Datacenters = nil
+	}
+
+	// Trim meter_definitions to keys actually present in the final output.
+	// Without this, post-filter/group/top_n leaves ~all input meter_ids in the map,
+	// inflating the response with descriptions for meters that aren't emitted.
+	// group_by=datacenter drops MeterID (key is type+unit) → no surviving keys → empty map.
+	if used := usedMeterIDs(out); len(used) > 0 {
+		trimmed := make(map[string]string, len(used))
+		for id := range used {
+			if d, ok := defs[id]; ok {
+				trimmed[id] = d
+			}
+		}
+		if len(trimmed) > 0 {
+			out.MeterDefinitions = trimmed
+		}
 	}
 	return out
+}
+
+// usedMeterIDs returns the set of meter_ids actually present in the final emitted output.
+func usedMeterIDs(out CompactUtilizationResponse) map[string]bool {
+	used := map[string]bool{}
+	for _, dc := range out.Datacenters {
+		for _, m := range dc.Meters {
+			if m.MeterID != "" {
+				used[m.MeterID] = true
+			}
+		}
+	}
+	for _, m := range out.TopMeters {
+		if m.MeterID != "" {
+			used[m.MeterID] = true
+		}
+	}
+	return used
+}
+
+// roundQty trims float precision noise from float32→float64 conversion.
+// Six decimals preserves practical precision for billing quantities (CPU-hours, GB, etc.)
+// while eliminating values like 14.933333396911621 → 14.933333.
+func roundQty(f float64) float64 {
+	return math.Round(f*1e6) / 1e6
+}
+
+// flattenTopN flattens nested datacenter meters into a single list, sorted
+// descending by quantity, capped at n. Each row carries its source dc_id/dc_name.
+func flattenTopN(dcs []CompactUtilDC, n int) []CompactUtilMeterWithDC {
+	var flat []CompactUtilMeterWithDC
+	for _, dc := range dcs {
+		for _, m := range dc.Meters {
+			flat = append(flat, CompactUtilMeterWithDC{
+				DCID:             dc.ID,
+				DCName:           dc.Name,
+				CompactUtilMeter: m,
+			})
+		}
+	}
+	sort.SliceStable(flat, func(i, j int) bool {
+		return flat[i].Quantity > flat[j].Quantity
+	})
+	if len(flat) > n {
+		flat = flat[:n]
+	}
+	return flat
 }
 
 func utilQuantity(q *sdk.UtilizationMeterQuantity) (float64, string) {
@@ -201,7 +278,9 @@ func applyGroupBy(dcs []CompactUtilDC, mode string) []CompactUtilDC {
 		sort.Strings(order)
 		rolled := make([]CompactUtilMeter, 0, len(order))
 		for _, k := range order {
-			rolled = append(rolled, *groups[k])
+			g := *groups[k]
+			g.Quantity = roundQty(g.Quantity)
+			rolled = append(rolled, g)
 		}
 		out = append(out, CompactUtilDC{
 			ID:     dc.ID,
@@ -265,8 +344,25 @@ func CompactUsageGet(raw sdk.UsageGet200Response, opts CompactOptions) CompactUs
 		out.Datacenters = append(out.Datacenters, compact)
 	}
 
-	if len(defs) > 0 {
-		out.MeterDefinitions = defs
+	// Trim meter_definitions to keys actually present in the final output.
+	used := map[string]bool{}
+	for _, dc := range out.Datacenters {
+		for _, m := range dc.Meters {
+			if m.MeterID != "" {
+				used[m.MeterID] = true
+			}
+		}
+	}
+	if len(used) > 0 {
+		trimmed := make(map[string]string, len(used))
+		for id := range used {
+			if d, ok := defs[id]; ok {
+				trimmed[id] = d
+			}
+		}
+		if len(trimmed) > 0 {
+			out.MeterDefinitions = trimmed
+		}
 	}
 	return out
 }
