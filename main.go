@@ -23,8 +23,10 @@ import (
 )
 
 func main() {
+	const transport = "stdio"
+
 	cfg := shared.NewConfigurationFromEnv()
-	cfg.UserAgent = buildUserAgent()
+	cfg.UserAgent = buildUserAgent("", transport)
 
 	if cfg.Token == "" {
 		fmt.Fprintf(os.Stderr, "Error: IONOS_TOKEN environment variable is required.\n")
@@ -41,7 +43,15 @@ func main() {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    serverName,
 		Version: serverVersion,
-	}, nil)
+	}, &mcp.ServerOptions{
+		InitializedHandler: func(ctx context.Context, req *mcp.InitializedRequest) {
+			var host string
+			if p := req.Session.InitializeParams(); p != nil && p.ClientInfo != nil {
+				host = sanitizeClientName(p.ClientInfo.Name)
+			}
+			cfg.UserAgent = buildUserAgent(host, transport)
+		},
+	})
 
 	registerResources(server)
 
