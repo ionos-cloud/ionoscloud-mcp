@@ -13,6 +13,7 @@
 - `[FEA][ionoscloud-mcp]` Add integration tests for all 23 Object Storage tools - @cavramoniu-ionos
 - `[FEA][ionoscloud-mcp]` Add integration tests for all 6 Certificate Manager tools — verifies correct API endpoint routing without real credentials - @cavramoniu-ionos
 ### Improvements
+- `[IMP][ionoscloud-mcp]` Compact billing utilization/usage tools: drop redundant fields, hoist `meter_definitions` to top level (trimmed to only `meter_id`s actually emitted), flatten `quantity` object, filter zero-quantity meters by default (use `include_zero=true` to keep them). Add `group_by` (`meter`/`datacenter`), `datacenter_id`, `meter_types`, `regions`, and `top_n` (flat global ranking by quantity) flags for finer scoping. Quantities rounded to 6 decimals to drop float32→float64 noise. Affects `list_billing_utilization`, `list_billing_utilization_by_period`, `get_billing_utilization_daily`, `list_billing_usage`, `get_billing_usage_by_datacenter`. Typical response shrinks from ~1.27 MB to ~325 KB (default) or <2 KB with `top_n=5` - @avirtopeanu-ionos
 - `[IMP][ionoscloud-mcp]` Refactor from hand-rolled JSON-RPC to official MCP Go SDK with typed tool handlers via `mcp.AddTool()` - @avirtopeanu-ionos
 - `[IMP][ionoscloud-mcp]` Refactor monolithic `ionos.go` into per-resource files under `tools/compute/`, move shared helpers and input structs to `tools/` package for cross-product reuse - @cavramoniu-ionos
 ### Dependencies
