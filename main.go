@@ -54,10 +54,10 @@ func main() {
 		// tools/list response. Required for MCP clients that do not
 		// refresh their tool catalog on notifications/tools/list_changed.
 		compute.RegisterAll(server, client)
-		objectstorage.RegisterAll(server, objstClient, objmgmtClient)
+		objectstorage.RegisterAll(server, objstClient, objmgmtClient, cfg)
 	} else {
 		loader.RegisterComputeLoader(server, client)
-		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient)
+		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
 	}
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

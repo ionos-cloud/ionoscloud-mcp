@@ -19,7 +19,8 @@ func TestObjectStorageToolEndpoints(t *testing.T) {
 		// Buckets
 		{"list_object_storage_buckets", map[string]any{}, []string{"GET"}, []string{"/"}},
 		{"get_object_storage_bucket_location", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"head_object_storage_bucket", map[string]any{"bucket": bucket}, []string{"HEAD"}, []string{"/" + bucket}},
+		// forBucket resolves location on first access (GET /{bucket}?location), then HEAD /{bucket}
+		{"head_object_storage_bucket", map[string]any{"bucket": bucket}, []string{"GET", "HEAD"}, []string{"/" + bucket, "/" + bucket}},
 
 		// Bucket configuration
 		{"get_object_storage_bucket_cors", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
