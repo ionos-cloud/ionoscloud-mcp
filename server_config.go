@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"os"
-	"runtime"
 	"runtime/debug"
 	"strings"
 )
@@ -13,19 +11,20 @@ const (
 	serverVersion = "1.0.0"
 )
 
-func buildUserAgent() string {
-	bundleVersion := "unknown"
-	if info, ok := debug.ReadBuildInfo(); ok {
-		for _, dep := range info.Deps {
-			if dep.Path == "github.com/ionos-cloud/sdk-go-bundle/shared" {
-				bundleVersion = strings.TrimPrefix(dep.Version, "v")
-				break
-			}
+// sdkBundleVersion returns the resolved version of the IONOS SDK bundle's
+// shared package, read from the embedded build info. Returns "unknown"
+// when the binary was built without module information (e.g. `go run`).
+func sdkBundleVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	for _, dep := range info.Deps {
+		if dep.Path == "github.com/ionos-cloud/sdk-go-bundle/shared" {
+			return strings.TrimPrefix(dep.Version, "v")
 		}
 	}
-
-	return fmt.Sprintf("ionoscloud-mcp/%s_ionos-cloud-sdk-go-bundle/%s_os/%s_arch/%s",
-		serverVersion, bundleVersion, runtime.GOOS, runtime.GOARCH)
+	return "unknown"
 }
 
 // eagerLoad reports whether the server should register every tool at startup
@@ -40,4 +39,12 @@ func eagerLoad() bool {
 		return true
 	}
 	return false
+}
+
+// loadModeLabel returns the User-Agent token reflecting current load mode.
+func loadModeLabel() string {
+	if eagerLoad() {
+		return "eager"
+	}
+	return "lazy"
 }
