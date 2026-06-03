@@ -90,7 +90,7 @@ func setup(t *testing.T) *testSetup {
 			Token:              "test-token",
 			DefaultHeader:      map[string]string{},
 			DefaultQueryParams: make(map[string][]string),
-			UserAgent:          "ionoscloud-mcp-test",
+			UserAgent:          "ionos-cloud-mcp-test",
 			Servers: shared.ServerConfigurations{
 				{
 					URL:         ts.URL,
@@ -110,7 +110,7 @@ func setup(t *testing.T) *testSetup {
 	activitylogClient := activitylogSDK.NewAPIClient(testCfg())
 
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "ionoscloud-mcp",
+		Name:    "ionos-cloud-mcp",
 		Version: "1.0.0-test",
 	}, nil)
 
@@ -119,7 +119,7 @@ func setup(t *testing.T) *testSetup {
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient)
 	cert.RegisterAll(server, certClient)
-	objectstorage.RegisterAll(server, objstClient, objmgmtClient)
+	objectstorage.RegisterAll(server, objstClient, objmgmtClient, testCfg())
 
 	// in-memory pipe between MCP client and server (replaces stdio)
 	ct, st := mcp.NewInMemoryTransports()

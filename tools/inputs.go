@@ -141,6 +141,54 @@ type BillingDatacenterInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the VDC UUID"`
 }
 
+// BillingUtilizationInput is the input for list_billing_utilization.
+// Compaction flags reduce response size — zero-quantity meters are dropped by default.
+type BillingUtilizationInput struct {
+	Contract     int32    `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	IncludeZero  *bool    `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false); set true to find existing resources that didn't consume in the window"`
+	GroupBy      *string  `json:"group_by,omitempty" jsonschema:"aggregation level: omitted or '' = per-resource (default), 'meter' = sum per SKU per datacenter, 'datacenter' = sum per type per datacenter — coarser groupings shrink output but lose detail"`
+	DatacenterID *string  `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
+	MeterTypes   []string `json:"meter_types,omitempty" jsonschema:"filter to these meter type categories only (client-side); e.g. ['DBAAS','DNS','SERVER']"`
+	Regions      []string `json:"regions,omitempty" jsonschema:"filter to these regions only (client-side); e.g. ['de/fra','es/vit']"`
+	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc — flat list with dc_id/dc_name on each row, datacenters[] omitted; ideal for cost audits on contracts with many datacenters. When combined with group_by='datacenter', top_meters[] rows have no meter_id (type+unit aggregates); with group_by='meter', meter_id is the SKU"`
+}
+
+type BillingUtilizationPeriodInput struct {
+	Contract     int32    `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	Period       string   `json:"period" jsonschema:"billing period in YYYY-MM format (e.g. 2026-04). Maximum one month per request — for wider ranges call once per month"`
+	IncludeZero  *bool    `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false)"`
+	GroupBy      *string  `json:"group_by,omitempty" jsonschema:"aggregation level: omitted or '' = per-resource (default), 'meter' = sum per SKU per datacenter, 'datacenter' = sum per type per datacenter"`
+	DatacenterID *string  `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
+	MeterTypes   []string `json:"meter_types,omitempty" jsonschema:"filter to these meter type categories only (client-side); e.g. ['DBAAS','DNS','SERVER']"`
+	Regions      []string `json:"regions,omitempty" jsonschema:"filter to these regions only (client-side); e.g. ['de/fra']"`
+	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc (flat list, datacenters[] omitted). When combined with group_by='datacenter', top_meters[] rows have no meter_id"`
+}
+
+type BillingUtilizationDateInput struct {
+	Contract     int32    `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	Date         string   `json:"date" jsonschema:"date in YYYY-MM-DD format (e.g. 2026-04-15)"`
+	IncludeZero  *bool    `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false)"`
+	GroupBy      *string  `json:"group_by,omitempty" jsonschema:"aggregation level: omitted or '' = per-resource (default), 'meter' = sum per SKU per datacenter, 'datacenter' = sum per type per datacenter"`
+	DatacenterID *string  `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
+	MeterTypes   []string `json:"meter_types,omitempty" jsonschema:"filter to these meter type categories only (client-side); e.g. ['DBAAS']"`
+	Regions      []string `json:"regions,omitempty" jsonschema:"filter to these regions only (client-side); e.g. ['de/fra']"`
+	TopN         *int32   `json:"top_n,omitempty" jsonschema:"return only the N largest meters globally, sorted by quantity desc (flat list, datacenters[] omitted). When combined with group_by='datacenter', top_meters[] rows have no meter_id"`
+}
+
+// BillingUsageInput is the input for list_billing_usage.
+// UsageMeter has fewer fields than UtilizationMeter — type/region/resource filters do not apply.
+type BillingUsageInput struct {
+	Contract     int32   `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	IncludeZero  *bool   `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false); set true to find datacenters with metered SKUs that didn't consume"`
+	DatacenterID *string `json:"datacenter_id,omitempty" jsonschema:"scope to a single datacenter (VDC UUID)"`
+}
+
+type BillingUsageDatacenterInput struct {
+	Contract     int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	DatacenterID string `json:"datacenter_id" jsonschema:"the VDC UUID"`
+	IncludeZero  *bool  `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false)"`
+}
+
 type BillingDateInput struct {
 	Contract int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
 	Date     string `json:"date" jsonschema:"date in YYYY-MM-DD format (e.g. 2026-04-15)"`

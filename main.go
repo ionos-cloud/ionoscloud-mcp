@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"runtime"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/loader"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	activitylogSDK "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
@@ -25,13 +28,39 @@ import (
 )
 
 func main() {
-	cfg := shared.NewConfigurationFromEnv()
-	cfg.UserAgent = buildUserAgent()
+	const transport = "stdio"
 
+	cfg := shared.NewConfigurationFromEnv()
 	if cfg.Token == "" {
 		fmt.Fprintf(os.Stderr, "Error: IONOS_TOKEN environment variable is required.\n")
 		os.Exit(1)
 	}
+
+	ua := ionosclient.New(ionosclient.Options{
+		Product:          serverName,
+		Version:          serverVersion,
+		SDKBundleVersion: sdkBundleVersion(),
+		Transport:        transport,
+		Mode:             loadModeLabel(),
+		GOOS:             runtime.GOOS,
+		GOARCH:           runtime.GOARCH,
+	})
+	// Install a single RoundTripper on a *fresh* http.Client. Every SDK
+	// client (compute, DNS, billing, cert, object storage base + regional)
+	// shares this HTTPClient pointer through shallow cfg copies, so one
+	// wrap covers every outbound request without chasing cfg snapshots.
+	//
+	// shared.NewConfigurationFromEnv hands back cfg.HTTPClient =
+	// http.DefaultClient with a custom Transport already installed; if we
+	// mutated that Transport in place we would poison http.DefaultClient
+	// for the rest of the process. Instead we keep the SDK's transport as
+	// our base and wrap it inside a dedicated *http.Client we own.
+	var base http.RoundTripper
+	if cfg.HTTPClient != nil {
+		base = cfg.HTTPClient.Transport
+	}
+	cfg.HTTPClient = &http.Client{Transport: ua.Transport(base)}
+	cfg.UserAgent = ua.String()
 
 	client := computeSDK.NewAPIClient(cfg)
 	dnsClient := dnsSDK.NewAPIClient(cfg)
@@ -44,7 +73,23 @@ func main() {
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    serverName,
 		Version: serverVersion,
-	}, nil)
+	}, &mcp.ServerOptions{
+		InitializedHandler: func(_ context.Context, req *mcp.InitializedRequest) {
+			if req == nil || req.Session == nil {
+				return
+			}
+			params := req.Session.InitializeParams()
+			if params == nil {
+				return
+			}
+			var name, version string
+			if params.ClientInfo != nil {
+				name = params.ClientInfo.Name
+				version = params.ClientInfo.Version
+			}
+			ua.SetClient(name, version, params.ProtocolVersion)
+		},
+	})
 
 	registerResources(server)
 
@@ -58,10 +103,10 @@ func main() {
 		// tools/list response. Required for MCP clients that do not
 		// refresh their tool catalog on notifications/tools/list_changed.
 		compute.RegisterAll(server, client)
-		objectstorage.RegisterAll(server, objstClient, objmgmtClient)
+		objectstorage.RegisterAll(server, objstClient, objmgmtClient, cfg)
 	} else {
 		loader.RegisterComputeLoader(server, client)
-		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient)
+		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
 	}
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
