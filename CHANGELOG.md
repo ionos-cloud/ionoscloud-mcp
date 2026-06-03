@@ -1,27 +1,31 @@
-## Upcoming
+# Changelog
 
-### Features
-- `[FEA][ionoscloud-mcp]` Add 2 read-only Activity Log tools (list contracts, query events) — 109 tools total; events response is compacted (strips `_source` wrapper, `auditVersion`, redundant `contractNumber`, duplicate `sourceService`/`initiator` fields) for ~35% smaller output - @avirtopeanu-ionos
-- `[FEA][ionoscloud-mcp]` Implement MCP server with 10 Compute Engine tools: datacenters, servers, volumes, images, locations, snapshots - @copilot
-- `[FEA][ionoscloud-mcp]` Add 40 new read-only compute tools covering all ionosctl compute engine resources (networking, load balancers, NAT gateways, security groups, etc.) — 50 tools total - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add 14 read-only DNS tools (zones, zone files, records, reverse records, secondary zones, DNSSEC, quota) — 64 tools total - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add 14 read-only Billing tools (profile, EVN, invoices, products, traffic, usage, utilization) — 78 tools total; EVN and traffic responses drop CSV/array duplicate fields to reduce output size - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add 23 read-only Object Storage tools (buckets, bucket config, objects, access keys, regions) — 101 tools total - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add 6 read-only Certificate Manager v2 tools: list/get certificates, auto-certificates, and providers — 107 tools total - @cavramoniu-ionos
-### Testing
-- `[FEA][ionoscloud-mcp]` Add integration tests for all 64 tools using httptest + MCP in-memory transport — verifies correct API endpoint routing without real credentials - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add integration tests for all 14 billing tools — verifies correct API endpoint routing and period validation - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add integration tests for all 23 Object Storage tools - @cavramoniu-ionos
-- `[FEA][ionoscloud-mcp]` Add integration tests for all 6 Certificate Manager tools — verifies correct API endpoint routing without real credentials - @cavramoniu-ionos
-### Improvements
-- `[IMP][ionoscloud-mcp]` Compact billing utilization/usage tools: drop redundant fields, hoist `meter_definitions` to top level (trimmed to only `meter_id`s actually emitted), flatten `quantity` object, filter zero-quantity meters by default (use `include_zero=true` to keep them). Add `group_by` (`meter`/`datacenter`), `datacenter_id`, `meter_types`, `regions`, and `top_n` (flat global ranking by quantity) flags for finer scoping. Quantities rounded to 6 decimals to drop float32→float64 noise. Affects `list_billing_utilization`, `list_billing_utilization_by_period`, `get_billing_utilization_daily`, `list_billing_usage`, `get_billing_usage_by_datacenter`. Typical response shrinks from ~1.27 MB to ~325 KB (default) or <2 KB with `top_n=5` - @avirtopeanu-ionos
-- `[IMP][ionoscloud-mcp]` Refactor from hand-rolled JSON-RPC to official MCP Go SDK with typed tool handlers via `mcp.AddTool()` - @avirtopeanu-ionos
-- `[IMP][ionoscloud-mcp]` Refactor monolithic `ionos.go` into per-resource files under `tools/compute/`, move shared helpers and input structs to `tools/` package for cross-product reuse - @cavramoniu-ionos
-### Dependencies
-- `[IMP][ionoscloud-mcp]` Migrate from `sdk-go/v6` to `sdk-go-bundle` with `shared.NewConfigurationFromEnv()` - @cavramoniu-ionos
-### Documentation
-- `[IMP][ionoscloud-mcp]` Restructure tool docs into `docs/compute/` grouped by resource, fix CONTRIBUTING.md for `mcp.AddTool()` pattern, add "What is MCP?" section and CHANGELOG.md - @cavramoniu-ionos
-- `[IMP][ionoscloud-mcp]` Add documentation for all 50 compute tools in `docs/compute/`, update CONTRIBUTING.md for new project structure - @cavramoniu-ionos
-- `[IMP][ionoscloud-mcp]` Switch JSON responses from `MarshalIndent` to `Marshal` (compact JSON) — ~30% reduction in output size across all tools - @cavramoniu-ionos
-- `[IMP][ionoscloud-mcp]` Add documentation for Certificate Manager tools (certificate, auto-certificate, provider) in `docs/cert/` - @cavramoniu-ionos
-- `[IMP][ionoscloud-mcp]` Align brand to "IONOS CLOUD" across user-facing content (docs, README, tool descriptions) - @mimihalescu
+## v1.0.0 — June 2026
+
+First release. An MCP server that lets LLM clients explore an IONOS CLOUD account read-only.
+
+### Added
+
+- **Compute Engine**: Browse datacenters, servers, volumes, NICs, LANs, IP blocks, load balancers (ALB/NLB), NAT gateways, security groups, firewall rules, target groups, private cross-connects, snapshots, images, templates, locations, server GPUs and CD-ROMs, remote console URLs, and provisioning request status.
+- **DNS**: Inspect zones, zone files, records, reverse records, secondary zones (incl. AXFR transfer status), DNSSEC keys, and account quota.
+- **Billing**: View your contract and billing profile, invoices, product catalog, traffic and usage breakdowns (per datacenter, per period), and daily utilization.
+- **Object Storage**: List buckets and objects across regions, read every bucket configuration surface (CORS, encryption, lifecycle, locking, policy, public access, replication, tagging, versioning), object metadata, retention and legal hold state, access keys, and regions.
+- **Certificate Manager**: List certificates and auto-certificates, look up issuance providers.
+- **Activity Log**: Look up accessible contracts, query the audit trail of API requests (who did what, when, on which resource). Defaults to the last 7 days and excludes noisy async-provisioning echoes — both overridable.
+
+### Try
+
+- **Cost audit**: "Audit my IONOS CLOUD account, find the top 5 cost-inducing resources this month, and suggest cost-efficiency tips."
+- **Security sweep**: "List every bucket whose public access block is off or whose policy is public — flag anything that looks unintentional."
+- **Audit trail**: "Show me every failed API request on my contract in the last 30 days, grouped by user."
+- **Forgotten resources**: "Find unattached volumes, unused IP blocks, and stopped servers across all my datacenters."
+- **DNS sanity check**: "List all zones on my account and flag any without DNSSEC enabled or with records pointing to IPs I no longer own."
+- **Certificate expiry**: "Which certificates on my account expire in the next 60 days?"
+- **Traffic spike investigation**: "My last invoice was higher than usual — show me daily traffic and utilization for the previous billing period and tell me what changed."
+- **Onboarding tour**: "Walk me through what I have running on IONOS CLOUD — datacenters, servers, storage, DNS — like you're explaining it to a new teammate."
+
+### Notes
+
+- Auth via the `IONOS_TOKEN` environment variable. Server refuses to start without it.
+- All responses are compacted before being returned to the LLM (no pretty-print, redundant audit envelopes stripped) so a single tool call uses far fewer tokens.
+- Brand: tool descriptions and docs consistently use "IONOS CLOUD".
