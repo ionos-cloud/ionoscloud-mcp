@@ -35,7 +35,7 @@ func TestUserAgentReachesSDKOutboundRequests(t *testing.T) {
 	defer srv.Close()
 
 	ua := ionosclient.New(ionosclient.Options{
-		Product:          "ionoscloud-mcp",
+		Product:          "ionos-cloud-mcp",
 		Version:          "1.0.0",
 		SDKBundleVersion: "test",
 		Transport:        "stdio",
@@ -66,7 +66,7 @@ func TestUserAgentReachesSDKOutboundRequests(t *testing.T) {
 	if strings.Contains(captured[0], "_host/") {
 		t.Errorf("pre-handshake request should not carry host segment: %q", captured[0])
 	}
-	if !strings.HasPrefix(captured[0], "ionoscloud-mcp/1.0.0") {
+	if !strings.HasPrefix(captured[0], "ionos-cloud-mcp/1.0.0") {
 		t.Errorf("pre-handshake request missing static UA prefix: %q", captured[0])
 	}
 	if !strings.Contains(captured[1], "_host/claude-code") {

@@ -88,7 +88,7 @@ func setup(t *testing.T) *testSetup {
 			Token:              "test-token",
 			DefaultHeader:      map[string]string{},
 			DefaultQueryParams: make(map[string][]string),
-			UserAgent:          "ionoscloud-mcp-test",
+			UserAgent:          "ionos-cloud-mcp-test",
 			Servers: shared.ServerConfigurations{
 				{
 					URL:         ts.URL,
@@ -107,7 +107,7 @@ func setup(t *testing.T) *testSetup {
 	objmgmtClient := objmgmtSDK.NewAPIClient(testCfg())
 
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "ionoscloud-mcp",
+		Name:    "ionos-cloud-mcp",
 		Version: "1.0.0-test",
 	}, nil)
 

@@ -59,7 +59,7 @@ func TestSanitizeVersion(t *testing.T) {
 
 func TestNewStaticUserAgent(t *testing.T) {
 	ua := New(Options{
-		Product:          "ionoscloud-mcp",
+		Product:          "ionos-cloud-mcp",
 		Version:          "1.0.0",
 		SDKBundleVersion: "0.1.6",
 		Transport:        "stdio",
@@ -69,7 +69,7 @@ func TestNewStaticUserAgent(t *testing.T) {
 	})
 	got := ua.String()
 	for _, want := range []string{
-		"ionoscloud-mcp/1.0.0",
+		"ionos-cloud-mcp/1.0.0",
 		"_transport/stdio",
 		"_mode/lazy",
 		"_ionos-cloud-sdk-go-bundle/0.1.6",
@@ -89,7 +89,7 @@ func TestNewStaticUserAgent(t *testing.T) {
 
 func TestSetClientAddsDynamicSegments(t *testing.T) {
 	ua := New(Options{
-		Product:          "ionoscloud-mcp",
+		Product:          "ionos-cloud-mcp",
 		Version:          "1.0.0",
 		SDKBundleVersion: "0.1.6",
 		Transport:        "stdio",
@@ -113,7 +113,7 @@ func TestSetClientAddsDynamicSegments(t *testing.T) {
 	}
 
 	// Order: dynamic segments belong between prefix and suffix.
-	if !strings.HasPrefix(got, "ionoscloud-mcp/1.0.0") {
+	if !strings.HasPrefix(got, "ionos-cloud-mcp/1.0.0") {
 		t.Errorf("UA %q must start with product/version", got)
 	}
 	if !strings.HasSuffix(got, "_arch/arm64") {
@@ -166,7 +166,7 @@ func (c *captureRT) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func TestTransportInjectsCurrentUA(t *testing.T) {
-	ua := New(Options{Product: "ionoscloud-mcp", Version: "1.0.0", Transport: "stdio"})
+	ua := New(Options{Product: "ionos-cloud-mcp", Version: "1.0.0", Transport: "stdio"})
 	capture := &captureRT{}
 	wrapped := ua.Transport(capture)
 
@@ -183,13 +183,13 @@ func TestTransportInjectsCurrentUA(t *testing.T) {
 	if len(capture.headers) != 1 {
 		t.Fatalf("expected 1 captured request, got %d", len(capture.headers))
 	}
-	if !strings.HasPrefix(capture.headers[0], "ionoscloud-mcp/1.0.0") {
+	if !strings.HasPrefix(capture.headers[0], "ionos-cloud-mcp/1.0.0") {
 		t.Errorf("expected wrapped UA, got %q", capture.headers[0])
 	}
 }
 
 func TestTransportReflectsLiveSetClient(t *testing.T) {
-	ua := New(Options{Product: "ionoscloud-mcp", Version: "1.0.0"})
+	ua := New(Options{Product: "ionos-cloud-mcp", Version: "1.0.0"})
 	capture := &captureRT{}
 	wrapped := ua.Transport(capture)
 
