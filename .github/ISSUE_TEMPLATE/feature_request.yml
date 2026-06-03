@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest a new tool, capability, or improvement.
+title: "[FEAT] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the use case in natural language. What are you trying to do with the MCP server?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: If you have a specific tool, flag, or API in mind, describe it here.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: dropdown
+    id: product
+    attributes:
+      label: Which IONOS CLOUD product does this involve?
+      multiple: true
+      options:
+        - Compute Engine
+        - DNS
+        - Billing
+        - Object Storage
+        - Certificate Manager
+        - Activity Log
+        - New product
+        - Cross-cutting / not product-specific
+    validations:
+      required: true

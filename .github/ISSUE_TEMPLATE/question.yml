@@ -1,0 +1,31 @@
+name: Question
+description: Ask a question about configuration, usage, or behaviour.
+title: "[QUESTION] "
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a question, please check the [README](https://github.com/ionos-cloud/ionoscloud-mcp/blob/main/README.md) and [docs/](https://github.com/ionos-cloud/ionoscloud-mcp/tree/main/docs).
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: What have you tried so far?
+      description: Helps us understand where you got stuck and avoid suggesting things you have already ruled out.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: ionoscloud-mcp version (if relevant)
+    validations:
+      required: false

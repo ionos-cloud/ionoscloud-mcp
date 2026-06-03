@@ -1,0 +1,86 @@
+name: Bug report
+description: Something in ionoscloud-mcp is not working as expected.
+title: "[BUG] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please fill in the fields below so we can reproduce the issue quickly.
+        For security vulnerabilities, **do not use this form** — see [SECURITY.md](https://github.com/ionos-cloud/ionoscloud-mcp/blob/main/SECURITY.md).
+
+  - type: input
+    id: version
+    attributes:
+      label: ionoscloud-mcp version
+      description: Output of `ionoscloud-mcp --version` or the Docker image tag you are running.
+      placeholder: "v1.0.0 / ghcr.io/ionos-cloud/ionoscloud-mcp:v1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: client
+    attributes:
+      label: MCP client
+      options:
+        - Claude Desktop
+        - Claude Code
+        - Cursor
+        - VS Code (Copilot MCP)
+        - Windsurf
+        - Other (please specify in the description)
+    validations:
+      required: true
+
+  - type: input
+    id: client-version
+    attributes:
+      label: MCP client version
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Be as specific as possible. Include the tool name, the arguments, and any relevant prompt.
+      placeholder: |
+        1. Configure the server with ...
+        2. Call tool `list_datacenters` with arguments ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the full error message or unexpected output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs (stderr)
+      description: The server uses stdout for the JSON-RPC channel — please paste logs from stderr only. Redact any tokens or sensitive data.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have searched existing issues and this has not been reported.
+          required: true
+        - label: I have removed any IONOS_TOKEN, S3 keys, or other secrets from the report.
+          required: true
