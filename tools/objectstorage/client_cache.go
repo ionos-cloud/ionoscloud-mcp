@@ -15,22 +15,29 @@ import (
 // S3-compatible APIs require requests to target the bucket's regional endpoint;
 // the wrong endpoint causes a redirect loop because the signed Authorization
 // header is bound to the original host and cannot follow cross-host redirects.
+//
+// cfg is kept as a live pointer (not a value snapshot) so any mutation made
+// during the process lifetime — UA updates after the MCP handshake, future
+// token rotation, etc. — flows through to regional clients constructed
+// later. Regional clients are still independent SDK clients with their own
+// Server URL override; only the User-Agent injection (handled by the
+// RoundTripper wired on cfg.HTTPClient.Transport) is shared.
 type clientCache struct {
 	mu           sync.Mutex
+	cfg          *shared.Configuration
 	base         *sdk.APIClient
-	baseCfg      shared.Configuration // value copy; Servers replaced per region
+	mgmt         *mgmtSDK.APIClient
 	byRegion     map[string]*sdk.APIClient
 	bucketRegion map[string]string
-	mgmt         *mgmtSDK.APIClient
 }
 
 func newClientCache(base *sdk.APIClient, mgmt *mgmtSDK.APIClient, cfg *shared.Configuration) *clientCache {
 	return &clientCache{
+		cfg:          cfg,
 		base:         base,
-		baseCfg:      *cfg,
+		mgmt:         mgmt,
 		byRegion:     map[string]*sdk.APIClient{"": base},
 		bucketRegion: make(map[string]string),
-		mgmt:         mgmt,
 	}
 }
 
@@ -71,10 +78,18 @@ func (c *clientCache) forBucket(ctx context.Context, bucket string) (*sdk.APICli
 	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
 		endpoint = "https://" + endpoint
 	}
-	newCfg := c.baseCfg
-	newCfg.Servers = shared.ServerConfigurations{{URL: endpoint}}
-	client := sdk.NewAPIClient(&newCfg)
+	client := sdk.NewAPIClient(c.regionalConfig(endpoint))
 	c.byRegion[region] = client
 	c.bucketRegion[bucket] = region // cache only after client is confirmed
 	return client, nil
+}
+
+// regionalConfig derives a configuration for a single regional endpoint by
+// dereferencing the live cfg pointer at call time. The result is a fresh
+// value the SDK is free to mutate; the shared HTTPClient — and therefore
+// the User-Agent RoundTripper — is preserved through the shallow copy.
+func (c *clientCache) regionalConfig(endpoint string) *shared.Configuration {
+	derived := *c.cfg
+	derived.Servers = shared.ServerConfigurations{{URL: endpoint}}
+	return &derived
 }
