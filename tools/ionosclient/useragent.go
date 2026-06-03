@@ -118,16 +118,15 @@ type uaTransport struct {
 }
 
 func (t *uaTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Header.Set replaces any value the SDK installed via its default UA;
-	// this is the single source of truth for outbound User-Agent.
-	req.Header.Set("User-Agent", t.ua.String())
-	return t.base.RoundTrip(req)
+	r := req.Clone(req.Context())
+	r.Header.Set("User-Agent", t.ua.String())
+	return t.base.RoundTrip(r)
 }
 
 func buildStaticPrefix(opts Options) string {
 	product := strings.TrimSpace(opts.Product)
 	if product == "" {
-		product = "ionoscloud-mcp"
+		product = "ionos-cloud-mcp"
 	}
 	version := strings.TrimSpace(opts.Version)
 	if version == "" {

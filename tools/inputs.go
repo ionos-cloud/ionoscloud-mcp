@@ -184,9 +184,9 @@ type BillingUsageInput struct {
 }
 
 type BillingUsageDatacenterInput struct {
-	Contract     int32 `json:"contract" jsonschema:"contract number from get_billing_profile"`
+	Contract     int32  `json:"contract" jsonschema:"contract number from get_billing_profile"`
 	DatacenterID string `json:"datacenter_id" jsonschema:"the VDC UUID"`
-	IncludeZero  *bool `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false)"`
+	IncludeZero  *bool  `json:"include_zero,omitempty" jsonschema:"include meters with quantity 0 (default false)"`
 }
 
 type BillingDateInput struct {

@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	serverName    = "ionoscloud-mcp"
+	serverName    = "ionos-cloud-mcp"
 	serverVersion = "1.0.0"
 )
 

@@ -7,7 +7,7 @@ import (
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 )
 
-func strp(s string) *string { return &s }
+func strp(s string) *string   { return &s }
 func f32p(f float32) *float32 { return &f }
 
 // utilMeter is a test helper that builds a UtilizationMeter with the common fields populated.

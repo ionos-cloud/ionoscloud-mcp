@@ -22,11 +22,11 @@ type CompactOptions struct {
 // When CompactOptions.TopN is set, Datacenters is omitted and TopMeters carries
 // the N largest meters globally (already sorted descending by quantity).
 type CompactUtilizationResponse struct {
-	StartDate        string                  `json:"start_date,omitempty"`
-	EndDate          string                  `json:"end_date,omitempty"`
-	ContractID       string                  `json:"contract_id,omitempty"`
-	MeterDefinitions map[string]string       `json:"meter_definitions,omitempty"`
-	Datacenters      []CompactUtilDC         `json:"datacenters,omitempty"`
+	StartDate        string                   `json:"start_date,omitempty"`
+	EndDate          string                   `json:"end_date,omitempty"`
+	ContractID       string                   `json:"contract_id,omitempty"`
+	MeterDefinitions map[string]string        `json:"meter_definitions,omitempty"`
+	Datacenters      []CompactUtilDC          `json:"datacenters,omitempty"`
 	TopMeters        []CompactUtilMeterWithDC `json:"top_meters,omitempty"`
 }
 
@@ -59,11 +59,11 @@ type CompactUtilMeter struct {
 // UsageMeter carries fewer fields than UtilizationMeter (no type/region/resource_id/server_id/name),
 // so the shape is correspondingly leaner.
 type CompactUsageResponse struct {
-	StartDate        string              `json:"start_date,omitempty"`
-	EndDate          string              `json:"end_date,omitempty"`
-	ContractID       string              `json:"contract_id,omitempty"`
-	MeterDefinitions map[string]string   `json:"meter_definitions,omitempty"`
-	Datacenters      []CompactUsageDC    `json:"datacenters,omitempty"`
+	StartDate        string            `json:"start_date,omitempty"`
+	EndDate          string            `json:"end_date,omitempty"`
+	ContractID       string            `json:"contract_id,omitempty"`
+	MeterDefinitions map[string]string `json:"meter_definitions,omitempty"`
+	Datacenters      []CompactUsageDC  `json:"datacenters,omitempty"`
 }
 
 type CompactUsageDC struct {
