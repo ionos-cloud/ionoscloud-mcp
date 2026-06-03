@@ -15,6 +15,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 | [Billing](docs/billing/) | 14 | Profile, Invoices, EVN (provisioning intervals), Traffic, Usage, Utilization, Product pricing catalog | [docs/billing/](docs/billing/) |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, Bucket Configuration (CORS, encryption, lifecycle, policy, replication, tagging, versioning, Object Lock), Objects, Access Keys, Regions | [docs/objectstorage/](docs/objectstorage/) |
 | [Certificate Manager](docs/cert/) | 6 | Certificates, Auto-Certificates, Providers | [docs/cert/](docs/cert/) |
+| [Activity Log](docs/activitylog/) | 2 | Contracts, Events | [docs/activitylog/](docs/activitylog/) |
 
 ## Installation
 
