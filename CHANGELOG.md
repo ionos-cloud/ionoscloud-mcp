@@ -4,10 +4,10 @@
 
 ### Added
 
-- `[FEA][ionoscloud-mcp]` CI/CD pipelines: `ci`, `lint` (golangci-lint), `vuln` (govulncheck), and tag-triggered `release` workflows. - @avirtopeanu
-- `[FEA][ionoscloud-mcp]` Multi-stage `Dockerfile` and release `Dockerfile.goreleaser` publishing multi-arch (linux/amd64, linux/arm64) images to `ghcr.io/ionos-cloud/ionoscloud-mcp`. - @avirtopeanu
-- `[FEA][ionoscloud-mcp]` GoReleaser pipeline that publishes binaries (linux/darwin/windows × amd64/arm64), Docker images to GHCR, and a Homebrew formula PR to `ionos-cloud/homebrew-ionos-cloud`. Install with `brew install ionos-cloud/ionos-cloud/ionoscloud-mcp`. - @avirtopeanu
-- `[FEA][ionoscloud-mcp]` `--version` / `-v` flag prints the binary version (injected at release time via `-ldflags -X main.serverVersion`). - @avirtopeanu
+- **Homebrew install**: `brew install ionos-cloud/ionos-cloud/ionoscloud-mcp` (macOS + Linux, Intel + Apple Silicon).
+- **Docker image**: `ghcr.io/ionos-cloud/ionoscloud-mcp` (multi-arch: linux/amd64, linux/arm64). Pull and run with `docker run -i --rm -e IONOS_TOKEN=… ghcr.io/ionos-cloud/ionoscloud-mcp`.
+- **Pre-built binaries** on every GitHub release for linux, macOS, and Windows (amd64 + arm64).
+- **`--version` flag**: prints the server version. Useful for bug reports and version pinning.
 
 ## v1.0.0 — June 2026
 

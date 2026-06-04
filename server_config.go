@@ -8,10 +8,49 @@ import (
 
 const serverName = "ionos-cloud-mcp"
 
-// serverVersion is overridden at release time via
-// `-ldflags "-X main.serverVersion=<tag>"` by GoReleaser. The default
-// applies to local builds (`go build`, `go run`) where no tag is set.
-var serverVersion = "dev"
+// serverVersion is resolved from three sources in priority order:
+//  1. -ldflags "-X main.serverVersion=<tag>"  — set by GoReleaser at release
+//  2. info.Main.Version                       — set by `go install <url>@<ver>`
+//  3. info.Settings vcs.revision              — local-checkout fallback
+//
+// The init() below fills in (2) and (3); a release-time ldflag value pre-empts
+// init() because the linker writes the constant before init() runs.
+var serverVersion string
+
+func init() {
+	if serverVersion != "" {
+		return
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		serverVersion = "dev"
+		return
+	}
+	if v := info.Main.Version; v != "" && v != "(devel)" {
+		serverVersion = v
+		return
+	}
+	var revision, modified string
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.modified":
+			modified = s.Value
+		}
+	}
+	if revision != "" {
+		if len(revision) > 12 {
+			revision = revision[:12]
+		}
+		if modified == "true" {
+			revision += "-dirty"
+		}
+		serverVersion = revision
+		return
+	}
+	serverVersion = "dev"
+}
 
 // sdkBundleVersion returns the resolved version of the IONOS SDK bundle's
 // shared package, read from the embedded build info. Returns "unknown"
