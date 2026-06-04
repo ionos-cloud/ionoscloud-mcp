@@ -3,8 +3,9 @@ package billing
 import (
 	"context"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 // RegisterFocusTools registers get_billing_focus_spec for clients that don't support resources/read.
