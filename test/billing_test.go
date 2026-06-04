@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 func TestBillingToolEndpoints(t *testing.T) {

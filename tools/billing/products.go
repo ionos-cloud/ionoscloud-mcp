@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 type cleanProducts struct {

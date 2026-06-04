@@ -3,9 +3,10 @@ package compute
 import (
 	"context"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 func RegisterLocationTools(server *mcp.Server, client *ionos.APIClient) {

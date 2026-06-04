@@ -3,9 +3,10 @@ package billing
 import (
 	"context"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 func RegisterProfileTools(server *mcp.Server, client *sdk.APIClient) {

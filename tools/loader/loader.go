@@ -4,14 +4,15 @@ import (
 	"context"
 	"sync"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	objstSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2"
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 )
 
 // RegisterComputeLoader registers an MCP tool that lazily loads
