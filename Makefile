@@ -1,57 +1,70 @@
-.PHONY: build run clean test fmt vet check deps dev lint vuln docker snapshot
+.PHONY: help build run clean test fmt vet check deps dev lint lintfix vuln docker snapshot
+
+.DEFAULT_GOAL := help
 
 VERSION ?= dev
 LDFLAGS := -s -w -X main.serverVersion=$(VERSION)
 IMAGE   ?= ghcr.io/ionos-cloud/ionoscloud-mcp:$(VERSION)
 
-# Build the binary
+## help: Show this help message
+help:
+	@echo "Usage: make <target>"
+	@echo ""
+	@echo "Targets:"
+	@awk 'BEGIN {FS = ":.*?## "} /^## [a-zA-Z_-]+:.*?## / {sub(/^## /, ""); printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+## build:    ## Build the binary (VERSION=<tag> to override version string)
 build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o ionoscloud-mcp .
 
-# Run the server
+## run:      ## Build and run the MCP server
 run: build
 	./ionoscloud-mcp
 
-# Clean build artifacts
+## clean:    ## Remove build artifacts and dist/
 clean:
 	rm -f ionoscloud-mcp
 	rm -rf dist/
 
-# Run tests
+## test:     ## Run unit tests
 test:
 	go test -v ./...
 
-# Format code
+## fmt:      ## Format Go code with gofmt
 fmt:
 	go fmt ./...
 
-# Run go vet
+## vet:      ## Run go vet
 vet:
 	go vet ./...
 
-# Check code quality
+## check:    ## Run fmt + vet
 check: fmt vet
 
-# Run golangci-lint (requires golangci-lint installed)
+## lint:     ## Run golangci-lint (read-only)
 lint:
 	golangci-lint run --timeout=5m
 
-# Run govulncheck (requires govulncheck installed: go install golang.org/x/vuln/cmd/govulncheck@latest)
+## lintfix:  ## Run golangci-lint with --fix (auto-fixes issues)
+lintfix:
+	golangci-lint run --timeout=5m --fix
+
+## vuln:     ## Run govulncheck against all packages
 vuln:
 	govulncheck ./...
 
-# Build a local Docker image from source (uses ./Dockerfile, not the release one)
+## docker:   ## Build a local Docker image from source (IMAGE= to override tag)
 docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
 
-# Dry-run the release pipeline locally (no publish). Requires goreleaser installed.
+## snapshot: ## Dry-run the GoReleaser pipeline locally (no publish)
 snapshot:
 	goreleaser release --snapshot --clean --skip=publish
 
-# Install dependencies
+## deps:     ## go mod download + tidy
 deps:
 	go mod download
 	go mod tidy
 
-# Build and run
+## dev:      ## check + build + run
 dev: check build run

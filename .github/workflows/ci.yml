@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test:
-    name: Build & Test
+  test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,6 +41,3 @@ jobs:
 
       - name: Tests
         run: go test -v -race ./...
-
-      - name: Build
-        run: go build -o ionoscloud-mcp .
