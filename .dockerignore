@@ -1,0 +1,21 @@
+.git
+.github
+.claude
+.idea
+.vscode
+.env
+.env.example
+.mcp.json
+ionoscloud-mcp
+*.test
+*.out
+coverage.*
+dist/
+test/
+Dockerfile
+Dockerfile.goreleaser
+.dockerignore
+.goreleaser.yml
+.golangci.yml
+# Note: docs/ MUST remain in the build context — resources.go embeds
+# docs/billing/focus-v1.3.md via //go:embed.

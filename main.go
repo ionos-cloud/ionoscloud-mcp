@@ -30,6 +30,18 @@ import (
 func main() {
 	const transport = "stdio"
 
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version", "-v", "version":
+			fmt.Printf("%s %s\n", serverName, serverVersion)
+			return
+		case "--help", "-h", "help":
+			fmt.Printf("%s %s\nUsage: %s        run MCP server over stdio (requires IONOS_TOKEN)\n       %s --version\n",
+				serverName, serverVersion, serverName, serverName)
+			return
+		}
+	}
+
 	cfg := shared.NewConfigurationFromEnv()
 	if cfg.Token == "" {
 		fmt.Fprintf(os.Stderr, "Error: IONOS_TOKEN environment variable is required.\n")

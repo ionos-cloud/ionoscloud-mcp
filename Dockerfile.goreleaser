@@ -1,0 +1,18 @@
+# Used by GoReleaser to assemble the release image. The binary is built ahead
+# of time by GoReleaser and placed in the docker build context, so this file
+# only needs to copy it into a minimal runtime image.
+#
+# Local / developer builds use ./Dockerfile (multi-stage from source).
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="ionoscloud-mcp"
+LABEL org.opencontainers.image.description="Model Context Protocol server for IONOS Cloud"
+LABEL org.opencontainers.image.source="https://github.com/ionos-cloud/ionoscloud-mcp"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.vendor="IONOS Cloud"
+
+COPY ionoscloud-mcp /ionoscloud-mcp
+
+USER nonroot:nonroot
+
+ENTRYPOINT ["/ionoscloud-mcp"]

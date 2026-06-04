@@ -6,10 +6,12 @@ import (
 	"strings"
 )
 
-const (
-	serverName    = "ionos-cloud-mcp"
-	serverVersion = "1.0.0"
-)
+const serverName = "ionos-cloud-mcp"
+
+// serverVersion is overridden at release time via
+// `-ldflags "-X main.serverVersion=<tag>"` by GoReleaser. The default
+// applies to local builds (`go build`, `go run`) where no tag is set.
+var serverVersion = "dev"
 
 // sdkBundleVersion returns the resolved version of the IONOS SDK bundle's
 // shared package, read from the embedded build info. Returns "unknown"
