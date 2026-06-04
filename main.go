@@ -108,7 +108,7 @@ func main() {
 
 	activitylog.RegisterAll(server, activitylogClient)
 	dns.RegisterAll(server, dnsClient)
-	billing.RegisterAll(server, billingClient)
+	billing.RegisterAll(server, billingClient, focusSpec)
 	cert.RegisterAll(server, certClient)
 
 	if eagerLoad() {
