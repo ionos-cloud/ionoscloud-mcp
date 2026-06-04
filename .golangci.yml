@@ -9,13 +9,13 @@ linters:
   enable:
     - govet
     - staticcheck
-    - ineffassign 
+    - ineffassign
   settings:
     govet:
       enable-all: true
       disable:
         - fieldalignment
-        - shadow 
+        - shadow
 
 formatters:
   enable:

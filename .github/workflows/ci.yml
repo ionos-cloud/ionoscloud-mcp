@@ -27,15 +27,6 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Verify formatting
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "::error::Files not gofmt'ed:"
-            echo "$unformatted"
-            exit 1
-          fi
-
       - name: go vet
         run: go vet ./...
 

@@ -6,7 +6,7 @@ VERSION ?= dev
 LDFLAGS := -s -w -X main.serverVersion=$(VERSION)
 IMAGE   ?= ghcr.io/ionos-cloud/ionoscloud-mcp:$(VERSION)
 
-## help: Show this help message
+## help:     ## Show this help message
 help:
 	@echo "Usage: make <target>"
 	@echo ""

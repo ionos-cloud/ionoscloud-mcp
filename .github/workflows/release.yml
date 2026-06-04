@@ -4,14 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      runTests:
-        description: 'Run tests before release?'
-        required: true
-        default: 'yes'
-        type: choice
-        options: [yes, no]
 
 permissions:
   contents: write
@@ -36,7 +28,7 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -49,7 +41,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Tests
-        if: github.event_name == 'push' || github.event.inputs.runTests == 'yes'
         run: go test -v ./...
 
       - name: Run GoReleaser

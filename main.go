@@ -33,10 +33,10 @@ func main() {
 
 	for _, arg := range os.Args[1:] {
 		switch arg {
-		case "--version", "-v", "version":
+		case "--version":
 			fmt.Printf("%s %s\n", serverName, serverVersion)
 			return
-		case "--help", "-h", "help":
+		case "--help", "-h":
 			fmt.Printf("%s %s\nUsage: %s        run MCP server over stdio (requires IONOS_TOKEN)\n       %s --version\n",
 				serverName, serverVersion, serverName, serverName)
 			return

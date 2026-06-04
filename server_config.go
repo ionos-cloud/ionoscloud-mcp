@@ -40,8 +40,8 @@ func init() {
 		}
 	}
 	if revision != "" {
-		if len(revision) > 12 {
-			revision = revision[:12]
+		if len(revision) > 7 {
+			revision = revision[:7]
 		}
 		if modified == "true" {
 			revision += "-dirty"
