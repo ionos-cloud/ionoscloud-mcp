@@ -1,0 +1,142 @@
+version: 2
+project_name: ionoscloud-mcp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: ionoscloud-mcp
+    main: .
+    binary: ionoscloud-mcp
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    mod_timestamp: '{{ .CommitTimestamp }}'
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.serverVersion={{ .Version }}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: ionoscloud-mcp
+    name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}'
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - NOTICE
+      - README.md
+      - CHANGELOG.md
+      - SECURITY.md
+      - SUPPORT.md
+      - docs/**/*
+    wrap_in_directory: false
+
+dockers:
+  - id: ionoscloud-mcp-amd64
+    use: buildx
+    goos: linux
+    goarch: amd64
+    dockerfile: Dockerfile.goreleaser
+    image_templates:
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:{{ .Version }}-amd64'
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:latest-amd64'
+    build_flag_templates:
+      - --platform=linux/amd64
+      - --label=org.opencontainers.image.title=ionoscloud-mcp
+      - --label=org.opencontainers.image.description=Model Context Protocol server for IONOS Cloud
+      - --label=org.opencontainers.image.source=https://github.com/ionos-cloud/ionoscloud-mcp
+      - --label=org.opencontainers.image.url=https://github.com/ionos-cloud/ionoscloud-mcp
+      - --label=org.opencontainers.image.documentation=https://github.com/ionos-cloud/ionoscloud-mcp#readme
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+      - --label=org.opencontainers.image.vendor=IONOS Cloud
+
+  - id: ionoscloud-mcp-arm64
+    use: buildx
+    goos: linux
+    goarch: arm64
+    dockerfile: Dockerfile.goreleaser
+    image_templates:
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:{{ .Version }}-arm64'
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:latest-arm64'
+    build_flag_templates:
+      - --platform=linux/arm64
+      - --label=org.opencontainers.image.title=ionoscloud-mcp
+      - --label=org.opencontainers.image.description=Model Context Protocol server for IONOS Cloud
+      - --label=org.opencontainers.image.source=https://github.com/ionos-cloud/ionoscloud-mcp
+      - --label=org.opencontainers.image.url=https://github.com/ionos-cloud/ionoscloud-mcp
+      - --label=org.opencontainers.image.documentation=https://github.com/ionos-cloud/ionoscloud-mcp#readme
+      - --label=org.opencontainers.image.revision={{ .FullCommit }}
+      - --label=org.opencontainers.image.version={{ .Version }}
+      - --label=org.opencontainers.image.created={{ .Date }}
+      - --label=org.opencontainers.image.licenses=Apache-2.0
+      - --label=org.opencontainers.image.vendor=IONOS Cloud
+
+docker_manifests:
+  - name_template: 'ghcr.io/ionos-cloud/ionoscloud-mcp:{{ .Version }}'
+    image_templates:
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:{{ .Version }}-amd64'
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:{{ .Version }}-arm64'
+  - name_template: 'ghcr.io/ionos-cloud/ionoscloud-mcp:latest'
+    image_templates:
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:latest-amd64'
+      - 'ghcr.io/ionos-cloud/ionoscloud-mcp:latest-arm64'
+
+brews:
+  - name: ionoscloud-mcp
+    ids:
+      - ionoscloud-mcp
+    repository:
+      owner: ionos-cloud
+      name: homebrew-ionos-cloud
+      token: '{{ .Env.GH_PAT }}'
+    directory: Formula
+    homepage: https://github.com/ionos-cloud/ionoscloud-mcp
+    description: MCP server bridging LLM clients to IONOS Cloud APIs.
+    license: Apache-2.0
+    commit_author:
+      name: ionoscloudsdk
+      email: cloud.automation.tooling.development.auto@ionos.com
+    commit_msg_template: 'chore(formula): bump ionoscloud-mcp to {{ .Tag }}'
+    install: |-
+      bin.install "ionoscloud-mcp"
+    test: |
+      assert_match "ionos-cloud-mcp", shell_output("#{bin}/ionoscloud-mcp --version")
+
+checksum:
+  name_template: '{{ .ProjectName }}-{{ .Version }}-SHA256SUMS'
+  algorithm: sha256
+
+release:
+  prerelease: auto
+  mode: append
+  header: |
+    ## [{{ .Tag }}] ({{ .Date }})
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^doc:'
+      - '^chore:'
+      - '^test:'
+      - '^dep:'
+      - '^deps:'
+      - '^dependencies:'

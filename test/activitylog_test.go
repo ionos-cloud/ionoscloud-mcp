@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	activitylogpkg "github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	activitylogpkg "github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 )
 
 func TestActivityLogToolEndpoints(t *testing.T) {

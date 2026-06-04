@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 const utilizationScopingHint = "For contracts with many datacenters, scope with regions, datacenter_id, or meter_types — or set top_n=10 for a flat global top-N list — before group_by=datacenter to keep the response under 25 KB. "

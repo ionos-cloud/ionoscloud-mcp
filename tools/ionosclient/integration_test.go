@@ -8,9 +8,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
 	computeSDK "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
 )
 
 // TestUserAgentReachesSDKOutboundRequests locks the invariant that powers

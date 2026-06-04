@@ -8,14 +8,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/loader"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	activitylogSDK "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
@@ -25,10 +17,31 @@ import (
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/loader"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 )
 
 func main() {
 	const transport = "stdio"
+
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "--version":
+			fmt.Printf("%s %s\n", serverName, serverVersion)
+			return
+		case "--help", "-h":
+			fmt.Printf("%s %s\nUsage: %s        run MCP server over stdio (requires IONOS_TOKEN)\n       %s --version\n",
+				serverName, serverVersion, serverName, serverName)
+			return
+		}
+	}
 
 	cfg := shared.NewConfigurationFromEnv()
 	if cfg.Token == "" {

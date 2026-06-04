@@ -3,8 +3,9 @@ package objectstorage
 import (
 	"context"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 func RegisterObjectTools(server *mcp.Server, cache *clientCache) {

@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	sdk "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 const (

@@ -3,9 +3,10 @@ package cert
 import (
 	"context"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 func RegisterAutoCertificateTools(server *mcp.Server, client *certSDK.APIClient) {

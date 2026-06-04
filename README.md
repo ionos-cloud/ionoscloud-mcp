@@ -19,17 +19,42 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 
 ## Installation
 
-1. Clone the repository:
+Pick whichever fits your workflow.
+
+### Homebrew (macOS, Linux)
+
+```bash
+brew install ionos-cloud/ionos-cloud/ionoscloud-mcp
+```
+
+### Docker (linux/amd64, linux/arm64)
+
+```bash
+docker pull ghcr.io/ionos-cloud/ionoscloud-mcp:latest
+```
+
+Run with the MCP stdio transport:
+
+```bash
+docker run -i --rm -e IONOS_TOKEN="$IONOS_TOKEN" ghcr.io/ionos-cloud/ionoscloud-mcp
+```
+
+### `go install`
+
+```bash
+go install github.com/ionos-cloud/ionoscloud-mcp@latest
+```
+
+### Pre-built binaries
+
+Download the archive for your OS/arch from the [latest release](https://github.com/ionos-cloud/ionoscloud-mcp/releases/latest) (Linux, macOS, Windows × amd64, arm64).
+
+### From source
+
 ```bash
 git clone https://github.com/ionos-cloud/ionoscloud-mcp.git
 cd ionoscloud-mcp
-```
-
-2. Build the server:
-```bash
 make build
-# or
-go build -o ionoscloud-mcp .
 ```
 
 ## Configuration

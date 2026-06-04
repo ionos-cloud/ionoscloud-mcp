@@ -7,12 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
-	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 	activitylogSDK "github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2"
 	billSDK "github.com/ionos-cloud/sdk-go-bundle/products/billing/v2"
 	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
@@ -22,6 +16,13 @@ import (
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
+	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 )
 
 // recordedRequest stores the HTTP method and path of a request.
