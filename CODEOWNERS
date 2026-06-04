@@ -1,0 +1,12 @@
+# Default reviewers for everything not matched below.
+*                              @ionos-cloud/sdks-development
+
+# Release-critical paths: any change requires explicit review.
+/.github/workflows/            @ionos-cloud/sdks-development
+/Dockerfile                    @ionos-cloud/sdks-development
+/.dockerignore                 @ionos-cloud/sdks-development
+/.goreleaser.yaml              @ionos-cloud/sdks-development
+/server.json                   @ionos-cloud/sdks-development
+/smithery.yaml                 @ionos-cloud/sdks-development
+/CODEOWNERS                    @ionos-cloud/sdks-development
+/SECURITY.md                   @ionos-cloud/sdks-development

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/ionos-cloud/ionoscloud-mcp/security/advisories/new
+    about: Please report security issues privately via GitHub Security Advisories or to sdk-tooling@ionos.com. Do not open a public issue.
+  - name: IONOS CLOUD platform / account / billing
+    url: https://www.ionos.com/help
+    about: Issues with the IONOS CLOUD platform itself (account, billing, API outages) should be raised with IONOS CLOUD support.
