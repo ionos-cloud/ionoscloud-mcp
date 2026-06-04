@@ -118,7 +118,7 @@ func setup(t *testing.T) *testSetup {
 	activitylog.RegisterAll(server, activitylogClient)
 	compute.RegisterAll(server, computeClient)
 	dns.RegisterAll(server, dnsClient)
-	billing.RegisterAll(server, billingClient)
+	billing.RegisterAll(server, billingClient, "")
 	cert.RegisterAll(server, certClient)
 	objectstorage.RegisterAll(server, objstClient, objmgmtClient, testCfg())
 
