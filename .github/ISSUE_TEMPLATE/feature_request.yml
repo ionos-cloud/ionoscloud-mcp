@@ -30,15 +30,9 @@ body:
     id: product
     attributes:
       label: Which IONOS CLOUD product does this involve?
-      multiple: true
       options:
-        - Compute Engine
-        - DNS
-        - Billing
-        - Object Storage
-        - Certificate Manager
-        - Activity Log
-        - New product
+        - Existing Product(s)
+        - New Product
         - Cross-cutting / not product-specific
     validations:
       required: true
