@@ -11,8 +11,8 @@ github.com/google/jsonschema-go v0.4.3 h1:/DBOLZTfDow7pe2GmaJNhltueGTtDKICi8V8p+
 github.com/google/jsonschema-go v0.4.3/go.mod h1:r5quNTdLOYEz95Ru18zA0ydNbBuYoo9tgaYcxEYhJVE=
 github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2 v2.0.1 h1:JVdA7RyNDualIaavvOyDAzdYtsWD0xNO9/94sqxbWRk=
 github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2 v2.0.1/go.mod h1:Wu0s2HRGBJPDg8fSBbjr791LPf688oBDSitqoKVug1k=
-github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.0 h1:15occfoU/+GtdkJU8WLgVhtk8b1oarHSr0kcTWiLzfg=
-github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.0/go.mod h1:efoKXu2AAnmRR2HfO6rUa8m+ONPJB5dP/7f7J11Niwc=
+github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.1 h1:rgB/IbX47YqQkuzU4w0VPV4ThI0Yuo5Gku4uiunxzNE=
+github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.1/go.mod h1:O+h6BdeHWNpNM46mdIKLvaeLUcICndGVe0JP9CPs3LM=
 github.com/ionos-cloud/sdk-go-bundle/products/cert/v2 v2.2.1 h1:9HOck1ikZig5BB/lhLINLFFNmIvEB22iFCTVyNnQmSk=
 github.com/ionos-cloud/sdk-go-bundle/products/cert/v2 v2.2.1/go.mod h1:8hgy7WKOhdbRkKtTR83+kx/d9cYy7JhMVYYiQqxmGwU=
 github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.5 h1:5hcoAct+oL1gfIbqFFZb7YuLuFKhr14A12l9/r5EyEg=

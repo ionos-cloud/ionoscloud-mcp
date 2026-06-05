@@ -12,11 +12,10 @@ func f32p(f float32) *float32 { return &f }
 
 // utilMeter is a test helper that builds a UtilizationMeter with the common fields populated.
 func utilMeter(meterID, desc, meterType, region, resourceID, name string, qty float32, unit string) sdk.UtilizationMeter {
-	rt := sdk.ResourceType(meterType)
 	m := sdk.UtilizationMeter{
 		MeterId:   strp(meterID),
 		MeterDesc: strp(desc),
-		Type:      &rt,
+		Type:      strp(meterType),
 		Region:    strp(region),
 		Name:      strp(name),
 		Quantity: &sdk.UtilizationMeterQuantity{
