@@ -37,17 +37,13 @@ func main() {
 			fmt.Printf("%s %s\n", serverName, serverVersion)
 			return
 		case "--help", "-h":
-			fmt.Printf("%s %s\nUsage: %s        run MCP server over stdio (requires IONOS_TOKEN)\n       %s --version\n",
+			fmt.Printf("%s %s\nUsage: %s        run MCP server over stdio (IONOS_TOKEN required for API calls)\n       %s --version\n",
 				serverName, serverVersion, serverName, serverName)
 			return
 		}
 	}
 
 	cfg := shared.NewConfigurationFromEnv()
-	if cfg.Token == "" {
-		fmt.Fprintf(os.Stderr, "Error: IONOS_TOKEN environment variable is required.\n")
-		os.Exit(1)
-	}
 
 	ua := ionosclient.New(ionosclient.Options{
 		Product:          serverName,

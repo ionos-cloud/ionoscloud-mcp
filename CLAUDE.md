@@ -67,8 +67,8 @@ docs/
 
 ### Authentication
 
-Required environment variables:
-- `IONOS_TOKEN` — IONOS Cloud API token (all products). The server exits with an error if not set.
+Environment variables (read from the MCP server process — typically inherited from the MCP client that spawns it, e.g. via `env` block in `.mcp.json` or the shell running Claude Code):
+- `IONOS_TOKEN` — IONOS Cloud API token (all products). Not required to start the server. If unset, expired, or revoked, the IONOS API returns 401 which `tools.enrichSDKError` wraps with an actionable message (where to set the token in the MCP client config + restart hint) before it reaches the LLM.
 - `IONOS_S3_ACCESS_KEY` + `IONOS_S3_SECRET_KEY` — Required only for Object Storage tools (per-region S3 endpoint authentication).
 
 ### Lazy vs Eager Loading

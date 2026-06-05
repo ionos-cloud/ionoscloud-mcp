@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+const maxErrorBodyBytes = 2048
 
 // ValidateDate checks that date is a valid YYYY-MM-DD string (e.g. "2026-04-15").
 // Leading/trailing whitespace is trimmed before parsing.
@@ -25,12 +28,48 @@ func ValidatePeriod(period string) error {
 	return ValidateDate(strings.TrimSpace(period) + "-01")
 }
 
+// enrichSDKError augments IONOS SDK errors with actionable guidance for the
+// LLM. Only 401 is enriched — 403 is intentionally left alone because IONOS
+// returns 403 for several distinct cases (wrong contract, missing role,
+// resource-level ACL) that need separate guidance not yet researched.
+//
+// Non-SDK errors and other status codes pass through unchanged.
+func enrichSDKError(apiErr error) string {
+	// SDK constructor returns *GenericOpenAPIError, so target must be the
+	// pointer type for errors.As to bind.
+	var sdkErr *shared.GenericOpenAPIError
+	if !errors.As(apiErr, &sdkErr) {
+		return apiErr.Error()
+	}
+
+	if sdkErr.StatusCode() != 401 {
+		return apiErr.Error()
+	}
+
+	body := sdkErr.Body()
+	truncated := false
+	if len(body) > maxErrorBodyBytes {
+		body = body[:maxErrorBodyBytes]
+		truncated = true
+	}
+	bodyStr := string(body)
+	if truncated {
+		bodyStr += "..."
+	}
+
+	return "IONOS API 401 Unauthorized. IONOS_TOKEN is missing, expired, or revoked. " +
+		"Fix: set IONOS_TOKEN in your MCP client config (env block of .mcp.json / " +
+		"claude_desktop_config.json) then restart the MCP client (restarting only your " +
+		"shell does not propagate env to an already-running client). Original response: " +
+		bodyStr
+}
+
 // ToResult marshals an API response into an MCP text result.
 func ToResult(data any, apiErr error) (*mcp.CallToolResult, any, error) {
 	if apiErr != nil {
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: apiErr.Error()},
+				&mcp.TextContent{Text: enrichSDKError(apiErr)},
 			},
 			IsError: true,
 		}, nil, nil
@@ -59,7 +98,7 @@ func ToRawResult(resp *shared.APIResponse, apiErr error) (*mcp.CallToolResult, a
 	if apiErr != nil {
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
-				&mcp.TextContent{Text: apiErr.Error()},
+				&mcp.TextContent{Text: enrichSDKError(apiErr)},
 			},
 			IsError: true,
 		}, nil, nil
