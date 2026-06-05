@@ -4,7 +4,7 @@
 # Used for standalone `docker build` (developer / local images). The GoReleaser
 # pipeline bypasses this stage and copies the pre-built binary directly into
 # the runtime image — see .goreleaser.yml.
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 
 WORKDIR /src
 
