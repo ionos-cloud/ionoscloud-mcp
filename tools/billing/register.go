@@ -6,7 +6,9 @@ import (
 )
 
 // RegisterAll registers all billing tools with the MCP server.
-func RegisterAll(server *mcp.Server, client *sdk.APIClient) {
+// focusSpec is the embedded FOCUS v1.3 markdown, passed from the main package.
+func RegisterAll(server *mcp.Server, client *sdk.APIClient, focusSpec string) {
+	RegisterFocusTools(server, focusSpec)
 	RegisterProfileTools(server, client)
 	RegisterEvnTools(server, client)
 	RegisterInvoiceTools(server, client)
