@@ -10,6 +10,7 @@ LABEL org.opencontainers.image.description="Model Context Protocol server for IO
 LABEL org.opencontainers.image.source="https://github.com/ionos-cloud/ionoscloud-mcp"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.vendor="IONOS Cloud"
+LABEL io.modelcontextprotocol.server.name="io.github.ionos-cloud/ionoscloud-mcp"
 
 COPY ionoscloud-mcp /ionoscloud-mcp
 
