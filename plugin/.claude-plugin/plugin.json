@@ -1,7 +1,6 @@
 {
   "name": "ionoscloud-mcp",
   "description": "Inspect and manage IONOS CLOUD infrastructure via MCP",
-  "version": "0.1.2",
   "author": {
     "name": "IONOS CLOUD"
   },
