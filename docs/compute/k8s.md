@@ -7,7 +7,7 @@ description: |-
 
 # Kubernetes
 
-## list_kubernetes_clusters
+## list_k8s_clusters
 
 Lists all Managed Kubernetes clusters provisioned in your IONOS Cloud account.
 
@@ -17,7 +17,7 @@ Lists all Managed Kubernetes clusters provisioned in your IONOS Cloud account.
 
 ```json
 {
-  "name": "list_kubernetes_clusters",
+  "name": "list_k8s_clusters",
   "arguments": {}
 }
 ```
@@ -26,7 +26,7 @@ Lists all Managed Kubernetes clusters provisioned in your IONOS Cloud account.
 
 ---
 
-## get_kubernetes_cluster
+## get_k8s_cluster
 
 Gets detailed information about a specific Kubernetes cluster, including its state, version, maintenance window, and API server endpoint.
 
@@ -40,7 +40,7 @@ Gets detailed information about a specific Kubernetes cluster, including its sta
 
 ```json
 {
-  "name": "get_kubernetes_cluster",
+  "name": "get_k8s_cluster",
   "arguments": {
     "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c"
   }
@@ -51,7 +51,7 @@ Gets detailed information about a specific Kubernetes cluster, including its sta
 
 ---
 
-## get_kubernetes_kubeconfig
+## get_k8s_kubeconfig
 
 Retrieves the kubeconfig YAML file for a Kubernetes cluster. The kubeconfig can be used directly with `kubectl` to access the cluster.
 
@@ -67,7 +67,7 @@ Retrieves the kubeconfig YAML file for a Kubernetes cluster. The kubeconfig can 
 
 ```json
 {
-  "name": "get_kubernetes_kubeconfig",
+  "name": "get_k8s_kubeconfig",
   "arguments": {
     "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c"
   }
@@ -78,7 +78,7 @@ Retrieves the kubeconfig YAML file for a Kubernetes cluster. The kubeconfig can 
 
 ---
 
-## list_kubernetes_nodepools
+## list_k8s_nodepools
 
 Lists all node pools belonging to a specific Kubernetes cluster.
 
@@ -92,7 +92,7 @@ Lists all node pools belonging to a specific Kubernetes cluster.
 
 ```json
 {
-  "name": "list_kubernetes_nodepools",
+  "name": "list_k8s_nodepools",
   "arguments": {
     "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c"
   }
@@ -103,7 +103,7 @@ Lists all node pools belonging to a specific Kubernetes cluster.
 
 ---
 
-## get_kubernetes_nodepool
+## get_k8s_nodepool
 
 Gets detailed information about a specific Kubernetes node pool, including node count, hardware configuration, autoscaling settings, and labels.
 
@@ -118,7 +118,7 @@ Gets detailed information about a specific Kubernetes node pool, including node 
 
 ```json
 {
-  "name": "get_kubernetes_nodepool",
+  "name": "get_k8s_nodepool",
   "arguments": {
     "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c",
     "nodepool_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
@@ -130,7 +130,7 @@ Gets detailed information about a specific Kubernetes node pool, including node 
 
 ---
 
-## list_kubernetes_nodepool_nodes
+## list_k8s_nodepool_nodes
 
 Lists all individual nodes in a Kubernetes node pool, including their state and public/private IP addresses.
 
@@ -145,7 +145,7 @@ Lists all individual nodes in a Kubernetes node pool, including their state and 
 
 ```json
 {
-  "name": "list_kubernetes_nodepool_nodes",
+  "name": "list_k8s_nodepool_nodes",
   "arguments": {
     "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c",
     "nodepool_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
@@ -157,7 +157,7 @@ Lists all individual nodes in a Kubernetes node pool, including their state and 
 
 ---
 
-## get_kubernetes_node
+## get_k8s_node
 
 Gets detailed information about a specific node in a Kubernetes node pool.
 
@@ -173,7 +173,7 @@ Gets detailed information about a specific node in a Kubernetes node pool.
 
 ```json
 {
-  "name": "get_kubernetes_node",
+  "name": "get_k8s_node",
   "arguments": {
     "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c",
     "nodepool_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -186,7 +186,7 @@ Gets detailed information about a specific node in a Kubernetes node pool.
 
 ---
 
-## list_kubernetes_versions
+## list_k8s_versions
 
 Lists all Kubernetes versions currently available for cluster and node pool creation in IONOS Cloud.
 
@@ -196,7 +196,7 @@ Lists all Kubernetes versions currently available for cluster and node pool crea
 
 ```json
 {
-  "name": "list_kubernetes_versions",
+  "name": "list_k8s_versions",
   "arguments": {}
 }
 ```
@@ -205,7 +205,7 @@ Lists all Kubernetes versions currently available for cluster and node pool crea
 
 ---
 
-## get_kubernetes_default_version
+## get_k8s_default_version
 
 Returns the current default Kubernetes version that IONOS Cloud applies to new clusters and node pools when no version is explicitly specified.
 
@@ -215,7 +215,7 @@ Returns the current default Kubernetes version that IONOS Cloud applies to new c
 
 ```json
 {
-  "name": "get_kubernetes_default_version",
+  "name": "get_k8s_default_version",
   "arguments": {}
 }
 ```
