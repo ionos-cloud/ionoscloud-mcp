@@ -1,0 +1,75 @@
+name: Publish to Smithery
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish MCPB (${{ matrix.goos }}-${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    strategy:
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+            platform: darwin
+          - goos: darwin
+            goarch: amd64
+            platform: darwin
+          - goos: linux
+            goarch: amd64
+            platform: linux
+          - goos: linux
+            goarch: arm64
+            platform: linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install mcpb CLI
+        run: npm install -g @anthropic-ai/mcpb
+
+      - name: Build binary
+        run: |
+          VERSION="${{ github.event.workflow_run.head_branch }}"
+          VERSION="${VERSION#v}"
+          mkdir -p bundle
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -trimpath -ldflags "-s -w -X main.serverVersion=${VERSION}" \
+            -o bundle/ionoscloud-mcp .
+
+      - name: Prepare manifest
+        run: |
+          VERSION="${{ github.event.workflow_run.head_branch }}"
+          VERSION="${VERSION#v}"
+          jq --arg v "$VERSION" '.version = $v' smithery/manifest.json > bundle/manifest.json
+
+      - name: Pack MCPB bundle
+        run: mcpb pack ./bundle ./ionoscloud-mcp-${{ matrix.goos }}-${{ matrix.goarch }}.mcpb
+
+      - name: Publish to Smithery
+        run: |
+          npx @smithery/cli mcp publish \
+            ./ionoscloud-mcp-${{ matrix.goos }}-${{ matrix.goarch }}.mcpb \
+            -n ionos-cloud/ionoscloud-mcp
+        env:
+          SMITHERY_TOKEN: ${{ secrets.SMITHERY_TOKEN }}

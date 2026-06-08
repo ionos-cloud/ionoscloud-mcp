@@ -1,0 +1,57 @@
+{
+  "manifest_version": "0.3",
+  "name": "ionoscloud-mcp",
+  "display_name": "IONOS CLOUD MCP Server",
+  "version": "0.1.1",
+  "description": "Inspect IONOS CLOUD infrastructure via MCP",
+  "author": {
+    "name": "IONOS CLOUD",
+    "url": "https://github.com/ionos-cloud/ionoscloud-mcp"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ionos-cloud/ionoscloud-mcp"
+  },
+  "server": {
+    "type": "binary",
+    "entry_point": "ionoscloud-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/ionoscloud-mcp",
+      "args": [],
+      "env": {
+        "IONOS_TOKEN": "${user_config.ionos_token}",
+        "IONOS_S3_ACCESS_KEY": "${user_config.ionos_s3_access_key}",
+        "IONOS_S3_SECRET_KEY": "${user_config.ionos_s3_secret_key}"
+      }
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["ionos", "cloud", "infrastructure", "compute", "dns", "billing"],
+  "license": "Apache-2.0",
+  "user_config": {
+    "ionos_token": {
+      "type": "string",
+      "title": "IONOS Token",
+      "description": "IONOS CLOUD API token",
+      "required": true,
+      "sensitive": true
+    },
+    "ionos_s3_access_key": {
+      "type": "string",
+      "title": "S3 Access Key",
+      "description": "S3 access key for IONOS Object Storage",
+      "required": false,
+      "sensitive": true
+    },
+    "ionos_s3_secret_key": {
+      "type": "string",
+      "title": "S3 Secret Key",
+      "description": "S3 secret key for IONOS Object Storage",
+      "required": false,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "linux"]
+  }
+}
