@@ -1,9 +1,9 @@
 name: Publish to MCP Registry
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -13,9 +13,12 @@ jobs:
   publish:
     name: Publish server.json
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: Install mcp-publisher
         run: |
@@ -25,7 +28,8 @@ jobs:
 
       - name: Update version in server.json
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${{ github.event.workflow_run.head_branch }}"
+          VERSION="${VERSION#v}"
           jq --arg v "$VERSION" '.version = $v' server.json > server.json.tmp && mv server.json.tmp server.json
           jq --arg img "ghcr.io/ionos-cloud/ionoscloud-mcp:${VERSION}" '.packages[0].identifier = $img' server.json > server.json.tmp && mv server.json.tmp server.json
 
