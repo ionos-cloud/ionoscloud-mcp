@@ -66,6 +66,7 @@ dockers:
       - --label=org.opencontainers.image.created={{ .Date }}
       - --label=org.opencontainers.image.licenses=Apache-2.0
       - --label=org.opencontainers.image.vendor=IONOS Cloud
+      - --label=io.modelcontextprotocol.server.name=io.github.ionos-cloud/ionoscloud-mcp
 
   - id: ionoscloud-mcp-arm64
     use: buildx
@@ -87,6 +88,7 @@ dockers:
       - --label=org.opencontainers.image.created={{ .Date }}
       - --label=org.opencontainers.image.licenses=Apache-2.0
       - --label=org.opencontainers.image.vendor=IONOS Cloud
+      - --label=io.modelcontextprotocol.server.name=io.github.ionos-cloud/ionoscloud-mcp
 
 docker_manifests:
   - name_template: 'ghcr.io/ionos-cloud/ionoscloud-mcp:{{ .Version }}'
