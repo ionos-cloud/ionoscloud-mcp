@@ -74,4 +74,4 @@ jobs:
             ./ionoscloud-mcp-${{ matrix.goos }}-${{ matrix.goarch }}.mcpb \
             -n ionos-cloud/ionoscloud-mcp
         env:
-          SMITHERY_TOKEN: ${{ secrets.SMITHERY_TOKEN }}
+          SMITHERY_API_KEY: ${{ secrets.SMITHERY_TOKEN }}
