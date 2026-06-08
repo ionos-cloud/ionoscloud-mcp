@@ -104,6 +104,17 @@ func TestComputeToolEndpoints(t *testing.T) {
 		// Snapshots
 		{"list_snapshots", map[string]any{}, []string{"GET"}, []string{"/cloudapi/v6/snapshots"}},
 		{"get_snapshot", map[string]any{"snapshot_id": "snap-1"}, []string{"GET"}, []string{"/cloudapi/v6/snapshots/snap-1"}},
+
+		// Kubernetes
+		{"list_kubernetes_clusters", map[string]any{}, []string{"GET"}, []string{"/cloudapi/v6/k8s"}},
+		{"get_kubernetes_cluster", map[string]any{"k8s_cluster_id": "k8s-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1"}},
+		{"get_kubernetes_kubeconfig", map[string]any{"k8s_cluster_id": "k8s-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/kubeconfig"}},
+		{"list_kubernetes_nodepools", map[string]any{"k8s_cluster_id": "k8s-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools"}},
+		{"get_kubernetes_nodepool", map[string]any{"k8s_cluster_id": "k8s-1", "nodepool_id": "np-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools/np-1"}},
+		{"list_kubernetes_nodepool_nodes", map[string]any{"k8s_cluster_id": "k8s-1", "nodepool_id": "np-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools/np-1/nodes"}},
+		{"get_kubernetes_node", map[string]any{"k8s_cluster_id": "k8s-1", "nodepool_id": "np-1", "node_id": "node-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools/np-1/nodes/node-1"}},
+		{"list_kubernetes_versions", map[string]any{}, []string{"GET"}, []string{"/cloudapi/v6/k8s/versions"}},
+		{"get_kubernetes_default_version", map[string]any{}, []string{"GET"}, []string{"/cloudapi/v6/k8s/versions/default"}},
 	}
 
 	ctx := context.Background()

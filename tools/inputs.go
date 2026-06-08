@@ -260,3 +260,20 @@ type AutoCertificateIDInput struct {
 type ProviderIDInput struct {
 	ProviderID string `json:"provider_id" jsonschema:"the ID of the certificate provider"`
 }
+
+// Kubernetes input types
+
+type K8sClusterIDInput struct {
+	K8sClusterID string `json:"k8s_cluster_id" jsonschema:"the ID of the Kubernetes cluster"`
+}
+
+type K8sNodepoolIDInput struct {
+	K8sClusterID string `json:"k8s_cluster_id" jsonschema:"the ID of the Kubernetes cluster"`
+	NodepoolID   string `json:"nodepool_id" jsonschema:"the ID of the Kubernetes node pool"`
+}
+
+type K8sNodeIDInput struct {
+	K8sClusterID string `json:"k8s_cluster_id" jsonschema:"the ID of the Kubernetes cluster"`
+	NodepoolID   string `json:"nodepool_id" jsonschema:"the ID of the Kubernetes node pool"`
+	NodeID       string `json:"node_id" jsonschema:"the ID of the Kubernetes node"`
+}

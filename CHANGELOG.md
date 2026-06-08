@@ -4,12 +4,13 @@
 
 ### Added
 
+- **Managed Kubernetes**: 9 new read-only tools — `list_kubernetes_clusters`, `get_kubernetes_cluster`, `get_kubernetes_kubeconfig`, `list_kubernetes_nodepools`, `get_kubernetes_nodepool`, `list_kubernetes_nodepool_nodes`, `get_kubernetes_node`, `list_kubernetes_versions`, `get_kubernetes_default_version`. Covers the full cluster/node-pool/node hierarchy plus kubeconfig retrieval and available version discovery.
 - **Homebrew install**: `brew install ionos-cloud/ionos-cloud/ionoscloud-mcp` (macOS + Linux, Intel + Apple Silicon).
 - **Docker image**: `ghcr.io/ionos-cloud/ionoscloud-mcp` (multi-arch: linux/amd64, linux/arm64). Pull and run with `docker run -i --rm -e IONOS_TOKEN=… ghcr.io/ionos-cloud/ionoscloud-mcp`.
 - **Pre-built binaries** on every GitHub release for linux, macOS, and Windows (amd64 + arm64).
 - **`--version` flag**: prints the server version. Useful for bug reports and version pinning.
 
-## v1.0.0 — June 2026
+## v0.1.1 — June 2026
 
 First release. An MCP server that lets LLM clients explore an IONOS CLOUD account read-only.
 
