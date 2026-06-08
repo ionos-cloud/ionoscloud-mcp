@@ -61,7 +61,9 @@ jobs:
         run: |
           VERSION="${{ github.event.workflow_run.head_branch }}"
           VERSION="${VERSION#v}"
-          jq --arg v "$VERSION" '.version = $v' smithery/manifest.json > bundle/manifest.json
+          jq --arg v "$VERSION" --arg os "${{ matrix.goos }}" \
+            '.version = $v | .compatibility.platforms = [$os]' \
+            smithery/manifest.json > bundle/manifest.json
 
       - name: Pack MCPB bundle
         run: mcpb pack ./bundle ./ionoscloud-mcp-${{ matrix.goos }}-${{ matrix.goarch }}.mcpb
