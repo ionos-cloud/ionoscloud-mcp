@@ -12,13 +12,13 @@ Built and maintained by the IONOS Cloud team. The server runs as a local binary 
 
 > 📚 **Full product documentation, per-client setup guides, FAQ, and tutorials:** [docs.ionos.com/cloud/ai/mcp-server](https://docs.ionos.com/cloud/ai/mcp-server)
 
-**Get started in 60 seconds** (any supported AI client, via Smithery):
+**Get started in 60 seconds** (macOS or Linux, via Homebrew):
 
 ```bash
-npx -y @smithery/cli install @ionos-cloud/ionoscloud-mcp --client claude-desktop
+brew install ionos-cloud/ionos-cloud/ionoscloud-mcp
 ```
 
-Replace `claude-desktop` with `cursor`, `vscode`, `windsurf`, `cline`, `continue`, or any other supported client. For other install paths (Docker, Homebrew, pre-built binary, source), see [Installation](#installation).
+For other install paths (Docker, pre-built binary, `go install`, source), see [Installation](#installation).
 
 <p align="center">
 <a href="#why">Why</a> •
@@ -69,17 +69,13 @@ All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In `lazy
 
 ## Installation
 
-Pick whichever fits your workflow. Smithery is the easiest path for most AI clients.
+Pick whichever fits your workflow.
 
-### Smithery (works with any supported AI client)
-
-One command sets up the server for your AI client of choice:
+### Homebrew (macOS, Linux) — recommended
 
 ```bash
-npx -y @smithery/cli install @ionos-cloud/ionoscloud-mcp --client claude-desktop
+brew install ionos-cloud/ionos-cloud/ionoscloud-mcp
 ```
-
-Supported `--client` values: `claude-desktop`, `claude-code`, `cursor`, `vscode`, `windsurf`, `cline`, `continue`, `gemini-cli`, `kiro`, and others. See the [Smithery listing](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) for the current list.
 
 ### Docker (linux/amd64, linux/arm64)
 
@@ -95,11 +91,13 @@ docker run -i --rm \
   ghcr.io/ionos-cloud/ionoscloud-mcp
 ```
 
-### Homebrew (macOS, Linux)
+### Smithery
 
 ```bash
-brew install ionos-cloud/ionos-cloud/ionoscloud-mcp
+npx -y @smithery/cli install @ionos-cloud/ionoscloud-mcp --client claude-desktop
 ```
+
+Supported `--client` values: `claude-desktop`, `claude-code`, `cursor`, `vscode`, `windsurf`, `cline`, `continue`, `gemini-cli`, `kiro`, and others. See the [Smithery listing](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) for the current list.
 
 ### Pre-built binary
 
@@ -139,7 +137,7 @@ For least-privilege token scoping, see [Authentication](https://docs.ionos.com/c
 
 ### Integrating with an MCP client (manual)
 
-If you prefer manual JSON over the Smithery one-liner, add the server to your AI client's MCP config:
+Add the server to your AI client's MCP config:
 
 ```json
 {
