@@ -27,6 +27,7 @@ This server is published across multiple MCP registries and IDE marketplaces:
 | Smithery | [ionos-cloud/ionoscloud-mcp](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) |
 | mcp.so | [ionos-cloud-mcp-server](https://mcp.so/server/ionos-cloud-mcp-server/ionos-cloud) |
 | Cursor | [ionoscloud-mcp](https://cursor.directory/plugins/ionoscloud-mcp) |
+| mcpservers.org | [ionoscloud-mcp](https://mcpservers.org/servers/ionos-cloud/ionoscloud-mcp) |
 
 ## Installation
 
