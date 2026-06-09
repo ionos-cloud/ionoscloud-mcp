@@ -14,15 +14,27 @@
   },
   "server": {
     "type": "binary",
-    "entry_point": "ionoscloud-mcp",
+    "entry_point": "server/run.sh",
     "mcp_config": {
-      "command": "${__dirname}/ionoscloud-mcp",
+      "command": "${__dirname}/server/run.sh",
       "args": [],
       "env": {
         "IONOS_TOKEN": "${user_config.ionos_token}",
         "IONOS_S3_ACCESS_KEY": "${user_config.ionos_s3_access_key}",
         "IONOS_S3_SECRET_KEY": "${user_config.ionos_s3_secret_key}",
         "IONOS_MCP_LOAD_MODE": "${user_config.ionos_mcp_load_mode}"
+      },
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/server/bin/windows_amd64/ionoscloud-mcp.exe",
+          "args": [],
+          "env": {
+            "IONOS_TOKEN": "${user_config.ionos_token}",
+            "IONOS_S3_ACCESS_KEY": "${user_config.ionos_s3_access_key}",
+            "IONOS_S3_SECRET_KEY": "${user_config.ionos_s3_secret_key}",
+            "IONOS_MCP_LOAD_MODE": "${user_config.ionos_mcp_load_mode}"
+          }
+        }
       }
     }
   },
@@ -61,6 +73,6 @@
     }
   },
   "compatibility": {
-    "platforms": ["darwin", "linux"]
+    "platforms": ["darwin", "linux", "win32"]
   }
 }

@@ -1,10 +1,15 @@
 {
   "mcpServers": {
     "ionoscloud": {
-      "command": "ionoscloud-mcp",
-      "env": {
-        "IONOS_TOKEN": "${IONOS_TOKEN}"
-      }
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli",
+        "run",
+        "@ionos-cloud/ionoscloud-mcp",
+        "--config",
+        "{\"ionos_token\":\"${IONOS_TOKEN}\"}"
+      ]
     }
   }
 }
