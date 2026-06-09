@@ -10,24 +10,9 @@ permissions:
 
 jobs:
   publish:
-    name: Publish MCPB (${{ matrix.goos }}-${{ matrix.goarch }})
+    name: Publish multi-arch MCPB
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    strategy:
-      matrix:
-        include:
-          - goos: darwin
-            goarch: arm64
-            platform: darwin
-          - goos: darwin
-            goarch: amd64
-            platform: darwin
-          - goos: linux
-            goarch: amd64
-            platform: linux
-          - goos: linux
-            goarch: arm64
-            platform: linux
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -48,30 +33,44 @@ jobs:
       - name: Install mcpb CLI
         run: npm install -g @anthropic-ai/mcpb
 
-      - name: Build binary
+      - name: Build all platform binaries
         run: |
           VERSION="${{ github.event.workflow_run.head_branch }}"
           VERSION="${VERSION#v}"
-          mkdir -p bundle
-          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-            go build -trimpath -ldflags "-s -w -X main.serverVersion=${VERSION}" \
-            -o bundle/ionoscloud-mcp .
+          mkdir -p bundle/server/bin
+          cp smithery/run.sh bundle/server/run.sh
+          chmod +x bundle/server/run.sh
+
+          build_one() {
+            local goos="$1" goarch="$2" ext="$3"
+            local out="bundle/server/bin/${goos}_${goarch}"
+            mkdir -p "$out"
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -ldflags "-s -w -X main.serverVersion=${VERSION}" \
+              -o "${out}/ionoscloud-mcp${ext}" .
+            chmod +x "${out}/ionoscloud-mcp${ext}" || true
+          }
+
+          build_one darwin  amd64 ""
+          build_one darwin  arm64 ""
+          build_one linux   amd64 ""
+          build_one linux   arm64 ""
+          build_one windows amd64 ".exe"
 
       - name: Prepare manifest
         run: |
           VERSION="${{ github.event.workflow_run.head_branch }}"
           VERSION="${VERSION#v}"
-          jq --arg v "$VERSION" --arg os "${{ matrix.goos }}" \
-            '.version = $v | .compatibility.platforms = [$os]' \
+          jq --arg v "$VERSION" '.version = $v' \
             smithery/manifest.json > bundle/manifest.json
 
       - name: Pack MCPB bundle
-        run: mcpb pack ./bundle ./ionoscloud-mcp-${{ matrix.goos }}-${{ matrix.goarch }}.mcpb
+        run: mcpb pack ./bundle ./ionoscloud-mcp.mcpb
 
       - name: Publish to Smithery
         run: |
           npx @smithery/cli mcp publish \
-            ./ionoscloud-mcp-${{ matrix.goos }}-${{ matrix.goarch }}.mcpb \
+            ./ionoscloud-mcp.mcpb \
             -n ionos-cloud/ionoscloud-mcp
         env:
           SMITHERY_API_KEY: ${{ secrets.SMITHERY_TOKEN }}
