@@ -59,8 +59,12 @@ jobs:
 
       - name: Prepare manifest
         run: |
-          VERSION="${{ github.event.workflow_run.head_branch }}"
-          VERSION="${VERSION#v}"
+          VERSION=$(./bundle/server/bin/linux_amd64/ionoscloud-mcp --version | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "failed to read version from binary" >&2
+            exit 1
+          fi
+          echo "manifest version: $VERSION"
           jq --arg v "$VERSION" '.version = $v' \
             smithery/manifest.json > bundle/manifest.json
 

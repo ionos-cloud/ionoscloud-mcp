@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "ionoscloud-mcp",
   "display_name": "IONOS CLOUD MCP Server",
-  "version": "0.1.1",
+  "version": "placeholder",
   "description": "Inspect IONOS CLOUD infrastructure via MCP",
   "author": {
     "name": "IONOS CLOUD",
@@ -38,7 +38,7 @@
       }
     }
   },
-  "tools_generated": true,
+  "tools_generated": false,
   "keywords": ["ionos", "cloud", "infrastructure", "compute", "dns", "billing"],
   "license": "Apache-2.0",
   "user_config": {
