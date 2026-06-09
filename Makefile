@@ -1,4 +1,4 @@
-.PHONY: help build run clean test fmt vet check deps dev lint lintfix vuln docker snapshot
+.PHONY: help build install run clean test fmt vet check deps dev lint lintfix vuln docker snapshot
 
 .DEFAULT_GOAL := help
 
@@ -16,6 +16,10 @@ help:
 ## build:    ## Build the binary (VERSION=<tag> to override version string)
 build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o ionoscloud-mcp .
+
+## install:  ## Install the binary to $GOBIN (or $GOPATH/bin) so MCP clients on PATH pick it up
+install:
+	go install -trimpath -ldflags "$(LDFLAGS)" .
 
 ## run:      ## Build and run the MCP server
 run: build

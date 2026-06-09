@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -68,24 +69,46 @@ func sdkBundleVersion() string {
 	return "unknown"
 }
 
-// lazyLoad reports whether the server should defer Compute and Object Storage
-// tool registration behind ionos_load_*_tools sentinel tools instead of
-// registering every tool at startup. Default off: all tools register eagerly
-// so they appear in the initial tools/list response. Set IONOS_MCP_LAZY_LOAD=true
-// to opt into lazy registration; this requires the MCP client to honour
-// notifications/tools/list_changed.
-func lazyLoad() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("IONOS_MCP_LAZY_LOAD"))) {
-	case "1", "true", "yes", "on":
-		return true
+// LoadMode selects how the server exposes tools to MCP clients.
+type LoadMode string
+
+const (
+	// LoadModeEager registers all tools at startup. Default. Optimal for
+	// Claude Code (defers schemas client-side via ToolSearch) and required
+	// for clients that ignore notifications/tools/list_changed.
+	LoadModeEager LoadMode = "eager"
+
+	// LoadModeLazy defers Compute and Object Storage behind ionos_load_*_tools
+	// sentinel tools. Requires MCP client support for
+	// notifications/tools/list_changed.
+	LoadModeLazy LoadMode = "lazy"
+
+	// LoadModeRouter is reserved for a future search + invoke pattern targeting
+	// clients with hard tool caps (Cursor 40, Windsurf 100) or no client-side
+	// schema deferral. Currently falls back to eager with a stderr warning.
+	LoadModeRouter LoadMode = "router"
+)
+
+// loadMode returns the tool registration strategy selected via
+// IONOS_MCP_LOAD_MODE. Default: eager. Unknown values and the reserved
+// 'router' value log a warning to stderr and fall back to eager.
+func loadMode() LoadMode {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("IONOS_MCP_LOAD_MODE")))
+	switch v {
+	case "", "eager":
+		return LoadModeEager
+	case "lazy":
+		return LoadModeLazy
+	case "router":
+		log.Println("IONOS_MCP_LOAD_MODE=router not yet implemented; falling back to eager")
+		return LoadModeEager
+	default:
+		log.Printf("IONOS_MCP_LOAD_MODE=%q unrecognised; falling back to eager", v)
+		return LoadModeEager
 	}
-	return false
 }
 
 // loadModeLabel returns the User-Agent token reflecting current load mode.
 func loadModeLabel() string {
-	if lazyLoad() {
-		return "lazy"
-	}
-	return "eager"
+	return string(loadMode())
 }

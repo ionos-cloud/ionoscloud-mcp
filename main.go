@@ -107,13 +107,16 @@ func main() {
 	billing.RegisterAll(server, billingClient, focusSpec)
 	cert.RegisterAll(server, certClient)
 
-	if lazyLoad() {
+	switch loadMode() {
+	case LoadModeLazy:
 		// Defer Compute and Object Storage behind ionos_load_*_tools
-		// sentinel tools. Requires the MCP client to honour
+		// sentinel tools. Requires MCP client support for
 		// notifications/tools/list_changed.
 		loader.RegisterComputeLoader(server, client)
 		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
-	} else {
+	default:
+		// Eager: register every tool at startup. Router mode falls through
+		// here until implemented (loadMode() logs a warning in that case).
 		compute.RegisterAll(server, client)
 		objectstorage.RegisterAll(server, objstClient, objmgmtClient, cfg)
 	}

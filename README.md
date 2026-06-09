@@ -102,13 +102,17 @@ To use this server with an MCP client (like Claude Desktop), add it to your MCP 
 
 **Note:** `IONOS_TOKEN` is required. The Object Storage credentials are only needed if you plan to use Object Storage tools.
 
-### Optional: lazy tool loading
+### Tool loading mode
 
-By default, **all tools are registered at startup** and appear in the initial `tools/list` response — including Compute and Object Storage. This default is optimal for Claude Code (which defers full schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and is the only working mode for clients that ignore `notifications/tools/list_changed` (some Claude Desktop configurations, claude.ai connectors, Claude in Chrome).
+The `IONOS_MCP_LOAD_MODE` environment variable selects how tools are exposed:
 
-Set `IONOS_MCP_LAZY_LOAD=true` (or `1`, `yes`, `on`) to defer Compute and Object Storage tool registration. Two sentinel tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) appear instead; calling either registers the full product set and emits `notifications/tools/list_changed`.
+- **`eager`** (default): all tools register at startup. Recommended for Claude Code (which defers full schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and the only working mode for clients that ignore `notifications/tools/list_changed` (Claude Desktop, claude.ai connectors, Claude in Chrome, Smithery scanner).
 
-Use lazy mode if your MCP client honours `list_changed` AND lacks client-side schema deferral — otherwise eager mode pushes ~30–50k tokens of tool schemas into every conversation.
+- **`lazy`**: Compute and Object Storage register only on demand. Two sentinel tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) appear at startup; calling either registers the full product set and emits `notifications/tools/list_changed`. Use only if your MCP client honours that notification AND lacks client-side schema deferral — otherwise eager mode is cheaper.
+
+- **`router`** (reserved): single `ionos_search_tools` + `ionos_invoke` pair, planned for clients with hard tool caps (Cursor 40 tools, Windsurf 100). Not yet implemented; setting this value logs a warning and falls back to `eager`.
+
+Parsing is case-insensitive. Unknown values fall back to `eager`.
 
 ```json
 {
@@ -117,7 +121,7 @@ Use lazy mode if your MCP client honours `list_changed` AND lacks client-side sc
       "command": "/path/to/ionoscloud-mcp",
       "env": {
         "IONOS_TOKEN": "your-api-token",
-        "IONOS_MCP_LAZY_LOAD": "true"
+        "IONOS_MCP_LOAD_MODE": "lazy"
       }
     }
   }

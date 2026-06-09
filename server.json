@@ -35,8 +35,8 @@
           "isSecret": true
         },
         {
-          "name": "IONOS_MCP_LAZY_LOAD",
-          "description": "Set to 'true' to defer Compute and Object Storage tool registration behind 'ionos_load_compute_tools' / 'ionos_load_objectstorage_tools' sentinel tools. Default: all tools registered at startup. Lazy mode requires the MCP client to honour notifications/tools/list_changed.",
+          "name": "IONOS_MCP_LOAD_MODE",
+          "description": "Tool registration strategy. 'eager' (default): register all tools at startup. 'lazy': defer Compute and Object Storage behind 'ionos_load_compute_tools' / 'ionos_load_objectstorage_tools' sentinel tools (requires MCP client support for notifications/tools/list_changed). 'router' (reserved, not yet implemented): single search + invoke tool pair for clients with hard tool caps (Cursor, Windsurf) — currently falls back to eager.",
           "isRequired": false,
           "isSecret": false
         }

@@ -71,11 +71,17 @@ Environment variables (read from the MCP server process — typically inherited 
 - `IONOS_TOKEN` — IONOS Cloud API token (all products). Not required to start the server. If unset, expired, or revoked, the IONOS API returns 401 which `tools.enrichSDKError` wraps with an actionable message (where to set the token in the MCP client config + restart hint) before it reaches the LLM.
 - `IONOS_S3_ACCESS_KEY` + `IONOS_S3_SECRET_KEY` — Required only for Object Storage tools (per-region S3 endpoint authentication).
 
-### Eager vs Lazy Loading
+### Load modes
 
-By default, **all tools are registered at startup**, including Compute and Object Storage. They appear immediately in the `tools/list` response. This default is optimal for Claude Code (which defers full tool schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and is the only working mode for MCP clients that ignore `notifications/tools/list_changed` (some Claude Desktop configurations, claude.ai connectors, Claude in Chrome).
+The server supports three tool-registration strategies via `IONOS_MCP_LOAD_MODE`:
 
-Set `IONOS_MCP_LAZY_LOAD=true` to defer Compute and Object Storage. Two loader tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) become the entry point; calling either registers the full product set and notifies the MCP client via `notifications/tools/list_changed`. Use lazy mode if your client honours that notification AND lacks client-side schema deferral — eager mode would otherwise push ~30–50k tokens of schema into every conversation.
+- **`eager`** (default): all tools register at startup. Optimal for Claude Code (ToolSearch defers schemas client-side, ~1–3k tokens for names only) and required for clients without `notifications/tools/list_changed` support (Claude Desktop, claude.ai connectors, Claude in Chrome, Smithery scanner).
+
+- **`lazy`**: defer Compute and Object Storage behind `ionos_load_compute_tools` / `ionos_load_objectstorage_tools` sentinel tools. Calling either registers the full product set and emits `notifications/tools/list_changed`. Only useful for clients that honour the notification AND lack client-side schema deferral.
+
+- **`router`** (reserved, not yet implemented): single `ionos_search_tools` + `ionos_invoke` pair. Designed for clients with hard tool caps (Cursor 40, Windsurf 100) or no schema deferral. Currently logs a warning and falls back to `eager`. Implementation tracked separately.
+
+Parsing is case-insensitive. Unknown values fall back to `eager` with a stderr warning. Empty / unset env var = eager.
 
 All other products (DNS, Billing, Cert, Activity Log) are always registered eagerly.
 
