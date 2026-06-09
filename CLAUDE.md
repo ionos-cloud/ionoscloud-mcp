@@ -71,11 +71,11 @@ Environment variables (read from the MCP server process — typically inherited 
 - `IONOS_TOKEN` — IONOS Cloud API token (all products). Not required to start the server. If unset, expired, or revoked, the IONOS API returns 401 which `tools.enrichSDKError` wraps with an actionable message (where to set the token in the MCP client config + restart hint) before it reaches the LLM.
 - `IONOS_S3_ACCESS_KEY` + `IONOS_S3_SECRET_KEY` — Required only for Object Storage tools (per-region S3 endpoint authentication).
 
-### Lazy vs Eager Loading
+### Eager vs Lazy Loading
 
-By default, **Compute** and **Object Storage** tools are not registered at startup. Instead, two loader tools are available: `ionos_load_compute_tools` and `ionos_load_objectstorage_tools`. Calling either tool registers the full product set and notifies the MCP client.
+By default, **all tools are registered at startup**, including Compute and Object Storage. They appear immediately in the `tools/list` response. This default is optimal for Claude Code (which defers full tool schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and is the only working mode for MCP clients that ignore `notifications/tools/list_changed` (some Claude Desktop configurations, claude.ai connectors, Claude in Chrome).
 
-Set `IONOS_MCP_EAGER_LOAD=true` to register all tools at startup. Use this for MCP clients that do not handle `notifications/tools/list_changed` (e.g. some Claude Desktop configurations, claude.ai connectors, Claude in Chrome).
+Set `IONOS_MCP_LAZY_LOAD=true` to defer Compute and Object Storage. Two loader tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) become the entry point; calling either registers the full product set and notifies the MCP client via `notifications/tools/list_changed`. Use lazy mode if your client honours that notification AND lacks client-side schema deferral — eager mode would otherwise push ~30–50k tokens of schema into every conversation.
 
 All other products (DNS, Billing, Cert, Activity Log) are always registered eagerly.
 

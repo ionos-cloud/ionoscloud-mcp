@@ -35,8 +35,8 @@
           "isSecret": true
         },
         {
-          "name": "IONOS_MCP_EAGER_LOAD",
-          "description": "Set to 'true' to register all tools at startup instead of lazy loading Compute and Object Storage",
+          "name": "IONOS_MCP_LAZY_LOAD",
+          "description": "Set to 'true' to defer Compute and Object Storage tool registration behind 'ionos_load_compute_tools' / 'ionos_load_objectstorage_tools' sentinel tools. Default: all tools registered at startup. Lazy mode requires the MCP client to honour notifications/tools/list_changed.",
           "isRequired": false,
           "isSecret": false
         }

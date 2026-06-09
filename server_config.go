@@ -68,14 +68,14 @@ func sdkBundleVersion() string {
 	return "unknown"
 }
 
-// eagerLoad reports whether the server should register every tool at startup
-// instead of gating Compute and Object Storage behind ionos_load_*_tools.
-// Set IONOS_MCP_EAGER_LOAD=true for MCP clients that do not honour
-// notifications/tools/list_changed (some Claude Desktop tool-search caches,
-// claude.ai connectors, Claude in Chrome, custom agents, etc.). Default off
-// preserves the lazy behaviour introduced in PR #17 for clients that do.
-func eagerLoad() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("IONOS_MCP_EAGER_LOAD"))) {
+// lazyLoad reports whether the server should defer Compute and Object Storage
+// tool registration behind ionos_load_*_tools sentinel tools instead of
+// registering every tool at startup. Default off: all tools register eagerly
+// so they appear in the initial tools/list response. Set IONOS_MCP_LAZY_LOAD=true
+// to opt into lazy registration; this requires the MCP client to honour
+// notifications/tools/list_changed.
+func lazyLoad() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("IONOS_MCP_LAZY_LOAD"))) {
 	case "1", "true", "yes", "on":
 		return true
 	}
@@ -84,8 +84,8 @@ func eagerLoad() bool {
 
 // loadModeLabel returns the User-Agent token reflecting current load mode.
 func loadModeLabel() string {
-	if eagerLoad() {
-		return "eager"
+	if lazyLoad() {
+		return "lazy"
 	}
-	return "lazy"
+	return "eager"
 }

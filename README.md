@@ -102,11 +102,13 @@ To use this server with an MCP client (like Claude Desktop), add it to your MCP 
 
 **Note:** `IONOS_TOKEN` is required. The Object Storage credentials are only needed if you plan to use Object Storage tools.
 
-### Optional: eager tool loading
+### Optional: lazy tool loading
 
-By default, the server registers Compute and Object Storage tools lazily — clients must call `ionos_load_compute_tools` or `ionos_load_objectstorage_tools` first, after which the server emits `notifications/tools/list_changed`. Some MCP clients do not refresh their tool catalog on that notification, leaving the underlying tools undiscoverable.
+By default, **all tools are registered at startup** and appear in the initial `tools/list` response — including Compute and Object Storage. This default is optimal for Claude Code (which defers full schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and is the only working mode for clients that ignore `notifications/tools/list_changed` (some Claude Desktop configurations, claude.ai connectors, Claude in Chrome).
 
-Set `IONOS_MCP_EAGER_LOAD=true` (or `1`, `yes`, `on`) to register every tool at startup instead. All tools then appear in the initial `tools/list` response.
+Set `IONOS_MCP_LAZY_LOAD=true` (or `1`, `yes`, `on`) to defer Compute and Object Storage tool registration. Two sentinel tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) appear instead; calling either registers the full product set and emits `notifications/tools/list_changed`.
+
+Use lazy mode if your MCP client honours `list_changed` AND lacks client-side schema deferral — otherwise eager mode pushes ~30–50k tokens of tool schemas into every conversation.
 
 ```json
 {
@@ -115,7 +117,7 @@ Set `IONOS_MCP_EAGER_LOAD=true` (or `1`, `yes`, `on`) to register every tool at 
       "command": "/path/to/ionoscloud-mcp",
       "env": {
         "IONOS_TOKEN": "your-api-token",
-        "IONOS_MCP_EAGER_LOAD": "true"
+        "IONOS_MCP_LAZY_LOAD": "true"
       }
     }
   }
