@@ -17,6 +17,18 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 | [Certificate Manager](docs/cert/) | 6 | Certificates, Auto-Certificates, Providers | [docs/cert/](docs/cert/) |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, Events | [docs/activitylog/](docs/activitylog/) |
 
+## Registries & Directories
+
+This server is published across multiple MCP registries and IDE marketplaces:
+
+| Registry | Link |
+|----------|------|
+| Official MCP Registry | [io.github.ionos-cloud/ionoscloud-mcp](https://registry.modelcontextprotocol.io/v0/servers?cursor=io.github.ionos-cloud) |
+| Smithery | [ionos-cloud/ionoscloud-mcp](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) |
+| mcp.so | [ionos-cloud-mcp-server](https://mcp.so/server/ionos-cloud-mcp-server/ionos-cloud) |
+| Cursor | [ionoscloud-mcp](https://cursor.directory/plugins/ionoscloud-mcp) |
+| mcpservers.org | [ionoscloud-mcp](https://mcpservers.org/servers/ionos-cloud/ionoscloud-mcp) |
+
 ## Installation
 
 Pick whichever fits your workflow.
