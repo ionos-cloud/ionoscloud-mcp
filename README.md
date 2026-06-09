@@ -110,8 +110,6 @@ The `IONOS_MCP_LOAD_MODE` environment variable selects how tools are exposed:
 
 - **`lazy`**: Compute and Object Storage register only on demand. Two sentinel tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) appear at startup; calling either registers the full product set and emits `notifications/tools/list_changed`. Use only if your MCP client honours that notification AND lacks client-side schema deferral — otherwise eager mode is cheaper.
 
-- **`router`** (reserved): single `ionos_search_tools` + `ionos_invoke` pair, planned for clients with hard tool caps (Cursor 40 tools, Windsurf 100). Not yet implemented; setting this value logs a warning and falls back to `eager`.
-
 Parsing is case-insensitive. Unknown values fall back to `eager`.
 
 ```json
