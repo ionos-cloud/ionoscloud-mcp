@@ -1,0 +1,10 @@
+{
+  "name": "ionoscloud-mcp",
+  "description": "Inspect and manage IONOS CLOUD infrastructure via MCP",
+  "author": {
+    "name": "IONOS CLOUD"
+  },
+  "homepage": "https://github.com/ionos-cloud/ionoscloud-mcp",
+  "repository": "https://github.com/ionos-cloud/ionoscloud-mcp",
+  "license": "Apache-2.0"
+}

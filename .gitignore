@@ -38,4 +38,5 @@ go.work.sum
 .claude/
 .claude-flow/
 .swarm/
-.mcp.json
+# .mcp.json — tracked at root for Open Plugins / Cursor / Windsurf discovery
+# personal overrides should use .mcp.local.json

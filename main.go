@@ -107,15 +107,18 @@ func main() {
 	billing.RegisterAll(server, billingClient, focusSpec)
 	cert.RegisterAll(server, certClient)
 
-	if eagerLoad() {
-		// Register every tool up front so it appears in the initial
-		// tools/list response. Required for MCP clients that do not
-		// refresh their tool catalog on notifications/tools/list_changed.
-		compute.RegisterAll(server, client)
-		objectstorage.RegisterAll(server, objstClient, objmgmtClient, cfg)
-	} else {
+	switch loadMode() {
+	case LoadModeLazy:
+		// Defer Compute and Object Storage behind ionos_load_*_tools
+		// sentinel tools. Requires MCP client support for
+		// notifications/tools/list_changed.
 		loader.RegisterComputeLoader(server, client)
 		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
+	default:
+		// Eager: register every tool at startup. Router mode falls through
+		// here until implemented (loadMode() logs a warning in that case).
+		compute.RegisterAll(server, client)
+		objectstorage.RegisterAll(server, objstClient, objmgmtClient, cfg)
 	}
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
