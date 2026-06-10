@@ -58,7 +58,7 @@ All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In `lazy
 
 | Product | Tools | Capabilities |
 |---|---|---|
-| [Compute Engine](docs/compute/) | 50 | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
+| [Compute Engine](docs/compute/) | 50 | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract, kubernetes |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
 | [DNS](docs/dns/) | 14 | Zones, zone files, records, reverse records, secondary zones, DNSSEC, quota |
 | [Billing](docs/billing/) | 15 | Profile, invoices, EVN (provisioning intervals), traffic, usage, utilization, product pricing catalog, FOCUS v1.3 spec |
