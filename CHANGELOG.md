@@ -8,19 +8,14 @@
 
 ## v1.0.0 — June 2026
 
+First release. An MCP server that lets LLM clients explore an IONOS CLOUD account read-only.
+
 ### Added
 
 - **Homebrew install**: `brew install ionos-cloud/ionos-cloud/ionoscloud-mcp` (macOS + Linux, Intel + Apple Silicon).
 - **Docker image**: `ghcr.io/ionos-cloud/ionoscloud-mcp` (multi-arch: linux/amd64, linux/arm64). Pull and run with `docker run -i --rm -e IONOS_TOKEN=… ghcr.io/ionos-cloud/ionoscloud-mcp`.
 - **Pre-built binaries** on every GitHub release for linux, macOS, and Windows (amd64 + arm64).
 - **`--version` flag**: prints the server version. Useful for bug reports and version pinning.
-
-## v0.1.1 — June 2026
-
-First release. An MCP server that lets LLM clients explore an IONOS CLOUD account read-only.
-
-### Added
-
 - **Compute Engine**: Browse datacenters, servers, volumes, NICs, LANs, IP blocks, load balancers (ALB/NLB), NAT gateways, security groups, firewall rules, target groups, private cross-connects, snapshots, images, templates, locations, server GPUs and CD-ROMs, remote console URLs, and provisioning request status.
 - **DNS**: Inspect zones, zone files, records, reverse records, secondary zones (incl. AXFR transfer status), DNSSEC keys, and account quota.
 - **Billing**: View your contract and billing profile, invoices, product catalog, traffic and usage breakdowns (per datacenter, per period), and daily utilization.
