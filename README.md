@@ -60,13 +60,14 @@ All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In `lazy
 | Product | Tools | Capabilities |
 |---|---|---|
 | [Compute Engine](docs/compute/) | 50 | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
+| [Kubernetes](docs/k8s/) | 8 | Clusters, node pools, nodes, available versions |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
 | [DNS](docs/dns/) | 14 | Zones, zone files, records, reverse records, secondary zones, DNSSEC, quota |
 | [Billing](docs/billing/) | 15 | Profile, invoices, EVN (provisioning intervals), traffic, usage, utilization, product pricing catalog, FOCUS v1.3 spec |
 | [Certificate Manager](docs/cert/) | 6 | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**112 tools total** (110 product + 2 loader). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**120 tools total** (118 product + 2 loader). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 

@@ -24,6 +24,7 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
+	k8s "github.com/ionos-cloud/ionoscloud-mcp/tools/k8s"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/loader"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 )
@@ -106,6 +107,7 @@ func main() {
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient, focusSpec)
 	cert.RegisterAll(server, certClient)
+	k8s.RegisterAll(server, client)
 
 	switch loadMode() {
 	case LoadModeLazy:
