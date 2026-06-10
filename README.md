@@ -49,6 +49,7 @@ This server is published across multiple MCP registries and IDE marketplaces:
 | Official MCP Registry | [io.github.ionos-cloud/ionoscloud-mcp](https://registry.modelcontextprotocol.io/v0/servers?cursor=io.github.ionos-cloud) |
 | Smithery | [ionos-cloud/ionoscloud-mcp](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) |
 | mcp.so | [ionos-cloud-mcp-server](https://mcp.so/server/ionos-cloud-mcp-server/ionos-cloud) |
+| Glama | [ionoscloud-mcp](https://glama.ai/mcp/servers/ionos-cloud/ionoscloud-mcp) |
 | Cursor | [ionoscloud-mcp](https://cursor.directory/plugins/ionoscloud-mcp) |
 | mcpservers.org | [ionoscloud-mcp](https://mcpservers.org/servers/ionos-cloud/ionoscloud-mcp) |
 
