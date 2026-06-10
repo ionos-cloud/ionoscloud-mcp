@@ -108,7 +108,6 @@ func TestComputeToolEndpoints(t *testing.T) {
 		// Kubernetes
 		{"list_k8s_clusters", map[string]any{}, []string{"GET"}, []string{"/cloudapi/v6/k8s"}},
 		{"get_k8s_cluster", map[string]any{"k8s_cluster_id": "k8s-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1"}},
-		{"get_k8s_kubeconfig", map[string]any{"k8s_cluster_id": "k8s-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/kubeconfig"}},
 		{"list_k8s_nodepools", map[string]any{"k8s_cluster_id": "k8s-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools"}},
 		{"get_k8s_nodepool", map[string]any{"k8s_cluster_id": "k8s-1", "nodepool_id": "np-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools/np-1"}},
 		{"list_k8s_nodepool_nodes", map[string]any{"k8s_cluster_id": "k8s-1", "nodepool_id": "np-1"}, []string{"GET"}, []string{"/cloudapi/v6/k8s/k8s-1/nodepools/np-1/nodes"}},

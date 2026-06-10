@@ -51,33 +51,6 @@ Gets detailed information about a specific Kubernetes cluster, including its sta
 
 ---
 
-## get_k8s_kubeconfig
-
-Retrieves the kubeconfig YAML file for a Kubernetes cluster. The kubeconfig can be used directly with `kubectl` to access the cluster.
-
-> **Security notice:** The kubeconfig contains bearer tokens and TLS certificates that grant full cluster access. Treat the output as a secret — do not log or share it.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `k8s_cluster_id` | string | Yes | The ID of the Kubernetes cluster |
-
-**Example:**
-
-```json
-{
-  "name": "get_k8s_kubeconfig",
-  "arguments": {
-    "k8s_cluster_id": "3f2e4b1c-8d9a-4f7e-b3c2-1a5d6e9f0b4c"
-  }
-}
-```
-
-**API Reference:** [k8sKubeconfigGet](https://api.ionos.com/docs/cloud/v6/#tag/Kubernetes/operation/k8sKubeconfigGet)
-
----
-
 ## list_k8s_nodepools
 
 Lists all node pools belonging to a specific Kubernetes cluster.

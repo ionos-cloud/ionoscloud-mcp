@@ -27,17 +27,6 @@ func RegisterK8sTools(server *mcp.Server, client *ionos.APIClient) {
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "get_k8s_kubeconfig",
-		Description: "Get the kubeconfig file for a Kubernetes cluster. WARNING: output contains bearer tokens and TLS credentials — treat as a secret.",
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.K8sClusterIDInput) (*mcp.CallToolResult, any, error) {
-		kubeconfig, _, err := client.KubernetesApi.K8sKubeconfigGet(ctx, input.K8sClusterID).Execute()
-		if err != nil {
-			return tools.ToResult(nil, err)
-		}
-		return tools.TextResult(kubeconfig), nil, nil
-	})
-
-	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_k8s_nodepools",
 		Description: "List all node pools in a Kubernetes cluster",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.K8sClusterIDInput) (*mcp.CallToolResult, any, error) {
