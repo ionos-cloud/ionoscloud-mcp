@@ -2,14 +2,14 @@
 subcategory: "Managed Kubernetes"
 page_title: "Kubernetes"
 description: |-
-  Tools for listing and inspecting Kubernetes clusters, node pools, nodes, and available versions in IONOS Cloud.
+  Tools for listing and inspecting Kubernetes clusters, node pools, nodes, and available versions in IONOS CLOUD.
 ---
 
 # Kubernetes
 
 ## list_k8s_clusters
 
-Lists all Managed Kubernetes clusters provisioned in your IONOS Cloud account.
+Lists all Managed Kubernetes clusters provisioned in your IONOS CLOUD account.
 
 **Parameters:** None
 
@@ -161,7 +161,7 @@ Gets detailed information about a specific node in a Kubernetes node pool.
 
 ## list_k8s_versions
 
-Lists all Kubernetes versions currently available for cluster and node pool creation in IONOS Cloud.
+Lists all Kubernetes versions currently available for cluster and node pool creation in IONOS CLOUD.
 
 **Parameters:** None
 
@@ -180,7 +180,7 @@ Lists all Kubernetes versions currently available for cluster and node pool crea
 
 ## get_k8s_default_version
 
-Returns the current default Kubernetes version that IONOS Cloud applies to new clusters and node pools when no version is explicitly specified.
+Returns the current default Kubernetes version that IONOS CLOUD applies to new clusters and node pools when no version is explicitly specified.
 
 **Parameters:** None
 

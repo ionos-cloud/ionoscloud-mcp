@@ -12,7 +12,7 @@ import (
 func RegisterK8sTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_k8s_clusters",
-		Description: "List all Kubernetes clusters in your IONOS Cloud account",
+		Description: "List all Kubernetes clusters in your IONOS CLOUD account",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		clusters, _, err := client.KubernetesApi.K8sGet(ctx).Execute()
 		return tools.ToResult(clusters, err)
@@ -60,7 +60,7 @@ func RegisterK8sTools(server *mcp.Server, client *ionos.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_k8s_versions",
-		Description: "List all available Kubernetes versions in IONOS Cloud",
+		Description: "List all available Kubernetes versions in IONOS CLOUD",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		versions, _, err := client.KubernetesApi.K8sVersionsGet(ctx).Execute()
 		return tools.ToResult(versions, err)
@@ -68,7 +68,7 @@ func RegisterK8sTools(server *mcp.Server, client *ionos.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_k8s_default_version",
-		Description: "Get the current default Kubernetes version used by new clusters and node pools in IONOS Cloud",
+		Description: "Get the current default Kubernetes version used by new clusters and node pools in IONOS CLOUD",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		version, _, err := client.KubernetesApi.K8sVersionsDefaultGet(ctx).Execute()
 		if err != nil {

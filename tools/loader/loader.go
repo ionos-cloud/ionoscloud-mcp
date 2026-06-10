@@ -24,7 +24,7 @@ func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient) {
 	)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "ionos_load_compute_tools",
-		Description: "Load IONOS Compute Engine tools into this session. Call this before managing virtual infrastructure: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots, kubernetes and more.",
+		Description: "Load IONOS Compute Engine tools into this session. Call this before managing virtual infrastructure: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots, Kubernetes and more.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		mu.Lock()
 		defer mu.Unlock()
