@@ -27,5 +27,4 @@ func RegisterAll(server *mcp.Server, client *ionos.APIClient) {
 	RegisterImageTools(server, client)
 	RegisterLocationTools(server, client)
 	RegisterSnapshotTools(server, client)
-	RegisterK8sTools(server, client)
 }

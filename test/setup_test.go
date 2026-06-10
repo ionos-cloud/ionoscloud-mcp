@@ -22,6 +22,7 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/compute"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dns"
+	k8s "github.com/ionos-cloud/ionoscloud-mcp/tools/k8s"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 )
 
@@ -120,6 +121,7 @@ func setup(t *testing.T) *testSetup {
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient, "")
 	cert.RegisterAll(server, certClient)
+	k8s.RegisterAll(server, computeClient)
 	objectstorage.RegisterAll(server, objstClient, objmgmtClient, testCfg())
 
 	// in-memory pipe between MCP client and server (replaces stdio)
