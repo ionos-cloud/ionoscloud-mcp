@@ -1,10 +1,12 @@
 # Changelog
 
-## Unreleased
+## v1.0.1 — June 2026
 
-### Added
+### Changed
 
 - **Managed Kubernetes**: 8 new read-only tools as a dedicated product (eagerly loaded) — `list_k8s_clusters`, `get_k8s_cluster`, `list_k8s_nodepools`, `get_k8s_nodepool`, `list_k8s_nodepool_nodes`, `get_k8s_node`, `list_k8s_versions`, `get_k8s_default_version`. Covers the full cluster/node-pool/node hierarchy plus available version discovery.
+- **Tool annotations**: every tool now declares `readOnlyHint` and `idempotentHint` MCP annotations, so clients and directory scanners get explicit behavioral guarantees instead of inferring them from descriptions.
+- **Tool descriptions**: rewrote 80 compute, DNS, and Object Storage tool descriptions to state what each tool returns, how it differs from sibling tools, where to obtain required IDs, and when an error is expected (e.g. unset bucket configurations). Addresses the per-tool quality findings on the Glama MCP directory (TDQS).
 
 ## v1.0.0 — June 2026
 

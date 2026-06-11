@@ -12,7 +12,8 @@ import (
 func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_datacenters",
-		Description: "List all virtual data centers in your IONOS CLOUD account",
+		Annotations: tools.ReadOnly,
+		Description: "List all virtual data centers (VDCs) in your IONOS CLOUD account, with IDs, names, and locations. Most compute tools require a datacenter ID from this list — call it first.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Execute()
 		return tools.ToResult(datacenters, err)
@@ -20,7 +21,8 @@ func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_datacenter",
-		Description: "Get details of a specific virtual data center",
+		Annotations: tools.ReadOnly,
+		Description: "Get details of a single virtual data center: name, location, version, and available CPU architectures. Use list_datacenters to find datacenter IDs.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
 		datacenter, _, err := client.DataCentersApi.DatacentersFindById(ctx, input.DatacenterID).Execute()
 		return tools.ToResult(datacenter, err)

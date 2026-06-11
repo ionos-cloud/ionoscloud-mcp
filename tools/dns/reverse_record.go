@@ -12,7 +12,8 @@ import (
 func RegisterReverseRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_dns_reverse_records",
-		Description: "List all reverse DNS records in your IONOS CLOUD account",
+		Annotations: tools.ReadOnly,
+		Description: "List all reverse DNS (PTR) records in your IONOS CLOUD account. Reverse records map reserved IONOS IP addresses to hostnames.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		records, _, err := client.ReverseRecordsApi.ReverserecordsGet(ctx).Execute()
 		return tools.ToResult(records, err)
@@ -20,7 +21,8 @@ func RegisterReverseRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_dns_reverse_record",
-		Description: "Get details of a specific reverse DNS record",
+		Annotations: tools.ReadOnly,
+		Description: "Get details of a single reverse DNS (PTR) record: IP address, hostname, and description. Use list_dns_reverse_records first to find the record ID.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ReverseRecordIDInput) (*mcp.CallToolResult, any, error) {
 		record, _, err := client.ReverseRecordsApi.ReverserecordsFindById(ctx, input.ReverseRecordID).Execute()
 		return tools.ToResult(record, err)

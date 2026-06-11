@@ -24,6 +24,7 @@ func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient) {
 	)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "ionos_load_compute_tools",
+		Annotations: tools.ReadOnly,
 		Description: "Load IONOS Compute Engine tools into this session. Call this before managing virtual infrastructure: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots, and more.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		mu.Lock()
@@ -46,6 +47,7 @@ func RegisterObjectStorageLoader(server *mcp.Server, client *objstSDK.APIClient,
 	)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "ionos_load_objectstorage_tools",
+		Annotations: tools.ReadOnly,
 		Description: "Load IONOS Object Storage tools into this session. Call this before managing S3-compatible object storage: buckets, bucket configuration (CORS, encryption, lifecycle, policy, replication, versioning), objects, access keys, and regions.",
 	}, func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		mu.Lock()

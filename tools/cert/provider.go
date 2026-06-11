@@ -12,6 +12,7 @@ import (
 func RegisterProviderTools(server *mcp.Server, client *certSDK.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_cert_providers",
+		Annotations: tools.ReadOnly,
 		Description: "List all certificate providers in your IONOS Cloud Certificate Manager account. Returns provider configuration but not the external account binding secret.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		result, _, err := client.ProviderApi.ProvidersGet(ctx).Execute()
@@ -28,6 +29,7 @@ func RegisterProviderTools(server *mcp.Server, client *certSDK.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_cert_provider",
+		Annotations: tools.ReadOnly,
 		Description: "Get details of a specific certificate provider by ID. Returns provider configuration but not the external account binding secret.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ProviderIDInput) (*mcp.CallToolResult, any, error) {
 		result, _, err := client.ProviderApi.ProvidersFindById(ctx, input.ProviderID).Execute()

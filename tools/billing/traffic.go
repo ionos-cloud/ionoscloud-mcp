@@ -38,6 +38,7 @@ func filterDates(entries []sdk.TrafficEntry) []sdk.TrafficEntry {
 func RegisterTrafficTools(server *mcp.Server, client *sdk.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_billing_traffic",
+		Annotations: tools.ReadOnly,
 		Description: "Get network traffic data for your contract for the current billing month. Returns per-datacenter and per-NIC inbound/outbound traffic in bytes. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingContractInput) (*mcp.CallToolResult, any, error) {
 		traffic, _, err := client.TrafficApi.TrafficGet(ctx, input.Contract).Execute()
@@ -54,6 +55,7 @@ func RegisterTrafficTools(server *mcp.Server, client *sdk.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_billing_traffic_by_period",
+		Annotations: tools.ReadOnly,
 		Description: "Get network traffic data for a specific billing period (YYYY-MM). One month per call. If the user requests a range longer than one month, calculate the number of monthly calls required, inform the user, and ask for permission before proceeding. For FOCUS v1.3 compliant output, read resource ionos://billing/focus-v1.3.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.BillingContractPeriodInput) (*mcp.CallToolResult, any, error) {
 		if err := tools.ValidatePeriod(input.Period); err != nil {

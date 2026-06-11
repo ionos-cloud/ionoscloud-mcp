@@ -12,6 +12,7 @@ import (
 func RegisterCertificateTools(server *mcp.Server, client *certSDK.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_cert_certificates",
+		Annotations: tools.ReadOnly,
 		Description: "List all SSL/TLS certificates in your IONOS Cloud Certificate Manager account. Returns certificate metadata and public key material but not the private key.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		result, _, err := client.CertificateApi.CertificatesGet(ctx).Execute()
@@ -26,6 +27,7 @@ func RegisterCertificateTools(server *mcp.Server, client *certSDK.APIClient) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_cert_certificate",
+		Annotations: tools.ReadOnly,
 		Description: "Get details of a specific SSL/TLS certificate by ID. Returns certificate metadata and public key material but not the private key.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CertificateIDInput) (*mcp.CallToolResult, any, error) {
 		result, _, err := client.CertificateApi.CertificatesFindById(ctx, input.CertificateID).Execute()

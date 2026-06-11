@@ -13,6 +13,15 @@ import (
 
 const maxErrorBodyBytes = 2048
 
+// ReadOnly is the shared annotation set for every tool in this server: the
+// whole surface is a read-only, idempotent view over the IONOS APIs. Declared
+// once so MCP clients (and directory scanners) get explicit behavioral hints
+// without each description having to spell out "does not modify anything".
+var ReadOnly = &mcp.ToolAnnotations{
+	ReadOnlyHint:   true,
+	IdempotentHint: true,
+}
+
 // ValidateDate checks that date is a valid YYYY-MM-DD string (e.g. "2026-04-15").
 // Leading/trailing whitespace is trimmed before parsing.
 func ValidateDate(date string) error {

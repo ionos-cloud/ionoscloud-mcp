@@ -12,7 +12,8 @@ import (
 func RegisterPrivateCrossConnectTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_private_cross_connects",
-		Description: "List all private cross-connects in your IONOS CLOUD account",
+		Annotations: tools.ReadOnly,
+		Description: "List all private cross-connects in your IONOS CLOUD account — the links that connect LANs across datacenters within the same location. Shows connectable datacenters and current peers.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		pccs, _, err := client.PrivateCrossConnectsApi.PccsGet(ctx).Execute()
 		return tools.ToResult(pccs, err)
@@ -20,7 +21,8 @@ func RegisterPrivateCrossConnectTools(server *mcp.Server, client *ionos.APIClien
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_private_cross_connect",
-		Description: "Get details of a specific private cross-connect",
+		Annotations: tools.ReadOnly,
+		Description: "Get details of a single private cross-connect, including its connected LAN peers and the datacenters that can join it. Use list_private_cross_connects to find IDs.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.PccIDInput) (*mcp.CallToolResult, any, error) {
 		pcc, _, err := client.PrivateCrossConnectsApi.PccsFindById(ctx, input.PccID).Execute()
 		return tools.ToResult(pcc, err)

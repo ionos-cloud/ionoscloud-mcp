@@ -20,7 +20,8 @@ const (
 
 func RegisterEventTools(server *mcp.Server, client *sdk.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "list_activitylog_events",
+		Name:        "list_activitylog_events",
+		Annotations: tools.ReadOnly,
 		Description: "Query the IONOS CLOUD activity log: full audit trail of API requests made against a contract (who did what, when, on which resource). " +
 			"Requires ACCESS_ACTIVITY_LOG privilege on the token. " +
 			"Defaults: last 7 days, limit 25, RequestStatusUpdate events excluded. " +

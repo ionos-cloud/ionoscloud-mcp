@@ -12,7 +12,8 @@ import (
 func RegisterLocationTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_locations",
-		Description: "List all available locations (regions) in IONOS CLOUD",
+		Annotations: tools.ReadOnly,
+		Description: "List all IONOS CLOUD locations (e.g. de/fra, us/las) where datacenters can be provisioned, with the CPU architectures available in each.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
 		locations, _, err := client.LocationsApi.LocationsGet(ctx).Execute()
 		return tools.ToResult(locations, err)
