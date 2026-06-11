@@ -28,6 +28,18 @@ func ValidatePeriod(period string) error {
 	return ValidateDate(strings.TrimSpace(period) + "-01")
 }
 
+// sdkAPIError is the behavioural contract enrichSDKError needs from an IONOS
+// SDK error. It is matched by interface (not concrete type) on purpose: the
+// product SDKs return shared.GenericOpenAPIError *by value* from their API
+// methods (e.g. dns api_zones.go), so a *shared.GenericOpenAPIError target
+// would never bind via errors.As and 401s would silently pass through
+// un-enriched. Matching the interface binds both value and pointer forms.
+type sdkAPIError interface {
+	error
+	StatusCode() int
+	Body() []byte
+}
+
 // enrichSDKError augments IONOS SDK errors with actionable guidance for the
 // LLM. Only 401 is enriched — 403 is intentionally left alone because IONOS
 // returns 403 for several distinct cases (wrong contract, missing role,
@@ -35,9 +47,7 @@ func ValidatePeriod(period string) error {
 //
 // Non-SDK errors and other status codes pass through unchanged.
 func enrichSDKError(apiErr error) string {
-	// SDK constructor returns *GenericOpenAPIError, so target must be the
-	// pointer type for errors.As to bind.
-	var sdkErr *shared.GenericOpenAPIError
+	var sdkErr sdkAPIError
 	if !errors.As(apiErr, &sdkErr) {
 		return apiErr.Error()
 	}

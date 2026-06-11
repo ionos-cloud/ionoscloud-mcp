@@ -23,13 +23,20 @@ func init() {
 		return
 	}
 	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		serverVersion = "dev"
-		return
+	serverVersion = resolveVersion(info, ok)
+}
+
+// resolveVersion derives the server version from build info, following the
+// priority order documented on serverVersion. It is a pure function (no globals,
+// no I/O) so the resolution rules can be unit-tested; init() supplies the live
+// build info. A non-empty ldflag value pre-empts this entirely (init returns
+// early before calling it).
+func resolveVersion(info *debug.BuildInfo, ok bool) string {
+	if !ok || info == nil {
+		return "dev"
 	}
 	if v := info.Main.Version; v != "" && v != "(devel)" {
-		serverVersion = v
-		return
+		return v
 	}
 	var revision, modified string
 	for _, s := range info.Settings {
@@ -47,10 +54,9 @@ func init() {
 		if modified == "true" {
 			revision += "-dirty"
 		}
-		serverVersion = revision
-		return
+		return revision
 	}
-	serverVersion = "dev"
+	return "dev"
 }
 
 // sdkBundleVersion returns the resolved version of the IONOS SDK bundle's

@@ -1,4 +1,4 @@
-.PHONY: help build install run clean test fmt vet check deps dev lint lintfix vuln docker snapshot
+.PHONY: help build install run clean test cover test-e2e fmt vet check deps dev lint lintfix vuln docker snapshot
 
 .DEFAULT_GOAL := help
 
@@ -32,7 +32,17 @@ clean:
 
 ## test:     ## Run unit tests
 test:
-	go test -v ./...
+	go test -v -race ./...
+
+## cover:    ## Run tests with cross-package coverage (writes coverage.out)
+cover:
+	go test -race -coverpkg=./... -coverprofile=coverage.out ./...
+	@go tool cover -func=coverage.out | tail -1
+
+## test-e2e: ## Binary-over-stdio (mocked API) + read-only live API checks (live skips without IONOS_TOKEN)
+test-e2e:
+	go test -tags e2e_live -count=1 -timeout 20m ./test/live/...
+	go test -race -tags e2e -count=1 ./test/e2e/...
 
 ## fmt:      ## Format Go code with gofmt
 fmt:

@@ -102,6 +102,25 @@ All other products (DNS, Billing, Cert, Activity Log) are always registered eage
 
 Resources are registered in `resources.go` via `server.AddResource()`. Use `//go:embed` to inline static content (e.g. spec documents). Resources are served to LLM clients that call `resources/read` and are useful for reference documents the LLM should consult when generating output.
 
+## Testing
+
+Three tiers, all runnable locally:
+
+- **Unit** (`tools/**/*_test.go`, `server_config_test.go`): pure logic — error enrichment, validation, version/load-mode resolution, the Object Storage regional client cache, billing/activitylog transforms.
+- **In-memory protocol** (`test/`): wires the full MCP server to an in-memory client over `mcp.NewInMemoryTransports`, with an `httptest` backend standing in for the IONOS API. The shared `h.run(t, tests)` runner asserts HTTP method/path (always) plus query params and tool output (per-case). `test/errors_test.go` covers protocol-level failure paths.
+- **Binary e2e** (`test/e2e/`, `e2e` build tag): builds the real binary and drives it over stdio JSON-RPC against a mocked API injected via `IONOS_API_URL`. Exercises the shipped artifact, both load modes, resources, and the User-Agent.
+- **Live e2e** (`test/live/`, `e2e_live` build tag): read-only discovery tests against the REAL IONOS API. Skips entirely without `IONOS_TOKEN`; object-storage chains additionally need `IONOS_S3_ACCESS_KEY`/`IONOS_S3_SECRET_KEY`. Each chain lists then drills in only if the account has the resource, so it stays green on an empty/reset account.
+
+The `e2e` and `e2e_live` suites run locally only — not yet wired into CI. `make test-e2e` runs both (the binary suite and the live suite).
+
+```bash
+make test        # unit + in-memory (race)
+make cover       # same, with cross-package coverage → coverage.out
+make test-e2e    # binary-over-stdio (mocked API) + read-only live API
+```
+
+When adding a tool: add a `toolTest` case in the product's `test/*_test.go`.
+
 ## Testing MCP Protocol
 
 ```bash

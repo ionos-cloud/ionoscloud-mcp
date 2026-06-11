@@ -16,61 +16,35 @@ func TestBillingToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Profile (no contract param — tool calls ProfilesGet directly)
-		{"get_billing_profile", map[string]any{}, []string{"GET"}, []string{"/billing/profile"}},
+		{name: "get_billing_profile", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/profile"}},
 
 		// EVN
-		{"list_billing_evn", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/evn"}},
-		{"list_billing_evn_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/evn/2026-04"}},
+		{name: "list_billing_evn", args: map[string]any{"contract": c}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/evn"}},
+		{name: "list_billing_evn_by_period", args: map[string]any{"contract": c, "period": "2026-04"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/evn/2026-04"}},
 
 		// Invoices
-		{"list_billing_invoices", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/invoices"}},
-		{"list_billing_invoices_by_period", map[string]any{"period": "2026-04"}, []string{"GET"}, []string{"/billing/invoices/2026-04"}},
-		{"get_billing_invoice", map[string]any{"contract": c, "invoice_id": "INV123"}, []string{"GET"}, []string{"/billing/1/invoices/INV123"}},
+		{name: "list_billing_invoices", args: map[string]any{"contract": c}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/invoices"}},
+		{name: "list_billing_invoices_by_period", args: map[string]any{"period": "2026-04"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/invoices/2026-04"}},
+		{name: "get_billing_invoice", args: map[string]any{"contract": c, "invoice_id": "INV123"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/invoices/INV123"}},
 
 		// Traffic
-		{"list_billing_traffic", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/traffic"}},
-		{"list_billing_traffic_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/traffic/2026-04"}},
+		{name: "list_billing_traffic", args: map[string]any{"contract": c}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/traffic"}},
+		{name: "list_billing_traffic_by_period", args: map[string]any{"contract": c, "period": "2026-04"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/traffic/2026-04"}},
 
 		// Usage
-		{"list_billing_usage", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/usage"}},
-		{"get_billing_usage_by_datacenter", map[string]any{"contract": c, "datacenter_id": "dc-uuid-1"}, []string{"GET"}, []string{"/billing/1/usage/dc-uuid-1"}},
+		{name: "list_billing_usage", args: map[string]any{"contract": c}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/usage"}},
+		{name: "get_billing_usage_by_datacenter", args: map[string]any{"contract": c, "datacenter_id": "dc-uuid-1"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/usage/dc-uuid-1"}},
 
 		// Utilization
-		{"list_billing_utilization", map[string]any{"contract": c}, []string{"GET"}, []string{"/billing/1/utilization"}},
-		{"list_billing_utilization_by_period", map[string]any{"contract": c, "period": "2026-04"}, []string{"GET"}, []string{"/billing/1/utilization/2026-04"}},
-		{"get_billing_utilization_daily", map[string]any{"contract": c, "date": "2026-04-15"}, []string{"GET"}, []string{"/billing/1/utilization/daily/2026-04-15"}},
+		{name: "list_billing_utilization", args: map[string]any{"contract": c}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/utilization"}},
+		{name: "list_billing_utilization_by_period", args: map[string]any{"contract": c, "period": "2026-04"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/utilization/2026-04"}},
+		{name: "get_billing_utilization_daily", args: map[string]any{"contract": c, "date": "2026-04-15"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/utilization/daily/2026-04-15"}},
 
 		// Products
-		{"list_billing_products", map[string]any{"contract": c, "filter": "RAM"}, []string{"GET"}, []string{"/billing/1/products"}},
+		{name: "list_billing_products", args: map[string]any{"contract": c, "filter": "RAM"}, wantMethods: []string{"GET"}, wantPaths: []string{"/billing/1/products"}},
 	}
 
-	ctx := context.Background()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h.log.clear()
-
-			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{
-				Name:      tt.name,
-				Arguments: tt.args,
-			})
-			if err != nil {
-				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
-			}
-
-			reqs := h.log.allRequests()
-			if len(reqs) != len(tt.wantPaths) {
-				t.Fatalf("CallTool(%q) made %d requests, want %d", tt.name, len(reqs), len(tt.wantPaths))
-			}
-			for i, req := range reqs {
-				if req.Method != tt.wantMethods[i] {
-					t.Errorf("CallTool(%q) request[%d] method = %q, want %q", tt.name, i, req.Method, tt.wantMethods[i])
-				}
-				if req.Path != tt.wantPaths[i] {
-					t.Errorf("CallTool(%q) request[%d] path = %q, want %q", tt.name, i, req.Path, tt.wantPaths[i])
-				}
-			}
-		})
-	}
+	h.run(t, tests)
 }
 
 func TestBillingPeriodValidation(t *testing.T) {
