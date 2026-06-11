@@ -113,6 +113,7 @@ The `e2e` and `e2e_live` suites run locally only — not yet wired into CI. `mak
 
 ```bash
 make test        # unit + in-memory (race)
+make cover       # same, with cross-package coverage → coverage.out
 make test-e2e    # binary-over-stdio (mocked API) + read-only live API
 ```
 
