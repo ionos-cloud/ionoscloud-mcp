@@ -10,18 +10,16 @@ This is a Model Context Protocol (MCP) server that enables LLMs to interact with
 
 ```bash
 make build      # Build the binary (outputs ./ionoscloud-mcp)
-make run        # Build and run the MCP server
+make install    # Install the binary to $GOBIN so MCP clients on PATH pick it up
 make test       # Run unit tests
+make test-e2e   # Binary-over-stdio (mocked API) + read-only live API checks
 make fmt        # Format code with gofmt
 make vet        # Run go vet
-make check      # Run fmt + vet together
 make lint       # Run golangci-lint (read-only)
 make lintfix    # Run golangci-lint with --fix
 make vuln       # Run govulncheck against all packages
 make docker     # Build local Docker image (IMAGE= to override tag)
-make snapshot   # Dry-run GoReleaser pipeline locally (no publish)
 make deps       # go mod download + tidy
-make dev        # check + build + run
 make clean      # Remove build artifacts and dist/
 ```
 
@@ -115,7 +113,6 @@ The `e2e` and `e2e_live` suites run locally only — not yet wired into CI. `mak
 
 ```bash
 make test        # unit + in-memory (race)
-make cover       # same, with cross-package coverage → coverage.out
 make test-e2e    # binary-over-stdio (mocked API) + read-only live API
 ```
 
