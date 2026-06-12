@@ -1,6 +1,6 @@
 module github.com/ionos-cloud/ionoscloud-mcp
 
-go 1.25.0
+go 1.25.11
 
 require (
 	github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2 v2.0.1

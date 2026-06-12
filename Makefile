@@ -29,6 +29,7 @@ test:
 test-e2e:
 	go test -tags e2e_live -count=1 -timeout 20m ./test/live/...
 	go test -race -tags e2e -count=1 ./test/e2e/...
+	test
 
 ## fmt:      ## Format Go code with gofmt
 fmt:
@@ -53,3 +54,6 @@ vuln:
 ## docker:   ## Build Docker image from source (IMAGE= to override tag)
 docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
+
+check: fmt vet lintfix vuln
+	@echo "\n===>\n✓ check success!"
