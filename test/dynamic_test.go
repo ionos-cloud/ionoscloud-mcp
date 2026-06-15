@@ -275,6 +275,83 @@ func TestDynamicCallToolForwardsToBackend(t *testing.T) {
 	}
 }
 
+func TestDynamicCallToolForwardsArguments(t *testing.T) {
+	h := setupDynamic(t)
+	h.log.clear()
+	h.resp.reset()
+
+	// Arguments passed through ionos_call_tool must reach the underlying tool:
+	// the datacenter_id must appear in the backend path.
+	const dc = "dc-abc-123"
+	res, err := h.session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_call_tool",
+		Arguments: map[string]any{"name": "get_datacenter", "arguments": map[string]any{"datacenter_id": dc}},
+	})
+	if err != nil {
+		t.Fatalf("ionos_call_tool protocol error: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("ionos_call_tool returned error: %s", resultText(res))
+	}
+	reqs := h.log.allRequests()
+	if len(reqs) != 1 {
+		t.Fatalf("made %d backend requests, want 1", len(reqs))
+	}
+	if reqs[0].Path != "/cloudapi/v6/datacenters/"+dc {
+		t.Errorf("backend path = %q, want /cloudapi/v6/datacenters/%s", reqs[0].Path, dc)
+	}
+}
+
+func TestDynamicDescribeUnknownSuggests(t *testing.T) {
+	h := setupDynamic(t)
+
+	res, err := h.session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_describe_tools",
+		Arguments: map[string]any{"names": []string{"get_datacenter", "list_datacenter"}}, // 2nd is a typo
+	})
+	if err != nil {
+		t.Fatalf("ionos_describe_tools protocol error: %v", err)
+	}
+	text := resultText(res)
+	// Known tool still described, unknown one flagged with a suggestion.
+	for _, want := range []string{"datacenter_id", "no such tool", "list_datacenters"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("describe output missing %q\ngot: %s", want, text)
+		}
+	}
+}
+
+// TestDynamicCatalogCoversEveryProductTool guards against forgetting a product
+// in the dynamic products slice (which would silently make its tools
+// unreachable). It builds an eager server with the same products, lists every
+// tool, and asserts ionos_describe_tools resolves all of them in dynamic mode.
+func TestDynamicCatalogCoversEveryProductTool(t *testing.T) {
+	eager := setup(t)      // registers every product eagerly
+	dyn := setupDynamic(t) // same products, behind the catalog
+
+	var eagerNames []string
+	for tool, err := range eager.session.Tools(context.Background(), nil) {
+		if err != nil {
+			t.Fatalf("listing eager tools: %v", err)
+		}
+		eagerNames = append(eagerNames, tool.Name)
+	}
+	if len(eagerNames) == 0 {
+		t.Fatal("eager server exposed no tools")
+	}
+
+	res, err := dyn.session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_describe_tools",
+		Arguments: map[string]any{"names": eagerNames},
+	})
+	if err != nil {
+		t.Fatalf("ionos_describe_tools protocol error: %v", err)
+	}
+	if strings.Contains(resultText(res), "no such tool") {
+		t.Errorf("dynamic catalog is missing tools that eager mode exposes:\n%s", resultText(res))
+	}
+}
+
 func TestDynamicCallToolValidatesArguments(t *testing.T) {
 	h := setupDynamic(t)
 	h.log.clear()
