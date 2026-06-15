@@ -81,7 +81,7 @@ The server supports three tool-registration strategies, selectable via the `--lo
 
 - **`dynamic`** (alias: `search`): exposes only three meta-tools — `ionos_search_tools`, `ionos_describe_tools`, `ionos_call_tool` (see `tools/dynamic/`). The full catalogue is registered onto a private in-memory "catalog" server (reusing each product's `RegisterAll` unchanged); the dynamic package self-connects over an in-memory transport, snapshots tool metadata at startup, and forwards `ionos_call_tool` to it. The public tool list never changes (no `list_changed` needed). For clients with hard tool caps and no tool search of their own (Cursor ~40, Windsurf 100). Not for Claude Code — keep it `eager`.
 
-Parsing is case-insensitive. The retired value `router` and any unknown value warn on stderr and fall back to `eager`. Empty / unset = eager.
+Parsing is case-insensitive. Any unknown value warns on stderr and falls back to `eager`. Empty / unset = eager.
 
 In `eager` and `lazy` modes, the small products (DNS, Billing, Cert, Activity Log, k8s) always register eagerly. In `dynamic` mode every product — including those — is hidden behind the meta-tools. The product list is defined once as a `[]dynamic.Product` slice in `main.go` and shared across all three modes so they cannot drift.
 

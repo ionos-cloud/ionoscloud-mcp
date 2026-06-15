@@ -81,16 +81,17 @@ func TestLazyFlow(t *testing.T) {
 	}
 }
 
-func TestRouterFallsBackToEager(t *testing.T) {
+func TestUnknownModeFallsBackToEager(t *testing.T) {
+	// "router" was never shipped and is now just an unrecognised value.
 	var stderr syncBuffer
 	session, _ := spawn(t, map[string]string{"IONOS_MCP_LOAD_MODE": "router"}, &stderr)
 
 	names := toolNameSet(t, session)
 	if !names["list_servers"] {
-		t.Error("retired 'router' mode should fall back to eager (list_servers expected)")
+		t.Error("unknown mode should fall back to eager (list_servers expected)")
 	}
-	if !waitStderrContains(&stderr, `renamed to "dynamic"`, 5*time.Second) {
-		t.Errorf("expected router-rename warning on stderr, got: %q", stderr.String())
+	if !waitStderrContains(&stderr, "unrecognised load mode", 5*time.Second) {
+		t.Errorf("expected unrecognised-mode warning on stderr, got: %q", stderr.String())
 	}
 }
 

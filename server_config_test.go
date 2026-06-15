@@ -31,7 +31,7 @@ func TestResolveLoadMode(t *testing.T) {
 		{name: "whitespace", env: " Lazy ", wantMode: LoadModeLazy, wantSource: sourceEnv},
 
 		// Fallbacks (still report the input source; parseLoadMode warns).
-		{name: "router retired -> eager", flag: "router", wantMode: LoadModeEager, wantSource: sourceFlag},
+		{name: "retired router -> unknown -> eager", flag: "router", wantMode: LoadModeEager, wantSource: sourceFlag},
 		{name: "unknown -> eager", env: "bogus", wantMode: LoadModeEager, wantSource: sourceEnv},
 	}
 

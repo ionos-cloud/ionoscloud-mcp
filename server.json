@@ -36,7 +36,7 @@
         },
         {
           "name": "IONOS_MCP_LOAD_MODE",
-          "description": "Tool registration strategy. 'eager' (default): register all tools at startup. 'lazy': defer Compute and Object Storage behind 'ionos_load_compute_tools' / 'ionos_load_objectstorage_tools' sentinel tools (requires MCP client support for notifications/tools/list_changed). 'router' (reserved, not yet implemented): single search + invoke tool pair for clients with hard tool caps (Cursor, Windsurf) — currently falls back to eager.",
+          "description": "Tool registration strategy (the --load-mode flag overrides this). 'eager' (default): register all tools at startup. 'lazy': defer Compute and Object Storage behind 'ionos_load_compute_tools' / 'ionos_load_objectstorage_tools' sentinel tools (requires MCP client support for notifications/tools/list_changed). 'dynamic' (alias 'search'): expose only the ionos_search_tools / ionos_describe_tools / ionos_call_tool meta-tools and browse the full catalog through them — for clients with hard tool caps and no tool search of their own (Cursor, Windsurf).",
           "isRequired": false,
           "isSecret": false
         }
