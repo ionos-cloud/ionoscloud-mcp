@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -79,9 +80,11 @@ func setupDynamic(t *testing.T) *testSetup {
 	}
 
 	ctx := context.Background()
-	if err := dynamic.Register(ctx, server, products); err != nil {
+	closer, err := dynamic.Register(ctx, server, products)
+	if err != nil {
 		t.Fatalf("dynamic.Register failed: %v", err)
 	}
+	t.Cleanup(func() { closer.Close() })
 
 	ct, st := mcp.NewInMemoryTransports()
 	ss, err := server.Connect(ctx, st, nil)
@@ -218,15 +221,60 @@ func TestDynamicSearchIndexesFullDescription(t *testing.T) {
 	}
 }
 
-func TestDynamicSearchSnippetIsShorterThanFull(t *testing.T) {
+func TestDynamicSearchBrowseSnippetIsSingleSentence(t *testing.T) {
 	h := setupDynamic(t)
 
-	// Browse billing (no query) — snippets should be first sentences, i.e.
-	// shorter than the verbose full descriptions.
+	// Browse billing (no query) — snippets should be first sentences only, i.e.
+	// no second sentence in the verbose billing descriptions.
 	out := callSearch(t, h, map[string]any{"query": "", "group": "billing", "limit": 100})
 	for _, tool := range out.Tools {
 		if strings.Count(tool.Description, ". ") > 0 {
 			t.Errorf("browse snippet for %q still multi-sentence: %q", tool.Name, tool.Description)
+		}
+	}
+}
+
+func TestDynamicSearchDefaultLimit(t *testing.T) {
+	h := setupDynamic(t)
+
+	// A broad query with no explicit limit must cap at the default (10), even
+	// though the catalog has 100+ tools.
+	out := callSearch(t, h, map[string]any{"query": "list"})
+	if out.Count > 10 {
+		t.Errorf("default search limit not applied: got %d results, want <= 10", out.Count)
+	}
+	if out.Count == 0 {
+		t.Fatal("broad query 'list' returned nothing")
+	}
+}
+
+func TestDynamicConcurrentCalls(t *testing.T) {
+	h := setupDynamic(t)
+
+	// The catalog client session is shared across meta-tool handlers; fire a
+	// burst of concurrent calls to shake out races (run under -race).
+	const n = 20
+	errs := make(chan error, n)
+	for range n {
+		go func() {
+			res, err := h.session.CallTool(context.Background(), &mcp.CallToolParams{
+				Name:      "ionos_call_tool",
+				Arguments: map[string]any{"name": "list_datacenters"},
+			})
+			if err != nil {
+				errs <- err
+				return
+			}
+			if res.IsError {
+				errs <- errors.New(resultText(res))
+				return
+			}
+			errs <- nil
+		}()
+	}
+	for i := range n {
+		if err := <-errs; err != nil {
+			t.Errorf("concurrent call %d failed: %v", i, err)
 		}
 	}
 }
@@ -318,6 +366,23 @@ func TestDynamicDescribeUnknownSuggests(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("describe output missing %q\ngot: %s", want, text)
 		}
+	}
+}
+
+func TestDynamicDescribeEmptyNames(t *testing.T) {
+	h := setupDynamic(t)
+
+	// Empty names list is valid input (required field present, just empty) and
+	// must return an empty tools array, not an error.
+	res, err := h.session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_describe_tools",
+		Arguments: map[string]any{"names": []string{}},
+	})
+	if err != nil {
+		t.Fatalf("ionos_describe_tools protocol error: %v", err)
+	}
+	if res.IsError {
+		t.Errorf("describe with empty names should not error: %s", resultText(res))
 	}
 }
 

@@ -4,6 +4,7 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -124,6 +125,74 @@ func TestLoadModeFlagOverridesEnv(t *testing.T) {
 	assertDynamicSurface(t, toolNameSet(t, session))
 	if !waitStderrContains(&stderr, "source: --load-mode flag", 5*time.Second) {
 		t.Errorf("expected flag-source log on stderr, got: %q", stderr.String())
+	}
+}
+
+// TestDynamicCatalogCoversProductsViaBinary drives the REAL main.go product
+// slice end to end: it searches the catalog through the shipped binary in
+// dynamic mode and asserts a representative tool from every product is present,
+// then invokes one via ionos_call_tool. This is the only test that exercises
+// main.go's actual wiring (the in-process tests build their own product slice),
+// so it catches a product dropped or mis-wired in main.go.
+func TestDynamicCatalogCoversProductsViaBinary(t *testing.T) {
+	clearStatus()
+	session, _ := spawn(t, map[string]string{"IONOS_MCP_LOAD_MODE": "dynamic"}, nil)
+
+	res, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_search_tools",
+		Arguments: map[string]any{"query": "", "limit": 500},
+	})
+	if err != nil {
+		t.Fatalf("ionos_search_tools: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("ionos_search_tools returned error: %s", textOf(res))
+	}
+
+	var payload struct {
+		Tools []struct {
+			Name  string `json:"name"`
+			Group string `json:"group"`
+		} `json:"tools"`
+	}
+	if err := json.Unmarshal([]byte(textOf(res)), &payload); err != nil {
+		t.Fatalf("unmarshal search payload: %v\ngot: %s", err, textOf(res))
+	}
+	got := map[string]bool{}
+	groups := map[string]bool{}
+	for _, tl := range payload.Tools {
+		got[tl.Name] = true
+		groups[tl.Group] = true
+	}
+
+	// One representative read-only tool per product group wired in main.go.
+	for _, want := range []string{
+		"list_servers",                // compute
+		"list_k8s_clusters",           // k8s
+		"list_object_storage_buckets", // objectstorage
+		"list_dns_zones",              // dns
+		"list_billing_invoices",       // billing
+		"list_cert_certificates",      // cert
+		"list_activitylog_contracts",  // activitylog
+	} {
+		if !got[want] {
+			t.Errorf("dynamic catalog (real binary) missing %q", want)
+		}
+	}
+	if len(groups) < 7 {
+		t.Errorf("expected >=7 product groups in catalog, got %d: %v", len(groups), groups)
+	}
+
+	// And a tool is actually invokable through the dispatcher.
+	call, err := session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_call_tool",
+		Arguments: map[string]any{"name": "list_datacenters"},
+	})
+	if err != nil {
+		t.Fatalf("ionos_call_tool: %v", err)
+	}
+	if call.IsError {
+		t.Errorf("ionos_call_tool list_datacenters errored: %s", textOf(call))
 	}
 }
 

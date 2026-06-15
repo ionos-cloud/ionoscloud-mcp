@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -42,29 +43,48 @@ type catalogEntry struct {
 	Group       string
 	Description string
 	InputSchema json.RawMessage
+	ReadOnly    bool // tool only reads (list_/get_/head_); enforced by callHandler
 }
 
-// router holds the immutable post-startup state shared by the three meta-tool
-// handlers: the searchable index and the live session to the catalog server.
-type router struct {
-	entries []catalogEntry
-	byName  map[string]catalogEntry
-	session *mcp.ClientSession // self-connection to the catalog server
+// dispatcher holds the immutable post-startup state shared by the three
+// meta-tool handlers: the searchable index and the live session to the private
+// catalog server. (Named "dispatcher", not "router", to avoid confusion with
+// the retired "router" load mode.)
+type dispatcher struct {
+	entries    []catalogEntry
+	byName     map[string]catalogEntry
+	session    *mcp.ClientSession // client side of the self-connection to the catalog
+	srvSession *mcp.ServerSession // server side; retained so Close can tear it down
 }
 
 const defaultSearchLimit = 10
 
+// Close tears down the private catalog server connection. In production the
+// dispatcher is a process-lifetime singleton and Close is never called (the OS
+// reclaims everything at exit); it exists so tests can avoid leaking a catalog
+// server + sessions per run.
+func (d *dispatcher) Close() error {
+	if d.session != nil {
+		_ = d.session.Close()
+	}
+	if d.srvSession != nil {
+		_ = d.srvSession.Close()
+	}
+	return nil
+}
+
 // Register builds the private catalog from products and registers the three
-// dynamic meta-tools on the public server. The catalog server and its
-// self-connection are kept alive for the process lifetime (stored on the
-// returned closures). Returns an error if the catalog cannot be built.
-func Register(ctx context.Context, public *mcp.Server, products []Product) error {
-	r, err := buildCatalog(ctx, products)
+// dynamic meta-tools on the public server. It returns an io.Closer that tears
+// down the catalog connection; production callers may ignore it (the catalog is
+// a process-lifetime singleton), while tests should Close it to avoid leaks.
+// Returns an error if the catalog cannot be built.
+func Register(ctx context.Context, public *mcp.Server, products []Product) (io.Closer, error) {
+	d, err := buildCatalog(ctx, products)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	summary := catalogSummary(products, r)
+	summary := catalogSummary(products, d)
 
 	mcp.AddTool(public, &mcp.Tool{
 		Name: "ionos_search_tools",
@@ -73,7 +93,7 @@ func Register(ctx context.Context, public *mcp.Server, products []Product) error
 			"ionos_describe_tools for those, then ionos_call_tool to invoke). Leave query empty and " +
 			"set group to browse a whole product.\n\n" + summary,
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-	}, r.searchHandler)
+	}, d.searchHandler)
 
 	mcp.AddTool(public, &mcp.Tool{
 		Name: "ionos_describe_tools",
@@ -81,7 +101,7 @@ func Register(ctx context.Context, public *mcp.Server, products []Product) error
 			"tools (names come from ionos_search_tools). Call this before ionos_call_tool to learn a " +
 			"tool's required and optional arguments.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-	}, r.describeHandler)
+	}, d.describeHandler)
 
 	mcp.AddTool(public, &mcp.Tool{
 		Name: "ionos_call_tool",
@@ -89,9 +109,9 @@ func Register(ctx context.Context, public *mcp.Server, products []Product) error
 			"result. The name must be an exact tool name from ionos_search_tools; arguments must match " +
 			"the schema from ionos_describe_tools. All catalog tools are read-only.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-	}, r.callHandler)
+	}, d.callHandler)
 
-	return nil
+	return d, nil
 }
 
 // searchResult is one row of an ionos_search_tools response.
@@ -101,7 +121,7 @@ type searchResult struct {
 	Description string `json:"description"`
 }
 
-func (r *router) searchHandler(_ context.Context, _ *mcp.CallToolRequest, in tools.SearchToolsInput) (*mcp.CallToolResult, any, error) {
+func (r *dispatcher) searchHandler(_ context.Context, _ *mcp.CallToolRequest, in tools.SearchToolsInput) (*mcp.CallToolResult, any, error) {
 	limit := defaultSearchLimit
 	if in.Limit != nil && *in.Limit > 0 {
 		limit = *in.Limit
@@ -138,7 +158,7 @@ type describedTool struct {
 	DidYouMean  []string        `json:"did_you_mean,omitempty"`
 }
 
-func (r *router) describeHandler(_ context.Context, _ *mcp.CallToolRequest, in tools.DescribeToolsInput) (*mcp.CallToolResult, any, error) {
+func (r *dispatcher) describeHandler(_ context.Context, _ *mcp.CallToolRequest, in tools.DescribeToolsInput) (*mcp.CallToolResult, any, error) {
 	out := make([]describedTool, 0, len(in.Names))
 	for _, name := range in.Names {
 		name = strings.TrimSpace(name)
@@ -161,9 +181,10 @@ func (r *router) describeHandler(_ context.Context, _ *mcp.CallToolRequest, in t
 	return tools.ToResult(map[string]any{"tools": out}, nil)
 }
 
-func (r *router) callHandler(ctx context.Context, _ *mcp.CallToolRequest, in tools.CallToolInput) (*mcp.CallToolResult, any, error) {
+func (r *dispatcher) callHandler(ctx context.Context, _ *mcp.CallToolRequest, in tools.CallToolInput) (*mcp.CallToolResult, any, error) {
 	name := strings.TrimSpace(in.Name)
-	if _, ok := r.byName[name]; !ok {
+	entry, ok := r.byName[name]
+	if !ok {
 		msg := fmt.Sprintf("no such tool %q.", name)
 		if s := r.suggest(name); len(s) > 0 {
 			msg += " Did you mean: " + strings.Join(s, ", ") + "? Use ionos_search_tools to find the right tool."
@@ -171,6 +192,15 @@ func (r *router) callHandler(ctx context.Context, _ *mcp.CallToolRequest, in too
 			msg += " Use ionos_search_tools to find the right tool."
 		}
 		return errorResult(msg), nil, nil
+	}
+
+	// Defense-in-depth: dynamic mode only proxies read-only tools. Every product
+	// tool today is list_/get_/head_ (read-only by the repo's naming convention),
+	// so this never fires; it fails closed if a mutating tool is ever added and
+	// reaches the catalog, rather than silently exposing it through a generic
+	// dispatcher that advertises ReadOnlyHint:true.
+	if !entry.ReadOnly {
+		return errorResult(fmt.Sprintf("tool %q is not read-only; dynamic mode only serves read-only tools", name)), nil, nil
 	}
 
 	// Forward to the catalog server. Input validation, schema enforcement and
