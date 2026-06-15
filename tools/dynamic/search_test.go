@@ -1,9 +1,62 @@
 package dynamic
 
 import (
+	"context"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
+
+// callText runs callHandler and returns (isError, text) for assertions.
+func callText(t *testing.T, d *dispatcher, in tools.CallToolInput) (bool, string) {
+	t.Helper()
+	res, _, err := d.callHandler(context.Background(), nil, in)
+	if err != nil {
+		t.Fatalf("callHandler returned error: %v", err)
+	}
+	var b strings.Builder
+	for _, c := range res.Content {
+		if tc, ok := c.(*mcp.TextContent); ok {
+			b.WriteString(tc.Text)
+		}
+	}
+	return res.IsError, b.String()
+}
+
+func TestCallHandlerReadOnlyGuard(t *testing.T) {
+	// A (hypothetical) mutating tool in the catalog must be refused before any
+	// dispatch, even though it's a known name. session is nil to prove the guard
+	// returns before forwarding.
+	d := &dispatcher{byName: map[string]catalogEntry{
+		"create_server": {Name: "create_server", Group: "compute", ReadOnly: false},
+	}}
+	isErr, text := callText(t, d, tools.CallToolInput{Name: "create_server"})
+	if !isErr {
+		t.Fatal("calling a non-read-only tool should be an error")
+	}
+	if !strings.Contains(text, "not read-only") {
+		t.Errorf("guard message = %q, want it to mention 'not read-only'", text)
+	}
+}
+
+func TestCallHandlerUnknownNoSuggestion(t *testing.T) {
+	// Unknown name with no close matches exercises the no-suggestion branch.
+	d := &dispatcher{entries: nil, byName: map[string]catalogEntry{}}
+	isErr, text := callText(t, d, tools.CallToolInput{Name: "zzz_nonexistent"})
+	if !isErr {
+		t.Fatal("unknown tool should be an error")
+	}
+	if strings.Contains(text, "Did you mean") {
+		t.Errorf("empty catalog should yield no suggestions; got %q", text)
+	}
+	if !strings.Contains(text, "ionos_search_tools") {
+		t.Errorf("error should point to ionos_search_tools; got %q", text)
+	}
+}
 
 func TestSplitSentences(t *testing.T) {
 	tests := []struct {
@@ -124,9 +177,33 @@ func TestScoreRanking(t *testing.T) {
 	if sList <= sDescOnly {
 		t.Errorf("name match (%d) should outrank description-only match (%d)", sList, sDescOnly)
 	}
-	// Exact whole-name match is the strongest signal.
-	if exact := score(getOne, "get_datacenter", tokenize("get_datacenter")); exact < 100 {
-		t.Errorf("exact name match score = %d, want >= 100", exact)
+	// Exact whole-name match is the strongest signal. Pin the value so a
+	// regression in the token bonus is caught, not masked by a loose >=100:
+	// 100 (exact name) + 10+10 (name tokens get, datacenter) + 2 (desc token
+	// "get" in "Get a single data center by ID.") = 122.
+	if exact := score(getOne, "get_datacenter", tokenize("get_datacenter")); exact != 122 {
+		t.Errorf("exact name match score = %d, want 122", exact)
+	}
+}
+
+func TestSearchPunctuationOnlyQueryMatchesNothing(t *testing.T) {
+	entries := []catalogEntry{
+		{Name: "list_datacenters", Group: "compute", Description: "List data centers."},
+		{Name: "list_dns_zones", Group: "dns", Description: "List DNS zones."},
+	}
+	d := &dispatcher{entries: entries, byName: map[string]catalogEntry{}}
+
+	// A query that tokenizes to nothing must NOT browse-all.
+	if got := d.search("!!!", "", 10); len(got) != 0 {
+		t.Errorf("search(%q) returned %d results, want 0 (no browse-all)", "!!!", len(got))
+	}
+	// An empty query DOES browse.
+	if got := d.search("", "", 10); len(got) != 2 {
+		t.Errorf("empty-query browse returned %d, want 2", len(got))
+	}
+	// Group filter is case-insensitive.
+	if got := d.search("", "DNS", 10); len(got) != 1 || got[0].Name != "list_dns_zones" {
+		t.Errorf("case-insensitive group filter = %v, want [list_dns_zones]", names(got))
 	}
 }
 
@@ -136,7 +213,7 @@ func TestRouterSuggestAndSearch(t *testing.T) {
 		{Name: "get_datacenter", Group: "compute", Description: "Get a data center."},
 		{Name: "list_dns_zones", Group: "dns", Description: "List DNS zones."},
 	}
-	r := &router{entries: entries, byName: map[string]catalogEntry{}}
+	r := &dispatcher{entries: entries, byName: map[string]catalogEntry{}}
 	for _, e := range entries {
 		r.byName[e.Name] = e
 	}

@@ -71,8 +71,9 @@ func isSpace(r rune) bool {
 // to a single product group, returning at most limit results. An empty query
 // (typically combined with a group) browses: it returns entries unscored, in
 // the catalog's stable name order. A non-empty query drops zero-score entries.
-func (r *router) search(query, group string, limit int) []catalogEntry {
+func (r *dispatcher) search(query, group string, limit int) []catalogEntry {
 	tokens := tokenize(query)
+	browse := strings.TrimSpace(query) == ""
 
 	type scored struct {
 		entry catalogEntry
@@ -80,11 +81,17 @@ func (r *router) search(query, group string, limit int) []catalogEntry {
 	}
 	var hits []scored
 	for _, e := range r.entries {
-		if group != "" && e.Group != group {
+		if group != "" && !strings.EqualFold(e.Group, group) {
+			continue
+		}
+		if browse {
+			// No query (typically a group browse): list entries unscored.
+			hits = append(hits, scored{entry: e})
 			continue
 		}
 		if len(tokens) == 0 {
-			hits = append(hits, scored{entry: e})
+			// Query present but only punctuation/separators (e.g. "!!!"): it
+			// matched nothing, so return no results rather than browsing all.
 			continue
 		}
 		if s := score(e, query, tokens); s > 0 {
@@ -147,7 +154,7 @@ func score(e catalogEntry, query string, tokens []string) int {
 // suggest returns up to three tool names closest to name, for "did you mean"
 // hints on unknown-tool errors. It reuses the search scorer with name as the
 // query, falling back to substring matches.
-func (r *router) suggest(name string) []string {
+func (r *dispatcher) suggest(name string) []string {
 	matches := r.search(name, "", 3)
 	out := make([]string, 0, len(matches))
 	for _, e := range matches {

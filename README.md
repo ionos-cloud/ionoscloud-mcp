@@ -4,7 +4,7 @@
 [![Apache 2.0](https://img.shields.io/github/license/ionos-cloud/ionoscloud-mcp)](LICENSE)
 [![Go reference](https://pkg.go.dev/badge/github.com/ionos-cloud/ionoscloud-mcp.svg)](https://pkg.go.dev/github.com/ionos-cloud/ionoscloud-mcp)
 
-A **read-only** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **112 tools across 6 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops.
+A **read-only** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops.
 
 Built and maintained by the IONOS Cloud team. The server runs as a local binary on your workstation, a CI runner, or inside a container. IONOS CLOUD API calls go directly to IONOS over HTTPS; no third-party AI provider sits in the data path.
 

@@ -146,7 +146,10 @@ func main() {
 		// Expose only the search/describe/call meta-tools; the full catalog
 		// lives on a private in-memory server. Best for clients with hard tool
 		// caps and no tool search of their own (Cursor, Windsurf).
-		if err := dynamic.Register(ctx, server, products); err != nil {
+		// The returned closer tears down the private catalog connection; the
+		// server is a process-lifetime singleton, so we intentionally leave it
+		// open until the process exits.
+		if _, err := dynamic.Register(ctx, server, products); err != nil {
 			log.Fatalf("dynamic load mode: %v", err)
 		}
 	case LoadModeLazy:

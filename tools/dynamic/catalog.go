@@ -10,20 +10,25 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// buildCatalog registers every product onto a private in-memory catalog server,
-// self-connects to it, and snapshots each tool's metadata. Group attribution
-// works by registering products one at a time and treating every tool that
-// appears after a product's Register call (and was not present before) as
-// belonging to that product — the product tools carry no name prefix, so
-// registration order is the only signal.
-func buildCatalog(ctx context.Context, products []Product) (*router, error) {
+// buildCatalog registers every product onto a private in-memory "catalog"
+// server used to dispatch ionos_call_tool, and snapshots each tool's metadata.
+//
+// Group attribution and duplicate detection are done with a separate, exact
+// pass: each product is registered on its OWN throwaway server and that
+// server's tool list is read back, so every tool is attributed to exactly the
+// product that registered it. This also catches a name collision across
+// products — which the combined catalog could not, because mcp.AddTool silently
+// replaces a tool of the same name (leaving describe/search showing one
+// product's metadata while call_tool would invoke the other's handler).
+func buildCatalog(ctx context.Context, products []Product) (*dispatcher, error) {
 	catalog := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionos-cloud-mcp-catalog",
 		Version: "internal",
 	}, nil)
 
 	clientT, serverT := mcp.NewInMemoryTransports()
-	if _, err := catalog.Connect(ctx, serverT, nil); err != nil {
+	srvSession, err := catalog.Connect(ctx, serverT, nil)
+	if err != nil {
 		return nil, fmt.Errorf("dynamic: connecting catalog server: %w", err)
 	}
 	client := mcp.NewClient(&mcp.Implementation{Name: "ionos-cloud-mcp-catalog-reader", Version: "internal"}, nil)
@@ -32,22 +37,25 @@ func buildCatalog(ctx context.Context, products []Product) (*router, error) {
 		return nil, fmt.Errorf("dynamic: connecting catalog reader: %w", err)
 	}
 
-	r := &router{
-		byName:  make(map[string]catalogEntry),
-		session: session,
+	d := &dispatcher{
+		byName:     make(map[string]catalogEntry),
+		session:    session,
+		srvSession: srvSession,
 	}
 
-	seen := make(map[string]bool)
 	for _, p := range products {
+		// Dispatch surface: register on the shared catalog.
 		p.Register(catalog)
-		for tool, err := range session.Tools(ctx, nil) {
-			if err != nil {
-				return nil, fmt.Errorf("dynamic: listing catalog tools after %q: %w", p.Name, err)
+
+		// Attribution + dedup: register on a throwaway server and read it back.
+		tools, err := productTools(ctx, p)
+		if err != nil {
+			return nil, err
+		}
+		for _, tool := range tools {
+			if prev, dup := d.byName[tool.Name]; dup {
+				return nil, fmt.Errorf("dynamic: duplicate tool name %q registered by products %q and %q", tool.Name, prev.Group, p.Name)
 			}
-			if seen[tool.Name] {
-				continue
-			}
-			seen[tool.Name] = true
 			schema, mErr := json.Marshal(tool.InputSchema)
 			if mErr != nil {
 				return nil, fmt.Errorf("dynamic: marshaling input schema for %q: %w", tool.Name, mErr)
@@ -57,24 +65,64 @@ func buildCatalog(ctx context.Context, products []Product) (*router, error) {
 				Group:       p.Name,
 				Description: tool.Description,
 				InputSchema: schema,
+				ReadOnly:    isReadOnlyName(tool.Name),
 			}
-			r.entries = append(r.entries, e)
-			r.byName[tool.Name] = e
+			d.entries = append(d.entries, e)
+			d.byName[tool.Name] = e
 		}
 	}
 
-	if len(r.entries) == 0 {
+	if len(d.entries) == 0 {
 		return nil, fmt.Errorf("dynamic: catalog is empty (no products registered any tools)")
 	}
 
-	sort.Slice(r.entries, func(i, j int) bool { return r.entries[i].Name < r.entries[j].Name })
-	return r, nil
+	sort.Slice(d.entries, func(i, j int) bool { return d.entries[i].Name < d.entries[j].Name })
+	return d, nil
+}
+
+// productTools registers a single product on a throwaway in-memory server and
+// returns exactly the tools it registered, so group attribution is exact rather
+// than inferred from registration order.
+func productTools(ctx context.Context, p Product) ([]*mcp.Tool, error) {
+	srv := mcp.NewServer(&mcp.Implementation{Name: "ionos-cloud-mcp-catalog-" + p.Name, Version: "internal"}, nil)
+	p.Register(srv)
+
+	clientT, serverT := mcp.NewInMemoryTransports()
+	ss, err := srv.Connect(ctx, serverT, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dynamic: connecting catalog probe for %q: %w", p.Name, err)
+	}
+	defer ss.Close()
+	client := mcp.NewClient(&mcp.Implementation{Name: "probe", Version: "internal"}, nil)
+	cs, err := client.Connect(ctx, clientT, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dynamic: connecting catalog probe reader for %q: %w", p.Name, err)
+	}
+	defer cs.Close()
+
+	var out []*mcp.Tool
+	for tool, err := range cs.Tools(ctx, nil) {
+		if err != nil {
+			return nil, fmt.Errorf("dynamic: listing tools for %q: %w", p.Name, err)
+		}
+		out = append(out, tool)
+	}
+	return out, nil
+}
+
+// isReadOnlyName reports whether a tool name follows the repo's read-only naming
+// convention (list_/get_/head_). Used by callHandler to fail closed on any
+// future mutating tool reached through the generic dispatcher.
+func isReadOnlyName(name string) bool {
+	return strings.HasPrefix(name, "list_") ||
+		strings.HasPrefix(name, "get_") ||
+		strings.HasPrefix(name, "head_")
 }
 
 // catalogSummary renders the product listing embedded in the ionos_search_tools
 // description: one line per group with its tool count and summary, so the model
 // knows what exists without an extra round-trip.
-func catalogSummary(products []Product, r *router) string {
+func catalogSummary(products []Product, r *dispatcher) string {
 	counts := make(map[string]int, len(products))
 	for _, e := range r.entries {
 		counts[e.Group]++
