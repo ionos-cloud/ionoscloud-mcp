@@ -127,8 +127,8 @@ func resolveLoadMode(flagVal, envVal string) (LoadMode, loadModeSource) {
 }
 
 // parseLoadMode normalizes (lowercase + trim) and validates a load mode string.
-// "search" is accepted as an alias for "dynamic". The retired "router" value and
-// any unrecognised value log an actionable warning and fall back to eager.
+// "search" is accepted as an alias for "dynamic". Any unrecognised value logs an
+// actionable warning and falls back to eager.
 func parseLoadMode(raw string) LoadMode {
 	switch strings.ToLower(strings.TrimSpace(raw)) {
 	case "eager":
@@ -137,9 +137,6 @@ func parseLoadMode(raw string) LoadMode {
 		return LoadModeLazy
 	case "dynamic", "search":
 		return LoadModeDynamic
-	case "router":
-		log.Println(`load mode "router" was renamed to "dynamic"; falling back to eager — set --load-mode=dynamic (or IONOS_MCP_LOAD_MODE=dynamic) to opt in`)
-		return LoadModeEager
 	default:
 		log.Printf("unrecognised load mode %q; valid values: eager, lazy, dynamic (alias: search); falling back to eager", raw)
 		return LoadModeEager
