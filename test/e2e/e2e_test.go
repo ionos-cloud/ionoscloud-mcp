@@ -87,10 +87,42 @@ func TestRouterFallsBackToEager(t *testing.T) {
 
 	names := toolNameSet(t, session)
 	if !names["list_servers"] {
-		t.Error("router mode should fall back to eager (list_servers expected)")
+		t.Error("retired 'router' mode should fall back to eager (list_servers expected)")
 	}
-	if !waitStderrContains(&stderr, "not yet implemented", 5*time.Second) {
-		t.Errorf("expected router fallback warning on stderr, got: %q", stderr.String())
+	if !waitStderrContains(&stderr, `renamed to "dynamic"`, 5*time.Second) {
+		t.Errorf("expected router-rename warning on stderr, got: %q", stderr.String())
+	}
+}
+
+// dynamicMetaTools is the exact public tool set in dynamic mode.
+var dynamicMetaTools = []string{"ionos_search_tools", "ionos_describe_tools", "ionos_call_tool"}
+
+func assertDynamicSurface(t *testing.T, names map[string]bool) {
+	t.Helper()
+	for _, want := range dynamicMetaTools {
+		if !names[want] {
+			t.Errorf("dynamic mode missing meta-tool %q", want)
+		}
+	}
+	for _, hidden := range []string{"list_servers", "list_dns_zones", "list_k8s_clusters", "ionos_load_compute_tools"} {
+		if names[hidden] {
+			t.Errorf("dynamic mode should hide %q behind the catalog", hidden)
+		}
+	}
+}
+
+func TestDynamicModeViaEnv(t *testing.T) {
+	session, _ := spawn(t, map[string]string{"IONOS_MCP_LOAD_MODE": "dynamic"}, nil)
+	assertDynamicSurface(t, toolNameSet(t, session))
+}
+
+func TestLoadModeFlagOverridesEnv(t *testing.T) {
+	// env says lazy, flag says dynamic — flag must win.
+	var stderr syncBuffer
+	session, _ := spawn(t, map[string]string{"IONOS_MCP_LOAD_MODE": "lazy"}, &stderr, "--load-mode=dynamic")
+	assertDynamicSurface(t, toolNameSet(t, session))
+	if !waitStderrContains(&stderr, "source: --load-mode flag", 5*time.Second) {
+		t.Errorf("expected flag-source log on stderr, got: %q", stderr.String())
 	}
 }
 

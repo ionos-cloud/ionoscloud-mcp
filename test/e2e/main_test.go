@@ -130,10 +130,10 @@ func waitStderrContains(buf *syncBuffer, sub string, d time.Duration) bool {
 // spawn starts the binary with the given extra env and connects an MCP client
 // over stdio. stderrBuf (if non-nil) captures the subprocess stderr. The
 // returned channel receives a value on each notifications/tools/list_changed.
-func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer) (*mcp.ClientSession, <-chan struct{}) {
+func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer, args ...string) (*mcp.ClientSession, <-chan struct{}) {
 	t.Helper()
 
-	cmd := exec.Command(binPath)
+	cmd := exec.Command(binPath, args...)
 	env := append(os.Environ(),
 		"IONOS_TOKEN=test-token",
 		"IONOS_API_URL="+apiURL,

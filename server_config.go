@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"runtime/debug"
 	"strings"
 )
@@ -89,32 +88,60 @@ const (
 	// notifications/tools/list_changed.
 	LoadModeLazy LoadMode = "lazy"
 
-	// LoadModeRouter is reserved for a future search + invoke pattern targeting
-	// clients with hard tool caps (Cursor 40, Windsurf 100) or no client-side
-	// schema deferral. Currently falls back to eager with a stderr warning.
-	LoadModeRouter LoadMode = "router"
+	// LoadModeDynamic exposes only a tiny set of meta-tools (search + describe +
+	// call) that let the model discover and invoke the full tool catalog at
+	// runtime, without the catalog ever entering the client's tool list. The
+	// real tool list never changes, so this needs no client cooperation
+	// (no notifications/tools/list_changed). Targets clients with hard tool caps
+	// and no client-side tool search of their own (e.g. Cursor 40, Windsurf 100).
+	// Claude Code should stay eager — it defers schemas client-side via ToolSearch.
+	LoadModeDynamic LoadMode = "dynamic"
 )
 
-// loadMode returns the tool registration strategy selected via
-// IONOS_MCP_LOAD_MODE. Default: eager. Unknown values and the reserved
-// 'router' value log a warning to stderr and fall back to eager.
-func loadMode() LoadMode {
-	v := strings.ToLower(strings.TrimSpace(os.Getenv("IONOS_MCP_LOAD_MODE")))
-	switch v {
-	case "", "eager":
+// loadModeSource describes where an effective load mode came from, for startup
+// diagnostics. It does not imply the provided value was valid — parseLoadMode
+// logs a warning when it falls back to eager.
+type loadModeSource string
+
+const (
+	sourceFlag    loadModeSource = "--load-mode flag"
+	sourceEnv     loadModeSource = "IONOS_MCP_LOAD_MODE env"
+	sourceDefault loadModeSource = "default"
+)
+
+// resolveLoadMode picks the tool registration strategy from, in priority order,
+// the --load-mode flag value, the IONOS_MCP_LOAD_MODE env value, then the
+// default (eager). Each input may be empty (meaning "not provided"). It is a
+// pure function so the precedence rules can be unit-tested; callers pass the
+// flag value and os.Getenv("IONOS_MCP_LOAD_MODE"). The returned source reflects
+// which input supplied the value (even if that value was invalid and fell back
+// to eager — parseLoadMode logs that case).
+func resolveLoadMode(flagVal, envVal string) (LoadMode, loadModeSource) {
+	if strings.TrimSpace(flagVal) != "" {
+		return parseLoadMode(flagVal), sourceFlag
+	}
+	if strings.TrimSpace(envVal) != "" {
+		return parseLoadMode(envVal), sourceEnv
+	}
+	return LoadModeEager, sourceDefault
+}
+
+// parseLoadMode normalizes (lowercase + trim) and validates a load mode string.
+// "search" is accepted as an alias for "dynamic". The retired "router" value and
+// any unrecognised value log an actionable warning and fall back to eager.
+func parseLoadMode(raw string) LoadMode {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "eager":
 		return LoadModeEager
 	case "lazy":
 		return LoadModeLazy
+	case "dynamic", "search":
+		return LoadModeDynamic
 	case "router":
-		log.Println("IONOS_MCP_LOAD_MODE=router not yet implemented; falling back to eager")
+		log.Println(`load mode "router" was renamed to "dynamic"; falling back to eager — set --load-mode=dynamic (or IONOS_MCP_LOAD_MODE=dynamic) to opt in`)
 		return LoadModeEager
 	default:
-		log.Printf("IONOS_MCP_LOAD_MODE=%q unrecognised; falling back to eager", v)
+		log.Printf("unrecognised load mode %q; valid values: eager, lazy, dynamic (alias: search); falling back to eager", raw)
 		return LoadModeEager
 	}
-}
-
-// loadModeLabel returns the User-Agent token reflecting current load mode.
-func loadModeLabel() string {
-	return string(loadMode())
 }

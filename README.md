@@ -55,7 +55,7 @@ This server is published across multiple MCP registries and IDE marketplaces:
 
 ## Supported products
 
-All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In `lazy` mode, two loader tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) register the Compute and Object Storage catalogues on demand; in the default `eager` mode all tools register at startup. See [Tool loading mode](#tool-loading-mode).
+All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In the default `eager` mode all tools register at startup; `lazy` mode defers Compute and Object Storage behind loader tools; `dynamic` mode exposes only three search/describe/call meta-tools for clients with hard tool caps. See [Tool loading mode](#tool-loading-mode).
 
 | Product | Tools | Capabilities |
 |---|---|---|
@@ -162,29 +162,31 @@ Per-client setup guides for the 12 supported AI clients: [Connect to an AI Clien
 
 ## Tool loading mode
 
-The `IONOS_MCP_LOAD_MODE` environment variable selects how tools are exposed:
+The load mode selects how tools are exposed. Set it with either the `--load-mode` flag or the `IONOS_MCP_LOAD_MODE` environment variable; **the flag wins if both are set**, and otherwise the default is `eager`. Parsing is case-insensitive.
 
 - **`eager`** (default): all tools register at startup. Recommended for Claude Code (which defers full schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and the only working mode for clients that ignore `notifications/tools/list_changed` (Claude Desktop, claude.ai connectors, Claude in Chrome, Smithery scanner).
 
 - **`lazy`**: Compute and Object Storage register only on demand. Two sentinel tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) appear at startup; calling either registers the full product set and emits `notifications/tools/list_changed`. Use only if your MCP client honours that notification AND lacks client-side schema deferral — otherwise eager mode is cheaper.
 
-Parsing is case-insensitive. Unknown values fall back to `eager`.
+- **`dynamic`** (alias: `search`): the server exposes only **three** meta-tools — `ionos_search_tools`, `ionos_describe_tools` and `ionos_call_tool` — and the model discovers and invokes the full catalogue through them at runtime. The real tool list never changes, so unlike `lazy` this needs no `notifications/tools/list_changed` support. Intended for clients with **hard tool caps and no tool search of their own** (e.g. Cursor's ~40-tool cap, Windsurf's 100). Trade-off: the model must `search` → `describe` → `call` rather than seeing tools directly, costing extra round-trips, so prefer `eager` on Claude Code.
+
+The server logs the effective mode and its source (flag / env / default) to stderr at startup, e.g. `load mode: dynamic (source: --load-mode flag)`.
 
 ```json
 {
   "mcpServers": {
     "ionoscloud": {
       "command": "/path/to/ionoscloud-mcp",
+      "args": ["--load-mode", "dynamic"],
       "env": {
-        "IONOS_TOKEN": "your-api-token",
-        "IONOS_MCP_LOAD_MODE": "lazy"
+        "IONOS_TOKEN": "your-api-token"
       }
     }
   }
 }
 ```
 
-**Tool-count limits:** Windsurf caps connected MCP servers at 100 tools combined. With the default eager mode the server exposes 112 tools and exceeds that limit. Use lazy loading on Windsurf. For more information, see [Selective Tool Loading](https://docs.ionos.com/cloud/ai/mcp-server/configuration/selective-tool-loading).
+**Tool-count limits:** Windsurf caps connected MCP servers at 100 tools combined; Cursor caps at ~40 across all servers. With the default eager mode the server exceeds both. On Windsurf, `lazy` keeps the startup surface small enough; on Cursor (or any cap-limited client without its own tool search), use `dynamic` to present just three tools. For more information, see [Selective Tool Loading](https://docs.ionos.com/cloud/ai/mcp-server/configuration/selective-tool-loading).
 
 ## Demo
 

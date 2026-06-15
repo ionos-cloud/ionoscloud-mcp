@@ -277,3 +277,22 @@ type K8sNodeIDInput struct {
 	NodepoolID   string `json:"nodepool_id" jsonschema:"the ID of the Kubernetes node pool"`
 	NodeID       string `json:"node_id" jsonschema:"the ID of the Kubernetes node"`
 }
+
+// Dynamic load-mode meta-tool input types. Used only when the server runs in
+// 'dynamic' mode, where these are the only tools the client sees and the full
+// product catalog is browsed/invoked through them.
+
+type SearchToolsInput struct {
+	Query string  `json:"query" jsonschema:"keywords to match against tool names and descriptions; leave empty to browse, optionally with group"`
+	Group *string `json:"group,omitempty" jsonschema:"restrict results to a single product group (e.g. compute, dns, billing, cert, activitylog, objectstorage, k8s)"`
+	Limit *int    `json:"limit,omitempty" jsonschema:"maximum number of results to return (default 10)"`
+}
+
+type DescribeToolsInput struct {
+	Names []string `json:"names" jsonschema:"the exact names of the tools to describe; returns each tool's description and full JSON input schema"`
+}
+
+type CallToolInput struct {
+	Name      string         `json:"name" jsonschema:"the exact name of the tool to invoke (from ionos_search_tools)"`
+	Arguments map[string]any `json:"arguments,omitempty" jsonschema:"the tool's arguments as a JSON object; see ionos_describe_tools for the schema"`
+}
