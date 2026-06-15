@@ -192,6 +192,45 @@ func TestDynamicSearchBrowseByGroup(t *testing.T) {
 	}
 }
 
+func TestDynamicSearchIndexesFullDescription(t *testing.T) {
+	h := setupDynamic(t)
+
+	// "idle" appears only in a LATER sentence of list_billing_utilization's
+	// description ("set include_zero=true to find idle resources"). Truncating
+	// the displayed snippet must not make the tool unfindable — scoring runs
+	// over the full description.
+	out := callSearch(t, h, map[string]any{"query": "idle", "limit": 20})
+	found := false
+	var snippet string
+	for _, tool := range out.Tools {
+		if tool.Name == "list_billing_utilization" {
+			found = true
+			snippet = tool.Description
+		}
+	}
+	if !found {
+		t.Fatalf("search 'idle' did not find list_billing_utilization; got %+v", out.Tools)
+	}
+	// And the shown snippet should be the matching sentence (contains "idle"),
+	// not the generic first sentence.
+	if !strings.Contains(strings.ToLower(snippet), "idle") {
+		t.Errorf("snippet for 'idle' match should contain the matching sentence; got %q", snippet)
+	}
+}
+
+func TestDynamicSearchSnippetIsShorterThanFull(t *testing.T) {
+	h := setupDynamic(t)
+
+	// Browse billing (no query) — snippets should be first sentences, i.e.
+	// shorter than the verbose full descriptions.
+	out := callSearch(t, h, map[string]any{"query": "", "group": "billing", "limit": 100})
+	for _, tool := range out.Tools {
+		if strings.Count(tool.Description, ". ") > 0 {
+			t.Errorf("browse snippet for %q still multi-sentence: %q", tool.Name, tool.Description)
+		}
+	}
+}
+
 func TestDynamicDescribeReturnsSchema(t *testing.T) {
 	h := setupDynamic(t)
 
