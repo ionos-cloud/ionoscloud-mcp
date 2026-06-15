@@ -5,46 +5,46 @@ import (
 	"testing"
 )
 
-func TestLoadMode(t *testing.T) {
+func TestResolveLoadMode(t *testing.T) {
 	tests := []struct {
-		env  string
-		set  bool
-		want LoadMode
+		name       string
+		flag       string
+		env        string
+		wantMode   LoadMode
+		wantSource loadModeSource
 	}{
-		{set: false, want: LoadModeEager}, // unset
-		{env: "", set: true, want: LoadModeEager},
-		{env: "eager", set: true, want: LoadModeEager},
-		{env: "EAGER", set: true, want: LoadModeEager},
-		{env: " eager ", set: true, want: LoadModeEager},
-		{env: "lazy", set: true, want: LoadModeLazy},
-		{env: "Lazy", set: true, want: LoadModeLazy},
-		{env: " lazy ", set: true, want: LoadModeLazy},
-		{env: "router", set: true, want: LoadModeEager}, // reserved → eager
-		{env: "bogus", set: true, want: LoadModeEager},  // unknown → eager
+		// Precedence.
+		{name: "both empty -> default eager", flag: "", env: "", wantMode: LoadModeEager, wantSource: sourceDefault},
+		{name: "env only", flag: "", env: "lazy", wantMode: LoadModeLazy, wantSource: sourceEnv},
+		{name: "flag only", flag: "dynamic", env: "", wantMode: LoadModeDynamic, wantSource: sourceFlag},
+		{name: "flag beats env", flag: "dynamic", env: "lazy", wantMode: LoadModeDynamic, wantSource: sourceFlag},
+		{name: "blank flag falls through to env", flag: "  ", env: "lazy", wantMode: LoadModeLazy, wantSource: sourceEnv},
+
+		// Values and aliases.
+		{name: "eager", flag: "eager", wantMode: LoadModeEager, wantSource: sourceFlag},
+		{name: "lazy", flag: "lazy", wantMode: LoadModeLazy, wantSource: sourceFlag},
+		{name: "dynamic", flag: "dynamic", wantMode: LoadModeDynamic, wantSource: sourceFlag},
+		{name: "search alias -> dynamic", flag: "search", wantMode: LoadModeDynamic, wantSource: sourceFlag},
+
+		// Normalization.
+		{name: "uppercase", flag: "DYNAMIC", wantMode: LoadModeDynamic, wantSource: sourceFlag},
+		{name: "whitespace", env: " Lazy ", wantMode: LoadModeLazy, wantSource: sourceEnv},
+
+		// Fallbacks (still report the input source; parseLoadMode warns).
+		{name: "router retired -> eager", flag: "router", wantMode: LoadModeEager, wantSource: sourceFlag},
+		{name: "unknown -> eager", env: "bogus", wantMode: LoadModeEager, wantSource: sourceEnv},
 	}
 
 	for _, tt := range tests {
-		name := tt.env
-		if !tt.set {
-			name = "<unset>"
-		}
-		t.Run(name, func(t *testing.T) {
-			if tt.set {
-				t.Setenv("IONOS_MCP_LOAD_MODE", tt.env)
-			} else {
-				t.Setenv("IONOS_MCP_LOAD_MODE", "")
+		t.Run(tt.name, func(t *testing.T) {
+			gotMode, gotSource := resolveLoadMode(tt.flag, tt.env)
+			if gotMode != tt.wantMode {
+				t.Errorf("resolveLoadMode(%q, %q) mode = %q, want %q", tt.flag, tt.env, gotMode, tt.wantMode)
 			}
-			if got := loadMode(); got != tt.want {
-				t.Errorf("loadMode() with %q = %q, want %q", tt.env, got, tt.want)
+			if gotSource != tt.wantSource {
+				t.Errorf("resolveLoadMode(%q, %q) source = %q, want %q", tt.flag, tt.env, gotSource, tt.wantSource)
 			}
 		})
-	}
-}
-
-func TestLoadModeLabel(t *testing.T) {
-	t.Setenv("IONOS_MCP_LOAD_MODE", "lazy")
-	if got := loadModeLabel(); got != "lazy" {
-		t.Errorf("loadModeLabel() = %q, want %q", got, "lazy")
 	}
 }
 
