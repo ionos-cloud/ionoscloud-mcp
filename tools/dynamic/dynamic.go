@@ -112,11 +112,20 @@ func (r *router) searchHandler(_ context.Context, _ *mcp.CallToolRequest, in too
 	}
 
 	matches := r.search(in.Query, group, limit)
+	tokens := tokenize(in.Query)
 	results := make([]searchResult, 0, len(matches))
 	for _, e := range matches {
-		results = append(results, searchResult{Name: e.Name, Group: e.Group, Description: e.Description})
+		// Scoring runs over the full description (see search/score), so a tool
+		// matched via a later sentence is still found; we only shorten what's
+		// shown. Prefer the first sentence that contains a query term, so the
+		// snippet always explains the match; fall back to the first sentence.
+		results = append(results, searchResult{Name: e.Name, Group: e.Group, Description: snippet(e.Description, tokens)})
 	}
-	return tools.ToResult(map[string]any{"count": len(results), "tools": results}, nil)
+	return tools.ToResult(map[string]any{
+		"count": len(results),
+		"tools": results,
+		"hint":  "Descriptions are shortened. Use ionos_describe_tools for a tool's full description and input schema, then ionos_call_tool to invoke it.",
+	}, nil)
 }
 
 // describedTool is one row of an ionos_describe_tools response.

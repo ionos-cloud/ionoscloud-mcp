@@ -5,6 +5,68 @@ import (
 	"strings"
 )
 
+// snippet returns a short description for search results. It always includes
+// the first sentence (the tool's summary). When the query matched on a LATER
+// sentence (e.g. "idle" → "...set include_zero=true to find idle resources"),
+// it appends that matching sentence so the shown text explains the match —
+// scoring (in score) runs over the full description, so the tool is found
+// regardless; this only controls what's displayed. With no query (group
+// browse), only the first sentence is shown.
+func snippet(desc string, tokens []string) string {
+	parts := splitSentences(desc)
+	if len(parts) == 0 {
+		return strings.TrimSpace(desc)
+	}
+	out := parts[0]
+	if len(tokens) == 0 || containsAny(strings.ToLower(parts[0]), tokens) {
+		return out
+	}
+	for _, s := range parts[1:] {
+		if containsAny(strings.ToLower(s), tokens) {
+			return out + " " + s
+		}
+	}
+	return out
+}
+
+// containsAny reports whether s contains any of the (already lowercased) tokens.
+func containsAny(s string, tokens []string) bool {
+	for _, t := range tokens {
+		if strings.Contains(s, t) {
+			return true
+		}
+	}
+	return false
+}
+
+// splitSentences splits desc into trimmed, non-empty sentences, breaking after
+// sentence-ending punctuation (. ! ?) that is followed by whitespace. A period
+// with no trailing space does not split, so "v1.3." and "(YYYY-MM-DD)." stay
+// intact. (Go's RE2 has no lookbehind, so this is a manual scan.)
+func splitSentences(desc string) []string {
+	desc = strings.TrimSpace(desc)
+	var out []string
+	start := 0
+	runes := []rune(desc)
+	for i := range len(runes) {
+		c := runes[i]
+		if (c == '.' || c == '!' || c == '?') && i+1 < len(runes) && isSpace(runes[i+1]) {
+			if s := strings.TrimSpace(string(runes[start : i+1])); s != "" {
+				out = append(out, s)
+			}
+			start = i + 1
+		}
+	}
+	if s := strings.TrimSpace(string(runes[start:])); s != "" {
+		out = append(out, s)
+	}
+	return out
+}
+
+func isSpace(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
+}
+
 // search ranks catalog entries against a free-text query, optionally restricted
 // to a single product group, returning at most limit results. An empty query
 // (typically combined with a group) browses: it returns entries unscored, in
