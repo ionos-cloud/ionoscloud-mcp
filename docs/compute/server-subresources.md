@@ -99,6 +99,7 @@ Gets details of a specific GPU attached to a server.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `gpu_id` | string | Yes | The ID of the GPU |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

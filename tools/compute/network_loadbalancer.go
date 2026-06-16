@@ -14,7 +14,11 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 		Name:        "list_network_loadbalancers",
 		Description: "List all network load balancers (NLB) in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
-		nlbs, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(ctx, input.DatacenterID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		nlbs, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(ctx, input.DatacenterID).Depth(depth).Execute()
 		return tools.ToResult(nlbs, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 		Name:        "get_network_loadbalancer",
 		Description: "Get details of a specific network load balancer (NLB)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NetworkLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
-		nlb, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersFindByNetworkLoadBalancerId(ctx, input.DatacenterID, input.NetworkLoadBalancerID).Execute()
+		apiReq := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersFindByNetworkLoadBalancerId(ctx, input.DatacenterID, input.NetworkLoadBalancerID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		nlb, _, err := apiReq.Execute()
 		return tools.ToResult(nlb, err)
 	})
 
@@ -30,7 +38,11 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 		Name:        "list_nlb_forwarding_rules",
 		Description: "List all forwarding rules of a network load balancer",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NetworkLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
-		rules, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.NetworkLoadBalancerID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		rules, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.NetworkLoadBalancerID).Depth(depth).Execute()
 		return tools.ToResult(rules, err)
 	})
 }

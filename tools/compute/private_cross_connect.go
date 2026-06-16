@@ -13,8 +13,12 @@ func RegisterPrivateCrossConnectTools(server *mcp.Server, client *ionos.APIClien
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_private_cross_connects",
 		Description: "List all private cross-connects in your IONOS CLOUD account",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		pccs, _, err := client.PrivateCrossConnectsApi.PccsGet(ctx).Execute()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListPrivateCrossConnectsInput) (*mcp.CallToolResult, any, error) {
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		pccs, _, err := client.PrivateCrossConnectsApi.PccsGet(ctx).Depth(depth).Execute()
 		return tools.ToResult(pccs, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterPrivateCrossConnectTools(server *mcp.Server, client *ionos.APIClien
 		Name:        "get_private_cross_connect",
 		Description: "Get details of a specific private cross-connect",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.PccIDInput) (*mcp.CallToolResult, any, error) {
-		pcc, _, err := client.PrivateCrossConnectsApi.PccsFindById(ctx, input.PccID).Execute()
+		apiReq := client.PrivateCrossConnectsApi.PccsFindById(ctx, input.PccID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		pcc, _, err := apiReq.Execute()
 		return tools.ToResult(pcc, err)
 	})
 }

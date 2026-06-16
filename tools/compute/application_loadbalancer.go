@@ -14,7 +14,11 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 		Name:        "list_application_loadbalancers",
 		Description: "List all application load balancers (ALB) in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
-		albs, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(ctx, input.DatacenterID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		albs, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(ctx, input.DatacenterID).Depth(depth).Execute()
 		return tools.ToResult(albs, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 		Name:        "get_application_loadbalancer",
 		Description: "Get details of a specific application load balancer (ALB)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ApplicationLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
-		alb, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersFindByApplicationLoadBalancerId(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Execute()
+		apiReq := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersFindByApplicationLoadBalancerId(ctx, input.DatacenterID, input.ApplicationLoadBalancerID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		alb, _, err := apiReq.Execute()
 		return tools.ToResult(alb, err)
 	})
 
@@ -30,7 +38,11 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 		Name:        "list_alb_forwarding_rules",
 		Description: "List all forwarding rules of an application load balancer",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ApplicationLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
-		rules, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		rules, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Depth(depth).Execute()
 		return tools.ToResult(rules, err)
 	})
 }

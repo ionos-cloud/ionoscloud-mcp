@@ -37,6 +37,7 @@ Gets detailed information about a specific server template.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `template_id` | string | Yes | The ID of the template |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

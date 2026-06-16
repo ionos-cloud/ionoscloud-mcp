@@ -13,8 +13,12 @@ func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_ip_blocks",
 		Description: "List all reserved IP blocks in your IONOS CLOUD account",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		ipblocks, _, err := client.IPBlocksApi.IpblocksGet(ctx).Execute()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListIPBlocksInput) (*mcp.CallToolResult, any, error) {
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		ipblocks, _, err := client.IPBlocksApi.IpblocksGet(ctx).Depth(depth).Execute()
 		return tools.ToResult(ipblocks, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_ip_block",
 		Description: "Get details of a specific reserved IP block",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.IpBlockIDInput) (*mcp.CallToolResult, any, error) {
-		ipblock, _, err := client.IPBlocksApi.IpblocksFindById(ctx, input.IpBlockID).Execute()
+		apiReq := client.IPBlocksApi.IpblocksFindById(ctx, input.IpBlockID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		ipblock, _, err := apiReq.Execute()
 		return tools.ToResult(ipblock, err)
 	})
 }

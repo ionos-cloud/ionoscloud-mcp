@@ -16,6 +16,7 @@ Lists all load balancers in a specific data center.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
 
 **Example:**
 

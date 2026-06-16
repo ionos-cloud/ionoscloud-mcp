@@ -16,6 +16,7 @@ Lists all volumes in a specific data center.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
 
 **Example:**
 
@@ -42,6 +43,7 @@ Gets detailed information about a specific volume.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `volume_id` | string | Yes | The ID of the volume |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

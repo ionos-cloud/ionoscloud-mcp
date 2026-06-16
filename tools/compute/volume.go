@@ -14,7 +14,11 @@ func RegisterVolumeTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "list_volumes",
 		Description: "List all volumes in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
-		volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, input.DatacenterID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, input.DatacenterID).Depth(depth).Execute()
 		return tools.ToResult(volumes, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterVolumeTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_volume",
 		Description: "Get details of a specific volume",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.VolumeIDInput) (*mcp.CallToolResult, any, error) {
-		volume, _, err := client.VolumesApi.DatacentersVolumesFindById(ctx, input.DatacenterID, input.VolumeID).Execute()
+		apiReq := client.VolumesApi.DatacentersVolumesFindById(ctx, input.DatacenterID, input.VolumeID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		volume, _, err := apiReq.Execute()
 		return tools.ToResult(volume, err)
 	})
 }

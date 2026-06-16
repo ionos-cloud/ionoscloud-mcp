@@ -14,7 +14,11 @@ func RegisterLanTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "list_lans",
 		Description: "List all LANs in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
-		lans, _, err := client.LANsApi.DatacentersLansGet(ctx, input.DatacenterID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		lans, _, err := client.LANsApi.DatacentersLansGet(ctx, input.DatacenterID).Depth(depth).Execute()
 		return tools.ToResult(lans, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterLanTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_lan",
 		Description: "Get details of a specific LAN",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.LanIDInput) (*mcp.CallToolResult, any, error) {
-		lan, _, err := client.LANsApi.DatacentersLansFindById(ctx, input.DatacenterID, input.LanID).Execute()
+		apiReq := client.LANsApi.DatacentersLansFindById(ctx, input.DatacenterID, input.LanID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		lan, _, err := apiReq.Execute()
 		return tools.ToResult(lan, err)
 	})
 
@@ -30,7 +38,11 @@ func RegisterLanTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "list_lan_nics",
 		Description: "List all NICs attached to a specific LAN",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.LanIDInput) (*mcp.CallToolResult, any, error) {
-		nics, _, err := client.LANsApi.DatacentersLansNicsGet(ctx, input.DatacenterID, input.LanID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		nics, _, err := client.LANsApi.DatacentersLansNicsGet(ctx, input.DatacenterID, input.LanID).Depth(depth).Execute()
 		return tools.ToResult(nics, err)
 	})
 }

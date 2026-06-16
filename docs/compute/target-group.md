@@ -37,6 +37,7 @@ Gets detailed information about a specific target group.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `target_group_id` | string | Yes | The ID of the target group |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

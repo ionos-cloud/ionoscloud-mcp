@@ -37,6 +37,7 @@ Gets detailed information about a specific reserved IP block.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `ipblock_id` | string | Yes | The ID of the IP block |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
