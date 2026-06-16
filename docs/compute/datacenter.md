@@ -9,16 +9,34 @@ description: |-
 
 ## list_datacenters
 
-Lists all virtual data centers in your IONOS CLOUD account.
+Lists all virtual data centers in your IONOS CLOUD account. Returns names and basic properties by default (`depth=1`), so datacenter names are available without follow-up calls.
 
-**Parameters:** None
+**Parameters:**
 
-**Example:**
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). Depth 1 includes datacenter name, description, location, and version. |
+| `name` | string | No | Filter datacenters by name. Forwarded as `filter.properties.name` to the API (server-side match). |
+
+**Examples:**
+
+List all datacenters with names included (default):
 
 ```json
 {
   "name": "list_datacenters",
   "arguments": {}
+}
+```
+
+Find a datacenter by name:
+
+```json
+{
+  "name": "list_datacenters",
+  "arguments": {
+    "name": "production-dc"
+  }
 }
 ```
 

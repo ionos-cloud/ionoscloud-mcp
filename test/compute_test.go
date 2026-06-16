@@ -1,6 +1,7 @@
 package test
 
 import (
+	"net/url"
 	"testing"
 )
 
@@ -13,7 +14,8 @@ func TestComputeToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Datacenters
-		{name: "list_datacenters", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/cloudapi/v6/datacenters"}},
+		{name: "list_datacenters", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/cloudapi/v6/datacenters"}, wantQuery: []url.Values{{"depth": []string{"1"}}}},
+		{name: "list_datacenters", args: map[string]any{"name": "my-dc"}, wantMethods: []string{"GET"}, wantPaths: []string{"/cloudapi/v6/datacenters"}, wantQuery: []url.Values{{"depth": []string{"1"}, "filter.properties.name": []string{"my-dc"}}}},
 		{name: "get_datacenter", args: map[string]any{"datacenter_id": dc}, wantMethods: []string{"GET"}, wantPaths: []string{"/cloudapi/v6/datacenters/" + dc}},
 
 		// Servers

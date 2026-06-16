@@ -10,6 +10,11 @@ type DatacenterIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 }
 
+type ListDatacentersInput struct {
+	Depth *int32  `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1); depth 1 includes datacenter name and properties"`
+	Name  *string `json:"name,omitempty" jsonschema:"filter datacenters by name (server-side match via filter.properties.name)"`
+}
+
 type ServerIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ServerID     string `json:"server_id" jsonschema:"the ID of the server"`

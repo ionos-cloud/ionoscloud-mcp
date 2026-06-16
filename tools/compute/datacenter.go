@@ -12,9 +12,17 @@ import (
 func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_datacenters",
-		Description: "List all virtual data centers in your IONOS CLOUD account",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Execute()
+		Description: "List all virtual data centers. Returns names and basic properties by default (depth=1). Use name to filter by datacenter name.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListDatacentersInput) (*mcp.CallToolResult, any, error) {
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		apiReq := client.DataCentersApi.DatacentersGet(ctx).Depth(depth)
+		if input.Name != nil {
+			apiReq = apiReq.Filter("properties.name", *input.Name)
+		}
+		datacenters, _, err := apiReq.Execute()
 		return tools.ToResult(datacenters, err)
 	})
 
