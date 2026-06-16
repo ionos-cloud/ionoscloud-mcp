@@ -149,11 +149,9 @@ func main() {
 		// The returned closer tears down the private catalog connection; the
 		// server is a process-lifetime singleton, so we intentionally leave it
 		// open until the process exits.
-		d, err := dynamic.Register(ctx, server, products)
-		if err != nil {
+		if _, err := dynamic.Register(ctx, server, products); err != nil {
 			log.Fatalf("dynamic load mode: %v", err)
 		}
-		defer d.Close()
 
 	case LoadModeLazy:
 		// Small products register eagerly; Compute and Object Storage defer
