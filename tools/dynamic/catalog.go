@@ -34,6 +34,7 @@ func buildCatalog(ctx context.Context, products []Product) (*dispatcher, error) 
 	client := mcp.NewClient(&mcp.Implementation{Name: "ionos-cloud-mcp-catalog-reader", Version: "internal"}, nil)
 	session, err := client.Connect(ctx, clientT, nil)
 	if err != nil {
+		_ = srvSession.Close()
 		return nil, fmt.Errorf("dynamic: connecting catalog reader: %w", err)
 	}
 
@@ -50,14 +51,17 @@ func buildCatalog(ctx context.Context, products []Product) (*dispatcher, error) 
 		// Attribution + dedup: register on a throwaway server and read it back.
 		tools, err := productTools(ctx, p)
 		if err != nil {
+			_ = d.Close()
 			return nil, err
 		}
 		for _, tool := range tools {
 			if prev, dup := d.byName[tool.Name]; dup {
+				_ = d.Close()
 				return nil, fmt.Errorf("dynamic: duplicate tool name %q registered by products %q and %q", tool.Name, prev.Group, p.Name)
 			}
 			schema, mErr := json.Marshal(tool.InputSchema)
 			if mErr != nil {
+				_ = d.Close()
 				return nil, fmt.Errorf("dynamic: marshaling input schema for %q: %w", tool.Name, mErr)
 			}
 			e := catalogEntry{
@@ -73,6 +77,7 @@ func buildCatalog(ctx context.Context, products []Product) (*dispatcher, error) 
 	}
 
 	if len(d.entries) == 0 {
+		_ = d.Close()
 		return nil, fmt.Errorf("dynamic: catalog is empty (no products registered any tools)")
 	}
 
