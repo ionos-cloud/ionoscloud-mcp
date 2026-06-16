@@ -304,9 +304,11 @@ func TestBuildCatalogEmptyNoLeak(t *testing.T) {
 }
 
 // TestBuildCatalogCloseNoLeak covers the success path: a built catalog holds two
-// live sessions, and dispatcher.Close must tear both down. Guards against a
-// regression where Close stops closing srvSession (the server half), which the
-// error-path tests would not catch since those never reach a returned dispatcher.
+// live sessions, and dispatcher.Close must tear them down. Guards against Close
+// regressing to a no-op — a path the error-path tests never reach, since they
+// never return a dispatcher to Close. (Closing either half of the in-memory pair
+// cascades to the other, so dropping just one Close call would still pass here;
+// what this catches is Close doing nothing at all.)
 func TestBuildCatalogCloseNoLeak(t *testing.T) {
 	products := []Product{
 		{Name: "a", Register: regTool("get_alpha")},
