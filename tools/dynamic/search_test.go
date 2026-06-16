@@ -3,8 +3,10 @@ package dynamic
 import (
 	"context"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -234,6 +236,95 @@ func TestRouterSuggestAndSearch(t *testing.T) {
 	if all := r.search("", "", 2); len(all) != 2 {
 		t.Errorf("search(limit=2) returned %d, want 2", len(all))
 	}
+}
+
+// regTool registers one read-only tool of the given name on a server.
+func regTool(name string) func(*mcp.Server) {
+	return func(s *mcp.Server) {
+		mcp.AddTool(s, &mcp.Tool{Name: name, Description: name}, func(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
+			return tools.TextResult("ok"), nil, nil
+		})
+	}
+}
+
+// assertNoGoroutineLeak waits for goroutines to settle back to the baseline
+// captured before the operation under test, then fails if any leaked. The
+// in-memory MCP sessions unwind their goroutines asynchronously after Close, so
+// a fixed sleep would be flaky; poll up to a deadline instead.
+func assertNoGoroutineLeak(t *testing.T, before int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for runtime.NumGoroutine() > before && time.Now().Before(deadline) {
+		runtime.Gosched()
+	}
+	if after := runtime.NumGoroutine(); after > before {
+		t.Errorf("goroutine leak: started with %d, ended with %d", before, after)
+	}
+}
+
+// TestBuildCatalogDuplicateNoLeak verifies that an error after the catalog
+// sessions are established (here: a duplicate tool name across products) tears
+// those sessions down instead of leaking the in-memory server goroutines.
+func TestBuildCatalogDuplicateNoLeak(t *testing.T) {
+	products := []Product{
+		{Name: "a", Register: regTool("get_thing")},
+		{Name: "b", Register: regTool("get_thing")}, // same name -> error path
+	}
+
+	before := runtime.NumGoroutine()
+	d, err := buildCatalog(context.Background(), products)
+	if err == nil {
+		_ = d.Close()
+		t.Fatal("buildCatalog with a duplicate tool name should error")
+	}
+	if d != nil {
+		t.Fatalf("buildCatalog should return a nil dispatcher on error, got %v", d)
+	}
+	assertNoGoroutineLeak(t, before)
+}
+
+// TestBuildCatalogEmptyNoLeak exercises the other post-session error branch: a
+// product that registers no tools leaves the catalog empty, which errors after
+// both sessions are live. The deferred cleanup must still close them.
+func TestBuildCatalogEmptyNoLeak(t *testing.T) {
+	products := []Product{
+		{Name: "empty", Register: func(_ *mcp.Server) {}}, // registers nothing
+	}
+
+	before := runtime.NumGoroutine()
+	d, err := buildCatalog(context.Background(), products)
+	if err == nil {
+		_ = d.Close()
+		t.Fatal("buildCatalog with no tools should error (empty catalog)")
+	}
+	if !strings.Contains(err.Error(), "empty") {
+		t.Errorf("error = %v, want it to mention an empty catalog", err)
+	}
+	assertNoGoroutineLeak(t, before)
+}
+
+// TestBuildCatalogCloseNoLeak covers the success path: a built catalog holds two
+// live sessions, and dispatcher.Close must tear both down. Guards against a
+// regression where Close stops closing srvSession (the server half), which the
+// error-path tests would not catch since those never reach a returned dispatcher.
+func TestBuildCatalogCloseNoLeak(t *testing.T) {
+	products := []Product{
+		{Name: "a", Register: regTool("get_alpha")},
+		{Name: "b", Register: regTool("list_beta")},
+	}
+
+	before := runtime.NumGoroutine()
+	d, err := buildCatalog(context.Background(), products)
+	if err != nil {
+		t.Fatalf("buildCatalog: %v", err)
+	}
+	if len(d.entries) != 2 {
+		t.Fatalf("catalog entries = %d, want 2", len(d.entries))
+	}
+	if err := d.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+	assertNoGoroutineLeak(t, before)
 }
 
 func names(es []catalogEntry) []string {
