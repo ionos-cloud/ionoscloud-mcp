@@ -246,6 +246,25 @@ func TestDynamicSearchDefaultLimit(t *testing.T) {
 	if out.Count == 0 {
 		t.Fatal("broad query 'list' returned nothing")
 	}
+
+	// limit=0 means "no limit": the same broad query should now return more than
+	// the default cap.
+	unlimited := callSearch(t, h, map[string]any{"query": "list", "limit": 0})
+	if unlimited.Count <= 10 {
+		t.Errorf("limit=0 should be uncapped, got %d results (expected > 10)", unlimited.Count)
+	}
+
+	// Negative limit is rejected with an error result.
+	res, err := h.session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name:      "ionos_search_tools",
+		Arguments: map[string]any{"query": "list", "limit": -5},
+	})
+	if err != nil {
+		t.Fatalf("ionos_search_tools protocol error: %v", err)
+	}
+	if !res.IsError || !strings.Contains(resultText(res), "must not be negative") {
+		t.Errorf("negative limit should error with a clear message; got IsError=%v text=%q", res.IsError, resultText(res))
+	}
 }
 
 func TestDynamicConcurrentCalls(t *testing.T) {

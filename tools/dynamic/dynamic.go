@@ -123,7 +123,11 @@ type searchResult struct {
 
 func (r *dispatcher) searchHandler(_ context.Context, _ *mcp.CallToolRequest, in tools.SearchToolsInput) (*mcp.CallToolResult, any, error) {
 	limit := defaultSearchLimit
-	if in.Limit != nil && *in.Limit > 0 {
+	if in.Limit != nil {
+		if *in.Limit < 0 {
+			return errorResult(fmt.Sprintf("limit must not be negative (got %d); omit it for the default of %d, or pass 0 for no limit", *in.Limit, defaultSearchLimit)), nil, nil
+		}
+		// 0 means "no limit": search treats limit<=0 as uncapped.
 		limit = *in.Limit
 	}
 	group := ""

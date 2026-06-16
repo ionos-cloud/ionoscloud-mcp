@@ -285,7 +285,7 @@ type K8sNodeIDInput struct {
 type SearchToolsInput struct {
 	Query string  `json:"query" jsonschema:"keywords to match against tool names and descriptions; leave empty to browse, optionally with group"`
 	Group *string `json:"group,omitempty" jsonschema:"restrict results to a single product group (e.g. compute, dns, billing, cert, activitylog, objectstorage, k8s)"`
-	Limit *int    `json:"limit,omitempty" jsonschema:"maximum number of results to return (default 10)"`
+	Limit *int    `json:"limit,omitempty" jsonschema:"maximum number of results to return; omit for the default of 10, or pass 0 for no limit. Must not be negative."`
 }
 
 type DescribeToolsInput struct {

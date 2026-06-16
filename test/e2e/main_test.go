@@ -134,7 +134,31 @@ func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer, args
 	t.Helper()
 
 	cmd := exec.Command(binPath, args...)
-	env := append(os.Environ(),
+
+	// Strip keys that the test controls from the ambient environment. On Linux
+	// getenv() returns the first match, so ambient values would otherwise win
+	// over anything appended later. IONOS_MCP_LOAD_MODE is always stripped:
+	// tests that need a specific mode set it via extraEnv; tests that omit it
+	// get the binary's compiled-in default (eager).
+	overrideKeys := map[string]bool{
+		"IONOS_TOKEN":         true,
+		"IONOS_API_URL":       true,
+		"IONOS_S3_ACCESS_KEY": true,
+		"IONOS_S3_SECRET_KEY": true,
+		"IONOS_MCP_LOAD_MODE": true,
+	}
+	for k := range extraEnv {
+		overrideKeys[k] = true
+	}
+	base := os.Environ()
+	filtered := make([]string, 0, len(base))
+	for _, entry := range base {
+		key, _, _ := strings.Cut(entry, "=")
+		if !overrideKeys[key] {
+			filtered = append(filtered, entry)
+		}
+	}
+	env := append(filtered,
 		"IONOS_TOKEN=test-token",
 		"IONOS_API_URL="+apiURL,
 		"IONOS_S3_ACCESS_KEY=ak",
