@@ -130,11 +130,35 @@ func waitStderrContains(buf *syncBuffer, sub string, d time.Duration) bool {
 // spawn starts the binary with the given extra env and connects an MCP client
 // over stdio. stderrBuf (if non-nil) captures the subprocess stderr. The
 // returned channel receives a value on each notifications/tools/list_changed.
-func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer) (*mcp.ClientSession, <-chan struct{}) {
+func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer, args ...string) (*mcp.ClientSession, <-chan struct{}) {
 	t.Helper()
 
-	cmd := exec.Command(binPath)
-	env := append(os.Environ(),
+	cmd := exec.Command(binPath, args...)
+
+	// Strip keys that the test controls from the ambient environment. On Linux
+	// getenv() returns the first match, so ambient values would otherwise win
+	// over anything appended later. IONOS_MCP_LOAD_MODE is always stripped:
+	// tests that need a specific mode set it via extraEnv; tests that omit it
+	// get the binary's compiled-in default (eager).
+	overrideKeys := map[string]bool{
+		"IONOS_TOKEN":         true,
+		"IONOS_API_URL":       true,
+		"IONOS_S3_ACCESS_KEY": true,
+		"IONOS_S3_SECRET_KEY": true,
+		"IONOS_MCP_LOAD_MODE": true,
+	}
+	for k := range extraEnv {
+		overrideKeys[k] = true
+	}
+	base := os.Environ()
+	filtered := make([]string, 0, len(base))
+	for _, entry := range base {
+		key, _, _ := strings.Cut(entry, "=")
+		if !overrideKeys[key] {
+			filtered = append(filtered, entry)
+		}
+	}
+	env := append(filtered,
 		"IONOS_TOKEN=test-token",
 		"IONOS_API_URL="+apiURL,
 		"IONOS_S3_ACCESS_KEY=ak",

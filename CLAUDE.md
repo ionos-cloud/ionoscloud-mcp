@@ -28,14 +28,15 @@ Pass `VERSION=<tag>` to `make build` or `make docker` to override the version st
 ## Architecture
 
 ```
-main.go             # Entry point: all SDK clients init, MCP server, stdio transport
-server_config.go    # Version resolution (ldflags > go install > vcs), eagerLoad()
+main.go             # Entry point: arg parsing, load-mode resolution, SDK clients init, MCP server, stdio transport
+server_config.go    # Version resolution (ldflags > go install > vcs), resolveLoadMode()
 resources.go        # MCP resources (embedded docs served to LLM clients)
 tools/
 ├── helpers.go      # Shared helpers (TextResult)
 ├── inputs.go       # Shared input structs with json/jsonschema tags
 ├── ionosclient/    # User-Agent string builder
 ├── loader/         # Lazy loaders for compute and object storage
+├── dynamic/        # 'dynamic' load mode: catalog + search/describe/call meta-tools
 ├── compute/        # Compute Engine tools (servers, datacenters, volumes, NICs, etc.)
 ├── dns/            # DNS tools (zones, records, DNSSEC, quota)
 ├── billing/        # Billing tools (invoices, usage, utilization, traffic, EVN)
@@ -52,10 +53,11 @@ docs/
 ```
 
 - **main.go**: Initializes all SDK clients (compute, DNS, billing, cert, object storage base + management, activity log), creates the MCP server, and runs over `mcp.StdioTransport`. All clients share a single `*http.Client` with the custom User-Agent `RoundTripper` installed.
-- **server_config.go**: Resolves `serverVersion` from ldflags (release builds), `go install` module version, or VCS revision (local builds). Also contains `eagerLoad()` which reads `IONOS_MCP_EAGER_LOAD`.
+- **server_config.go**: Resolves `serverVersion` from ldflags (release builds), `go install` module version, or VCS revision (local builds). Also contains `resolveLoadMode(flagVal, envVal)` — the pure precedence resolver (flag > env > default) for the load mode.
 - **resources.go**: Registers MCP _resources_ (distinct from tools) — structured documents served to LLM clients. Currently exposes `ionos://billing/focus-v1.3` (the FOCUS v1.3 billing spec, embedded from `docs/billing/focus-v1.3.md`).
 - **tools/ionosclient/**: Builds the User-Agent string for all outbound IONOS API calls, including product name, server version, SDK bundle version, transport mode, and Go OS/arch.
-- **tools/loader/**: Registers `ionos_load_compute_tools` and `ionos_load_objectstorage_tools` — sentinel tools that dynamically register the full product tool set on first call. Used in lazy mode (default). Once called, the tool list is updated and MCP clients receive a `notifications/tools/list_changed` signal.
+- **tools/loader/**: Registers `ionos_load_compute_tools` and `ionos_load_objectstorage_tools` — sentinel tools that dynamically register the full product tool set on first call. Used in `lazy` mode. Once called, the tool list is updated and MCP clients receive a `notifications/tools/list_changed` signal.
+- **tools/dynamic/**: Implements `dynamic` load mode. Builds a private in-memory "catalog" server with every product's tools (reusing their `RegisterAll`), self-connects to snapshot the tool metadata, and registers three meta-tools on the public server — `ionos_search_tools` (keyword search over the catalog), `ionos_describe_tools` (full input schemas), `ionos_call_tool` (forwards an invocation to the catalog server). The public tool list never changes.
 
 ### Request Flow
 
@@ -71,17 +73,17 @@ Environment variables (read from the MCP server process — typically inherited 
 
 ### Load modes
 
-The server supports three tool-registration strategies via `IONOS_MCP_LOAD_MODE`:
+The server supports three tool-registration strategies, selectable via the `--load-mode` flag or the `IONOS_MCP_LOAD_MODE` env var. Precedence: flag > env > default (`eager`). Resolution is a pure function `resolveLoadMode(flagVal, envVal)` in `server_config.go` (returns the mode + its source); `main.go` resolves once at startup and logs `load mode: <mode> (source: ...)` to stderr.
 
 - **`eager`** (default): all tools register at startup. Optimal for Claude Code (ToolSearch defers schemas client-side, ~1–3k tokens for names only) and required for clients without `notifications/tools/list_changed` support (Claude Desktop, claude.ai connectors, Claude in Chrome, Smithery scanner).
 
-- **`lazy`**: defer Compute and Object Storage behind `ionos_load_compute_tools` / `ionos_load_objectstorage_tools` sentinel tools. Calling either registers the full product set and emits `notifications/tools/list_changed`. Only useful for clients that honour the notification AND lack client-side schema deferral.
+- **`lazy`**: defer Compute and Object Storage behind `ionos_load_compute_tools` / `ionos_load_objectstorage_tools` sentinel tools. Calling either registers the full product set and emits `notifications/tools/list_changed`. Only useful for clients that honour the notification AND lack client-side schema deferral. (Note: this runtime list-mutation pattern is the one the GitHub MCP server retired in 2026; `dynamic` is generally preferable for cap-limited clients.)
 
-- **`router`** (reserved, not yet implemented): single `ionos_search_tools` + `ionos_invoke` pair. Designed for clients with hard tool caps (Cursor 40, Windsurf 100) or no schema deferral. Currently logs a warning and falls back to `eager`. Implementation tracked separately.
+- **`dynamic`** (alias: `search`): exposes only three meta-tools — `ionos_search_tools`, `ionos_describe_tools`, `ionos_call_tool` (see `tools/dynamic/`). The full catalogue is registered onto a private in-memory "catalog" server (reusing each product's `RegisterAll` unchanged); the dynamic package self-connects over an in-memory transport, snapshots tool metadata at startup, and forwards `ionos_call_tool` to it. The public tool list never changes (no `list_changed` needed). For clients with hard tool caps and no tool search of their own (Cursor ~40, Windsurf 100). Not for Claude Code — keep it `eager`.
 
-Parsing is case-insensitive. Unknown values fall back to `eager` with a stderr warning. Empty / unset env var = eager.
+Parsing is case-insensitive. Any unknown value warns on stderr and falls back to `eager`. Empty / unset = eager.
 
-All other products (DNS, Billing, Cert, Activity Log) are always registered eagerly.
+In `eager` and `lazy` modes, the small products (DNS, Billing, Cert, Activity Log, k8s) always register eagerly. In `dynamic` mode every product — including those — is hidden behind the meta-tools. The product list is defined once as a `[]dynamic.Product` slice in `main.go` and shared across all three modes so they cannot drift.
 
 ### Adding New Tools
 
