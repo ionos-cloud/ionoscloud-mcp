@@ -123,6 +123,11 @@ type TemplateIDInput struct {
 	Depth      *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
+// GetContractInput is the input for get_contract (no required ID fields).
+type GetContractInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
+}
+
 // List*Input types for list_ tools that have no required ID parameters (previously struct{}).
 
 type ListIPBlocksInput struct {
@@ -341,11 +346,6 @@ type K8sNodeIDInput struct {
 	NodepoolID   string `json:"nodepool_id" jsonschema:"the ID of the Kubernetes node pool"`
 	NodeID       string `json:"node_id" jsonschema:"the ID of the Kubernetes node"`
 	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
-}
-
-// GetContractInput is the input for get_contract (no required ID fields).
-type GetContractInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 // Dynamic load-mode meta-tool input types. Used only when the server runs in

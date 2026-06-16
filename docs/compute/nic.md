@@ -46,6 +46,7 @@ Gets detailed information about a specific network interface (NIC).
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `nic_id` | string | Yes | The ID of the network interface |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

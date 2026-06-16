@@ -43,6 +43,7 @@ Gets detailed information about a specific server.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

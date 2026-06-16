@@ -43,6 +43,7 @@ Gets detailed information about a specific security group.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `security_group_id` | string | Yes | The ID of the security group |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -70,6 +71,7 @@ Lists all rules in a specific security group.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `security_group_id` | string | Yes | The ID of the security group |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -97,6 +99,7 @@ Gets details of a specific security group rule.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `security_group_id` | string | Yes | The ID of the security group |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 | `rule_id` | string | Yes | The ID of the security group rule |
 | `depth` | integer | No | Nesting depth of returned objects (0–5). |
 

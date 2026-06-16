@@ -43,6 +43,7 @@ Gets detailed information about a specific LAN.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `lan_id` | string | Yes | The ID of the LAN |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -70,6 +71,7 @@ Lists all NICs attached to a specific LAN.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `lan_id` | string | Yes | The ID of the LAN |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
