@@ -86,7 +86,11 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_server_remote_console",
 		Description: "Get the remote console URL for a specific server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
-		console, _, err := client.ServersApi.DatacentersServersRemoteConsoleGet(ctx, input.DatacenterID, input.ServerID).Execute()
+		apiReq := client.ServersApi.DatacentersServersRemoteConsoleGet(ctx, input.DatacenterID, input.ServerID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		console, _, err := apiReq.Execute()
 		return tools.ToResult(console, err)
 	})
 }
