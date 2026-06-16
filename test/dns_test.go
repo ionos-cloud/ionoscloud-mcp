@@ -1,10 +1,7 @@
 package test
 
 import (
-	"context"
 	"testing"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestDnsToolEndpoints(t *testing.T) {
@@ -17,60 +14,49 @@ func TestDnsToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Zones
-		{"list_dns_zones", map[string]any{}, []string{"GET"}, []string{"/zones"}},
-		{"get_dns_zone", map[string]any{"zone_id": zone}, []string{"GET"}, []string{"/zones/" + zone}},
-		{"get_dns_zone_file", map[string]any{"zone_id": zone}, []string{"GET"}, []string{"/zones/" + zone + "/zonefile"}},
+		{name: "list_dns_zones", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/zones"}},
+		{name: "get_dns_zone", args: map[string]any{"zone_id": zone}, wantMethods: []string{"GET"}, wantPaths: []string{"/zones/" + zone}},
+		{name: "get_dns_zone_file", args: map[string]any{"zone_id": zone}, wantMethods: []string{"GET"}, wantPaths: []string{"/zones/" + zone + "/zonefile"}},
 
 		// Records
-		{"list_dns_records", map[string]any{}, []string{"GET"}, []string{"/records"}},
-		{"list_dns_zone_records", map[string]any{"zone_id": zone}, []string{"GET"}, []string{"/zones/" + zone + "/records"}},
-		{"get_dns_record", map[string]any{"zone_id": zone, "record_id": record}, []string{"GET"}, []string{"/zones/" + zone + "/records/" + record}},
-		{"list_dns_secondary_zone_records", map[string]any{"secondary_zone_id": secondaryZone}, []string{"GET"}, []string{"/secondaryzones/" + secondaryZone + "/records"}},
+		{name: "list_dns_records", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/records"}},
+		{name: "list_dns_zone_records", args: map[string]any{"zone_id": zone}, wantMethods: []string{"GET"}, wantPaths: []string{"/zones/" + zone + "/records"}},
+		{name: "get_dns_record", args: map[string]any{"zone_id": zone, "record_id": record}, wantMethods: []string{"GET"}, wantPaths: []string{"/zones/" + zone + "/records/" + record}},
+		{name: "list_dns_secondary_zone_records", args: map[string]any{"secondary_zone_id": secondaryZone}, wantMethods: []string{"GET"}, wantPaths: []string{"/secondaryzones/" + secondaryZone + "/records"}},
 
 		// Reverse Records
-		{"list_dns_reverse_records", map[string]any{}, []string{"GET"}, []string{"/reverserecords"}},
-		{"get_dns_reverse_record", map[string]any{"reverse_record_id": reverseRecord}, []string{"GET"}, []string{"/reverserecords/" + reverseRecord}},
+		{name: "list_dns_reverse_records", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/reverserecords"}},
+		{name: "get_dns_reverse_record", args: map[string]any{"reverse_record_id": reverseRecord}, wantMethods: []string{"GET"}, wantPaths: []string{"/reverserecords/" + reverseRecord}},
 
 		// Secondary Zones
-		{"list_dns_secondary_zones", map[string]any{}, []string{"GET"}, []string{"/secondaryzones"}},
-		{"get_dns_secondary_zone", map[string]any{"secondary_zone_id": secondaryZone}, []string{"GET"}, []string{"/secondaryzones/" + secondaryZone}},
-		{"get_dns_secondary_zone_axfr", map[string]any{"secondary_zone_id": secondaryZone}, []string{"GET"}, []string{"/secondaryzones/" + secondaryZone + "/axfr"}},
+		{name: "list_dns_secondary_zones", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/secondaryzones"}},
+		{name: "get_dns_secondary_zone", args: map[string]any{"secondary_zone_id": secondaryZone}, wantMethods: []string{"GET"}, wantPaths: []string{"/secondaryzones/" + secondaryZone}},
+		{name: "get_dns_secondary_zone_axfr", args: map[string]any{"secondary_zone_id": secondaryZone}, wantMethods: []string{"GET"}, wantPaths: []string{"/secondaryzones/" + secondaryZone + "/axfr"}},
 
 		// DNSSEC
-		{"list_dns_zone_dnssec_keys", map[string]any{"zone_id": zone}, []string{"GET"}, []string{"/zones/" + zone + "/keys"}},
+		{name: "list_dns_zone_dnssec_keys", args: map[string]any{"zone_id": zone}, wantMethods: []string{"GET"}, wantPaths: []string{"/zones/" + zone + "/keys"}},
 
 		// Quota
-		{"get_dns_quota", map[string]any{}, []string{"GET"}, []string{"/quota"}},
+		{name: "get_dns_quota", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/quota"}},
 	}
 
-	ctx := context.Background()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h.log.clear()
+	h.run(t, tests)
+}
 
-			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{
-				Name:      tt.name,
-				Arguments: tt.args,
-			})
-			if err != nil {
-				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
-			}
+// TestDnsOutput asserts list output is returned to the caller verbatim.
+func TestDnsOutput(t *testing.T) {
+	h := setup(t)
 
-			reqs := h.log.allRequests()
-			if len(tt.wantMethods) != len(tt.wantPaths) {
-				t.Fatalf("test %q: wantMethods has %d entries, wantPaths has %d", tt.name, len(tt.wantMethods), len(tt.wantPaths))
-			}
-			if len(reqs) != len(tt.wantPaths) {
-				t.Fatalf("CallTool(%q) made %d requests, want %d", tt.name, len(reqs), len(tt.wantPaths))
-			}
-			for i, req := range reqs {
-				if req.Method != tt.wantMethods[i] {
-					t.Errorf("CallTool(%q) request[%d] method = %q, want %q", tt.name, i, req.Method, tt.wantMethods[i])
-				}
-				if req.Path != tt.wantPaths[i] {
-					t.Errorf("CallTool(%q) request[%d] path = %q, want %q", tt.name, i, req.Path, tt.wantPaths[i])
-				}
-			}
-		})
+	tests := []toolTest{
+		{
+			name:        "list_dns_zones",
+			args:        map[string]any{},
+			wantMethods: []string{"GET"},
+			wantPaths:   []string{"/zones"},
+			fixture:     `{"items":[{"id":"z-1","properties":{"zoneName":"example.com"}}]}`,
+			wantContain: []string{"z-1", "example.com"},
+		},
 	}
+
+	h.run(t, tests)
 }

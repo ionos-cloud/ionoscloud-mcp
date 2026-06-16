@@ -1,10 +1,8 @@
 package test
 
 import (
-	"context"
+	"net/url"
 	"testing"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestObjectStorageToolEndpoints(t *testing.T) {
@@ -17,65 +15,60 @@ func TestObjectStorageToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Buckets
-		{"list_object_storage_buckets", map[string]any{}, []string{"GET"}, []string{"/"}},
-		{"get_object_storage_bucket_location", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		// forBucket resolves location on first access (GET /{bucket}?location), then HEAD /{bucket}
-		{"head_object_storage_bucket", map[string]any{"bucket": bucket}, []string{"GET", "HEAD"}, []string{"/" + bucket, "/" + bucket}},
+		{name: "list_object_storage_buckets", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/"}},
+		{name: "get_object_storage_bucket_location", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		// forBucket resolves location on first access (GET /{bucket}?location), then HEAD /{bucket}.
+		// This is the first forBucket call for my-bucket, so it pays the location lookup and
+		// caches the region — subsequent cases below see a single request.
+		{name: "head_object_storage_bucket", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET", "HEAD"}, wantPaths: []string{"/" + bucket, "/" + bucket}},
 
 		// Bucket configuration
-		{"get_object_storage_bucket_cors", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_encryption", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_lifecycle", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_policy", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_policy_status", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_replication", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_tagging", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_versioning", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_public_access_block", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_bucket_lock_configuration", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_cors", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_encryption", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_lifecycle", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_policy", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_policy_status", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_replication", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_tagging", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_versioning", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_public_access_block", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_bucket_lock_configuration", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
 
 		// Objects
-		{"list_object_storage_objects", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"head_object_storage_object", map[string]any{"bucket": bucket, "key": key}, []string{"HEAD"}, []string{"/" + bucket + "/" + key}},
-		{"list_object_storage_object_versions", map[string]any{"bucket": bucket}, []string{"GET"}, []string{"/" + bucket}},
-		{"get_object_storage_object_tagging", map[string]any{"bucket": bucket, "key": key}, []string{"GET"}, []string{"/" + bucket + "/" + key}},
-		{"get_object_storage_object_retention", map[string]any{"bucket": bucket, "key": key}, []string{"GET"}, []string{"/" + bucket + "/" + key}},
-		{"get_object_storage_object_legal_hold", map[string]any{"bucket": bucket, "key": key}, []string{"GET"}, []string{"/" + bucket + "/" + key}},
+		{name: "list_object_storage_objects", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "head_object_storage_object", args: map[string]any{"bucket": bucket, "key": key}, wantMethods: []string{"HEAD"}, wantPaths: []string{"/" + bucket + "/" + key}},
+		{name: "list_object_storage_object_versions", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
+		{name: "get_object_storage_object_tagging", args: map[string]any{"bucket": bucket, "key": key}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket + "/" + key}},
+		{name: "get_object_storage_object_retention", args: map[string]any{"bucket": bucket, "key": key}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket + "/" + key}},
+		{name: "get_object_storage_object_legal_hold", args: map[string]any{"bucket": bucket, "key": key}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket + "/" + key}},
 
 		// Access Keys
-		{"list_object_storage_access_keys", map[string]any{}, []string{"GET"}, []string{"/accesskeys"}},
-		{"get_object_storage_access_key", map[string]any{"access_key_id": accessKeyID}, []string{"GET"}, []string{"/accesskeys/" + accessKeyID}},
+		{name: "list_object_storage_access_keys", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/accesskeys"}},
+		{name: "get_object_storage_access_key", args: map[string]any{"access_key_id": accessKeyID}, wantMethods: []string{"GET"}, wantPaths: []string{"/accesskeys/" + accessKeyID}},
 
 		// Regions
-		{"list_object_storage_regions", map[string]any{}, []string{"GET"}, []string{"/regions"}},
-		{"get_object_storage_region", map[string]any{"region": region}, []string{"GET"}, []string{"/regions/" + region}},
+		{name: "list_object_storage_regions", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/regions"}},
+		{name: "get_object_storage_region", args: map[string]any{"region": region}, wantMethods: []string{"GET"}, wantPaths: []string{"/regions/" + region}},
 	}
 
-	ctx := context.Background()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h.log.clear()
+	h.run(t, tests)
+}
 
-			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{
-				Name:      tt.name,
-				Arguments: tt.args,
-			})
-			if err != nil {
-				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
-			}
+// TestObjectStorageListObjectsQuery asserts the prefix filter is forwarded as a
+// query parameter. Uses a fresh setup so the clientCache is empty: the first
+// forBucket access pays the location lookup, so the listing is request index 1.
+func TestObjectStorageListObjectsQuery(t *testing.T) {
+	h := setup(t)
 
-			reqs := h.log.allRequests()
-			if len(reqs) != len(tt.wantPaths) {
-				t.Fatalf("CallTool(%q) made %d requests, want %d", tt.name, len(reqs), len(tt.wantPaths))
-			}
-			for i, req := range reqs {
-				if req.Method != tt.wantMethods[i] {
-					t.Errorf("CallTool(%q) request[%d] method = %q, want %q", tt.name, i, req.Method, tt.wantMethods[i])
-				}
-				if req.Path != tt.wantPaths[i] {
-					t.Errorf("CallTool(%q) request[%d] path = %q, want %q", tt.name, i, req.Path, tt.wantPaths[i])
-				}
-			}
-		})
+	tests := []toolTest{
+		{
+			name:        "list_object_storage_objects",
+			args:        map[string]any{"bucket": "my-bucket", "prefix": "images/"},
+			wantMethods: []string{"GET", "GET"},
+			wantPaths:   []string{"/my-bucket", "/my-bucket"},
+			wantQuery:   []url.Values{nil, {"prefix": {"images/"}}},
+		},
 	}
+
+	h.run(t, tests)
 }

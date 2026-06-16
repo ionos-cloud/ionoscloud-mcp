@@ -1,4 +1,4 @@
-.PHONY: help build install run clean test fmt vet check deps dev lint lintfix vuln docker snapshot
+.PHONY: help build install clean test test-e2e fmt vet deps lint lintfix vuln docker
 
 .DEFAULT_GOAL := help
 
@@ -11,28 +11,24 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Targets:"
-	@awk 'BEGIN {FS = ":.*?## "} /^## [a-zA-Z_-]+:.*?## / {sub(/^## /, ""); printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^## [a-zA-Z0-9_-]+:.*?## / {sub(/^## /, ""); printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-## build:    ## Build the binary (VERSION=<tag> to override version string)
+## build:    ## Build binary (VERSION=<tag> for custom version)
 build:
 	go build -trimpath -ldflags "$(LDFLAGS)" -o ionoscloud-mcp .
 
-## install:  ## Install the binary to $GOBIN (or $GOPATH/bin) so MCP clients on PATH pick it up
+## install:  ## Install the binary to $GOBIN 
 install:
 	go install -trimpath -ldflags "$(LDFLAGS)" .
 
-## run:      ## Build and run the MCP server
-run: build
-	./ionoscloud-mcp
-
-## clean:    ## Remove build artifacts and dist/
-clean:
-	rm -f ionoscloud-mcp
-	rm -rf dist/
-
 ## test:     ## Run unit tests
 test:
-	go test -v ./...
+	go test -v -race ./...
+
+## test-e2e: ## Read-only live API checks
+test-e2e:
+	go test -tags e2e_live -count=1 -timeout 20m ./test/live/...
+	go test -race -tags e2e -count=1 ./test/e2e/...
 
 ## fmt:      ## Format Go code with gofmt
 fmt:
@@ -41,9 +37,6 @@ fmt:
 ## vet:      ## Run go vet
 vet:
 	go vet ./...
-
-## check:    ## Run fmt + vet
-check: fmt vet
 
 ## lint:     ## Run golangci-lint (read-only)
 lint:
@@ -57,18 +50,9 @@ lintfix:
 vuln:
 	govulncheck ./...
 
-## docker:   ## Build a local Docker image from source (IMAGE= to override tag)
+## docker:   ## Build Docker image from source (IMAGE= to override tag)
 docker:
 	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE) .
 
-## snapshot: ## Dry-run the GoReleaser pipeline locally (no publish)
-snapshot:
-	goreleaser release --snapshot --clean --skip=publish
-
-## deps:     ## go mod download + tidy
-deps:
-	go mod download
-	go mod tidy
-
-## dev:      ## check + build + run
-dev: check build run
+check: fmt vet lintfix vuln
+	@echo "\n===>\n✓ check success!"

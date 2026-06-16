@@ -1,10 +1,7 @@
 package test
 
 import (
-	"context"
 	"testing"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestCertToolEndpoints(t *testing.T) {
@@ -16,46 +13,17 @@ func TestCertToolEndpoints(t *testing.T) {
 
 	tests := []toolTest{
 		// Certificates
-		{"list_cert_certificates", map[string]any{}, []string{"GET"}, []string{"/certificates"}},
-		{"get_cert_certificate", map[string]any{"certificate_id": certificate}, []string{"GET"}, []string{"/certificates/" + certificate}},
+		{name: "list_cert_certificates", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/certificates"}},
+		{name: "get_cert_certificate", args: map[string]any{"certificate_id": certificate}, wantMethods: []string{"GET"}, wantPaths: []string{"/certificates/" + certificate}},
 
 		// Auto-Certificates
-		{"list_cert_auto_certificates", map[string]any{}, []string{"GET"}, []string{"/auto-certificates"}},
-		{"get_cert_auto_certificate", map[string]any{"auto_certificate_id": autoCert}, []string{"GET"}, []string{"/auto-certificates/" + autoCert}},
+		{name: "list_cert_auto_certificates", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/auto-certificates"}},
+		{name: "get_cert_auto_certificate", args: map[string]any{"auto_certificate_id": autoCert}, wantMethods: []string{"GET"}, wantPaths: []string{"/auto-certificates/" + autoCert}},
 
 		// Providers
-		{"list_cert_providers", map[string]any{}, []string{"GET"}, []string{"/providers"}},
-		{"get_cert_provider", map[string]any{"provider_id": provider}, []string{"GET"}, []string{"/providers/" + provider}},
+		{name: "list_cert_providers", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/providers"}},
+		{name: "get_cert_provider", args: map[string]any{"provider_id": provider}, wantMethods: []string{"GET"}, wantPaths: []string{"/providers/" + provider}},
 	}
 
-	ctx := context.Background()
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h.log.clear()
-
-			_, err := h.session.CallTool(ctx, &mcp.CallToolParams{
-				Name:      tt.name,
-				Arguments: tt.args,
-			})
-			if err != nil {
-				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
-			}
-
-			reqs := h.log.allRequests()
-			if len(tt.wantMethods) != len(tt.wantPaths) {
-				t.Fatalf("test %q: wantMethods has %d entries, wantPaths has %d", tt.name, len(tt.wantMethods), len(tt.wantPaths))
-			}
-			if len(reqs) != len(tt.wantPaths) {
-				t.Fatalf("CallTool(%q) made %d requests, want %d", tt.name, len(reqs), len(tt.wantPaths))
-			}
-			for i, req := range reqs {
-				if req.Method != tt.wantMethods[i] {
-					t.Errorf("CallTool(%q) request[%d] method = %q, want %q", tt.name, i, req.Method, tt.wantMethods[i])
-				}
-				if req.Path != tt.wantPaths[i] {
-					t.Errorf("CallTool(%q) request[%d] path = %q, want %q", tt.name, i, req.Path, tt.wantPaths[i])
-				}
-			}
-		})
-	}
+	h.run(t, tests)
 }

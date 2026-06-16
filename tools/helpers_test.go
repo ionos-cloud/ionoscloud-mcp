@@ -96,3 +96,55 @@ func TestEnrichSDKError_WrappedSDKError(t *testing.T) {
 		t.Errorf("wrapped SDK 401 should still be enriched, got: %s", got)
 	}
 }
+
+// TestEnrichSDKError_ValueTypedSDKError is a regression test: the IONOS product
+// SDKs return shared.GenericOpenAPIError *by value* from their API methods (not
+// as a pointer). A pointer-only errors.As target silently failed to bind, so
+// 401s passed through un-enriched in production even though the unit tests —
+// which construct the error via NewGenericOpenAPIError (a pointer) — passed.
+func TestEnrichSDKError_ValueTypedSDKError(t *testing.T) {
+	valErr := *shared.NewGenericOpenAPIError(
+		"401 Unauthorized: invalid token",
+		[]byte(`{"messages":[{"message":"Invalid token"}]}`),
+		nil, 401)
+
+	got := enrichSDKError(valErr)
+
+	for _, want := range []string{"IONOS_TOKEN", ".mcp.json", "Invalid token"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("value-typed SDK 401 should be enriched, missing %q\ngot: %s", want, got)
+		}
+	}
+}
+
+func TestToRawResult_NilResponse(t *testing.T) {
+	_, _, err := ToRawResult(nil, nil)
+	if err == nil {
+		t.Fatal("ToRawResult(nil, nil) should return an error")
+	}
+	if !strings.Contains(err.Error(), "empty response") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestToRawResult_APIError(t *testing.T) {
+	sdkErr := *shared.NewGenericOpenAPIError("401 Unauthorized", []byte("nope"), nil, 401)
+	res, _, err := ToRawResult(nil, sdkErr)
+	if err != nil {
+		t.Fatalf("ToRawResult should fold the API error into the result, got Go error: %v", err)
+	}
+	if res == nil || !res.IsError {
+		t.Fatalf("expected error result, got: %+v", res)
+	}
+}
+
+func TestToResult_APIErrorIsEnriched(t *testing.T) {
+	sdkErr := *shared.NewGenericOpenAPIError("401 Unauthorized", []byte("nope"), nil, 401)
+	res, _, err := ToResult(nil, sdkErr)
+	if err != nil {
+		t.Fatalf("ToResult should fold the API error into the result, got Go error: %v", err)
+	}
+	if res == nil || !res.IsError {
+		t.Fatalf("expected error result, got: %+v", res)
+	}
+}
