@@ -20,7 +20,7 @@ import (
 // products — which the combined catalog could not, because mcp.AddTool silently
 // replaces a tool of the same name (leaving describe/search showing one
 // product's metadata while call_tool would invoke the other's handler).
-func buildCatalog(ctx context.Context, products []Product) (*dispatcher, error) {
+func buildCatalog(ctx context.Context, products []Product) (d *dispatcher, err error) {
 	catalog := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionos-cloud-mcp-catalog",
 		Version: "internal",
@@ -31,13 +31,26 @@ func buildCatalog(ctx context.Context, products []Product) (*dispatcher, error) 
 	if err != nil {
 		return nil, fmt.Errorf("dynamic: connecting catalog server: %w", err)
 	}
+	// From here on srvSession is live; any error return must tear it down (and
+	// the reader session, once established) or it leaks the server goroutines.
+	defer func() {
+		if err != nil {
+			_ = srvSession.Close()
+		}
+	}()
+
 	client := mcp.NewClient(&mcp.Implementation{Name: "ionos-cloud-mcp-catalog-reader", Version: "internal"}, nil)
 	session, err := client.Connect(ctx, clientT, nil)
 	if err != nil {
 		return nil, fmt.Errorf("dynamic: connecting catalog reader: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			_ = session.Close()
+		}
+	}()
 
-	d := &dispatcher{
+	d = &dispatcher{
 		byName:     make(map[string]catalogEntry),
 		session:    session,
 		srvSession: srvSession,

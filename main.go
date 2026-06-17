@@ -146,13 +146,14 @@ func main() {
 		// Expose only the search/describe/call meta-tools; the full catalog
 		// lives on a private in-memory server. Best for clients with hard tool
 		// caps and no tool search of their own (Cursor, Windsurf).
-		// The returned closer tears down the private catalog connection; the
-		// server is a process-lifetime singleton, so we intentionally leave it
-		// open until the process exits.
-		if _, err := dynamic.Register(ctx, server, products); err != nil {
+		// The returned closer tears down the private catalog connection on exit.
+		// The catalog is a process-lifetime singleton, so this only matters for a
+		// clean shutdown (server.Run returning); the OS would reclaim it anyway.
+		d, err := dynamic.Register(ctx, server, products)
+		if err != nil {
 			log.Fatalf("dynamic load mode: %v", err)
 		}
-
+		defer d.Close()
 	case LoadModeLazy:
 		// Small products register eagerly; Compute and Object Storage defer
 		// behind ionos_load_*_tools sentinel tools. Requires MCP client support
