@@ -59,10 +59,11 @@ type dispatcher struct {
 
 const defaultSearchLimit = 10
 
-// Close tears down the private catalog server connection. In production the
-// dispatcher is a process-lifetime singleton and Close is never called (the OS
-// reclaims everything at exit); it exists so tests can avoid leaking a catalog
-// server + sessions per run.
+// Close tears down the private catalog server connection (both halves of the
+// in-memory self-connection). main defers it for a clean shutdown when
+// server.Run returns; since the dispatcher is a process-lifetime singleton the
+// OS would reclaim everything at exit anyway, but tests also rely on it to avoid
+// leaking a catalog server + sessions per run. nil-safe on each half.
 func (d *dispatcher) Close() error {
 	if d.session != nil {
 		_ = d.session.Close()
@@ -75,9 +76,8 @@ func (d *dispatcher) Close() error {
 
 // Register builds the private catalog from products and registers the three
 // dynamic meta-tools on the public server. It returns an io.Closer that tears
-// down the catalog connection; production callers may ignore it (the catalog is
-// a process-lifetime singleton), while tests should Close it to avoid leaks.
-// Returns an error if the catalog cannot be built.
+// down the catalog connection; main defers it for a clean shutdown and tests
+// Close it to avoid leaks. Returns an error if the catalog cannot be built.
 func Register(ctx context.Context, public *mcp.Server, products []Product) (io.Closer, error) {
 	d, err := buildCatalog(ctx, products)
 	if err != nil {
