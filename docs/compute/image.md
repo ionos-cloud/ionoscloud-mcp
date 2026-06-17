@@ -11,7 +11,11 @@ description: |-
 
 Lists all available images (OS templates) in IONOS CLOUD.
 
-**Parameters:** None
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). Depth 1 includes names and basic properties. |
 
 **Example:**
 

@@ -6,33 +6,44 @@ package tools
 
 // Compute input types
 
+// ListDatacentersInput is the input for list_datacenters (no required ID fields).
+type ListDatacentersInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1); depth 1 includes names and basic properties"`
+}
+
 type DatacenterIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type ServerIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ServerID     string `json:"server_id" jsonschema:"the ID of the server"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type VolumeIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	VolumeID     string `json:"volume_id" jsonschema:"the ID of the volume"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type SnapshotIDInput struct {
 	SnapshotID string `json:"snapshot_id" jsonschema:"the ID of the snapshot"`
+	Depth      *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type NicIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ServerID     string `json:"server_id" jsonschema:"the ID of the server"`
 	NicID        string `json:"nic_id" jsonschema:"the ID of the network interface"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type LanIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	LanID        string `json:"lan_id" jsonschema:"the ID of the LAN"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type FirewallRuleIDInput struct {
@@ -40,63 +51,119 @@ type FirewallRuleIDInput struct {
 	ServerID       string `json:"server_id" jsonschema:"the ID of the server"`
 	NicID          string `json:"nic_id" jsonschema:"the ID of the network interface"`
 	FirewallRuleID string `json:"firewallrule_id" jsonschema:"the ID of the firewall rule"`
+	Depth          *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type IpBlockIDInput struct {
 	IpBlockID string `json:"ipblock_id" jsonschema:"the ID of the IP block"`
+	Depth     *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type LoadBalancerIDInput struct {
 	DatacenterID   string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	LoadBalancerID string `json:"loadbalancer_id" jsonschema:"the ID of the load balancer"`
+	Depth          *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type NetworkLoadBalancerIDInput struct {
 	DatacenterID          string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	NetworkLoadBalancerID string `json:"network_loadbalancer_id" jsonschema:"the ID of the network load balancer"`
+	Depth                 *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type ApplicationLoadBalancerIDInput struct {
 	DatacenterID              string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ApplicationLoadBalancerID string `json:"application_loadbalancer_id" jsonschema:"the ID of the application load balancer"`
+	Depth                     *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type TargetGroupIDInput struct {
 	TargetGroupID string `json:"target_group_id" jsonschema:"the ID of the target group"`
+	Depth         *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type NatGatewayIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	NatGatewayID string `json:"nat_gateway_id" jsonschema:"the ID of the NAT gateway"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type PccIDInput struct {
 	PccID string `json:"pcc_id" jsonschema:"the ID of the private cross-connect"`
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type GpuIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ServerID     string `json:"server_id" jsonschema:"the ID of the server"`
 	GpuID        string `json:"gpu_id" jsonschema:"the ID of the GPU"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type SecurityGroupIDInput struct {
 	DatacenterID    string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	SecurityGroupID string `json:"security_group_id" jsonschema:"the ID of the security group"`
+	Depth           *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type SecurityGroupRuleIDInput struct {
 	DatacenterID    string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	SecurityGroupID string `json:"security_group_id" jsonschema:"the ID of the security group"`
 	RuleID          string `json:"rule_id" jsonschema:"the ID of the security group rule"`
+	Depth           *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type RequestIDInput struct {
 	RequestID string `json:"request_id" jsonschema:"the ID of the request"`
+	Depth     *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 type TemplateIDInput struct {
 	TemplateID string `json:"template_id" jsonschema:"the ID of the template"`
+	Depth      *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
+}
+
+// GetContractInput is the input for get_contract (no required ID fields).
+type GetContractInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
+}
+
+// List*Input types for list_ tools that have no required ID parameters (previously struct{}).
+
+type ListIPBlocksInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListTargetGroupsInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListPrivateCrossConnectsInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListTemplatesInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListImagesInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListLocationsInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListSnapshotsInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListRequestsInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListK8sClustersInput struct {
+	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
 }
 
 // DNS input types
@@ -265,17 +332,20 @@ type ProviderIDInput struct {
 
 type K8sClusterIDInput struct {
 	K8sClusterID string `json:"k8s_cluster_id" jsonschema:"the ID of the Kubernetes cluster"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type K8sNodepoolIDInput struct {
 	K8sClusterID string `json:"k8s_cluster_id" jsonschema:"the ID of the Kubernetes cluster"`
 	NodepoolID   string `json:"nodepool_id" jsonschema:"the ID of the Kubernetes node pool"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
 type K8sNodeIDInput struct {
 	K8sClusterID string `json:"k8s_cluster_id" jsonschema:"the ID of the Kubernetes cluster"`
 	NodepoolID   string `json:"nodepool_id" jsonschema:"the ID of the Kubernetes node pool"`
 	NodeID       string `json:"node_id" jsonschema:"the ID of the Kubernetes node"`
+	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
 // Dynamic load-mode meta-tool input types. Used only when the server runs in

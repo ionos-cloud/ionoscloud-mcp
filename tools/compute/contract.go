@@ -13,8 +13,12 @@ func RegisterContractTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "get_contract",
 		Description: "Get contract and resource limit information for your IONOS CLOUD account",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		contract, _, err := client.ContractResourcesApi.ContractsGet(ctx).Execute()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.GetContractInput) (*mcp.CallToolResult, any, error) {
+		apiReq := client.ContractResourcesApi.ContractsGet(ctx)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		contract, _, err := apiReq.Execute()
 		return tools.ToResult(contract, err)
 	})
 }

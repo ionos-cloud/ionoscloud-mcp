@@ -13,8 +13,12 @@ func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_requests",
 		Description: "List all API requests in your IONOS CLOUD account",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		requests, _, err := client.RequestsApi.RequestsGet(ctx).Execute()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListRequestsInput) (*mcp.CallToolResult, any, error) {
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		requests, _, err := client.RequestsApi.RequestsGet(ctx).Depth(depth).Execute()
 		return tools.ToResult(requests, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_request",
 		Description: "Get details of a specific API request",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.RequestIDInput) (*mcp.CallToolResult, any, error) {
-		request, _, err := client.RequestsApi.RequestsFindById(ctx, input.RequestID).Execute()
+		apiReq := client.RequestsApi.RequestsFindById(ctx, input.RequestID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		request, _, err := apiReq.Execute()
 		return tools.ToResult(request, err)
 	})
 
@@ -30,7 +38,11 @@ func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_request_status",
 		Description: "Get the status of a specific API request",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.RequestIDInput) (*mcp.CallToolResult, any, error) {
-		status, _, err := client.RequestsApi.RequestsStatusGet(ctx, input.RequestID).Execute()
+		apiReq := client.RequestsApi.RequestsStatusGet(ctx, input.RequestID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		status, _, err := apiReq.Execute()
 		return tools.ToResult(status, err)
 	})
 }

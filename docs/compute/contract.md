@@ -13,7 +13,9 @@ Gets contract and resource limit information for your IONOS CLOUD account.
 
 **Parameters:**
 
-None.
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

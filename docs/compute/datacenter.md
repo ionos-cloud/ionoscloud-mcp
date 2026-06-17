@@ -11,7 +11,11 @@ description: |-
 
 Lists all virtual data centers in your IONOS CLOUD account.
 
-**Parameters:** None
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). Depth 1 includes names and basic properties. |
 
 **Example:**
 
@@ -35,6 +39,7 @@ Gets detailed information about a specific virtual data center.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

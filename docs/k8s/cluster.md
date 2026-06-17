@@ -11,7 +11,11 @@ description: |-
 
 Lists all Managed Kubernetes clusters provisioned in your IONOS CLOUD account.
 
-**Parameters:** None
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). Depth 1 includes names and basic properties. |
 
 **Example:**
 
@@ -35,6 +39,7 @@ Gets detailed information about a specific Kubernetes cluster, including its sta
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `k8s_cluster_id` | string | Yes | The ID of the Kubernetes cluster |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

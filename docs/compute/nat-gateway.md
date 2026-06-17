@@ -16,6 +16,7 @@ Lists all NAT gateways in a specific data center.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
 
 **Example:**
 
@@ -42,6 +43,7 @@ Gets detailed information about a specific NAT gateway.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `nat_gateway_id` | string | Yes | The ID of the NAT gateway |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -69,6 +71,7 @@ Lists all rules of a specific NAT gateway.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `nat_gateway_id` | string | Yes | The ID of the NAT gateway |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

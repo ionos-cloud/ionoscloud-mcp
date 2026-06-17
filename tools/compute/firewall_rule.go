@@ -14,7 +14,11 @@ func RegisterFirewallRuleTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "list_firewall_rules",
 		Description: "List all firewall rules on a network interface",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NicIDInput) (*mcp.CallToolResult, any, error) {
-		rules, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesGet(ctx, input.DatacenterID, input.ServerID, input.NicID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		rules, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesGet(ctx, input.DatacenterID, input.ServerID, input.NicID).Depth(depth).Execute()
 		return tools.ToResult(rules, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterFirewallRuleTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_firewall_rule",
 		Description: "Get details of a specific firewall rule",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.FirewallRuleIDInput) (*mcp.CallToolResult, any, error) {
-		rule, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesFindById(ctx, input.DatacenterID, input.ServerID, input.NicID, input.FirewallRuleID).Execute()
+		apiReq := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesFindById(ctx, input.DatacenterID, input.ServerID, input.NicID, input.FirewallRuleID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		rule, _, err := apiReq.Execute()
 		return tools.ToResult(rule, err)
 	})
 }

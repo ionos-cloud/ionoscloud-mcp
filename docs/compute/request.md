@@ -13,7 +13,9 @@ Lists all API requests in your IONOS CLOUD account.
 
 **Parameters:**
 
-None.
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -37,6 +39,7 @@ Gets detailed information about a specific API request.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `request_id` | string | Yes | The ID of the request |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -62,6 +65,7 @@ Gets the status of a specific API request.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `request_id` | string | Yes | The ID of the request |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

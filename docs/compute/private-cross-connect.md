@@ -13,7 +13,9 @@ Lists all private cross-connects in your IONOS CLOUD account.
 
 **Parameters:**
 
-None.
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -37,6 +39,7 @@ Gets detailed information about a specific private cross-connect.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `pcc_id` | string | Yes | The ID of the private cross-connect |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

@@ -16,6 +16,7 @@ Lists all node pools belonging to a specific Kubernetes cluster.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `k8s_cluster_id` | string | Yes | The ID of the Kubernetes cluster |
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
 
 **Example:**
 
@@ -42,6 +43,7 @@ Gets detailed information about a specific Kubernetes node pool, including node 
 |------|------|----------|-------------|
 | `k8s_cluster_id` | string | Yes | The ID of the Kubernetes cluster |
 | `nodepool_id` | string | Yes | The ID of the Kubernetes node pool |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

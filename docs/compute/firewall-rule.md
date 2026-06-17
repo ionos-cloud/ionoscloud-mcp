@@ -18,6 +18,7 @@ Lists all firewall rules on a specific network interface.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `nic_id` | string | Yes | The ID of the network interface |
+| `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
 
 **Example:**
 
@@ -48,6 +49,7 @@ Gets detailed information about a specific firewall rule.
 | `server_id` | string | Yes | The ID of the server |
 | `nic_id` | string | Yes | The ID of the network interface |
 | `firewallrule_id` | string | Yes | The ID of the firewall rule |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

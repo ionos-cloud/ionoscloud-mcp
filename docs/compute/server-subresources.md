@@ -17,6 +17,7 @@ Lists all volumes attached to a specific server.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -44,6 +45,7 @@ Lists all CD-ROMs attached to a specific server.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -71,6 +73,7 @@ Lists all GPUs attached to a specific server.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -99,6 +102,7 @@ Gets details of a specific GPU attached to a server.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `gpu_id` | string | Yes | The ID of the GPU |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -127,6 +131,7 @@ Gets the remote console URL for a specific server.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 

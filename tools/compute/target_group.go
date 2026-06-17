@@ -13,8 +13,12 @@ func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_target_groups",
 		Description: "List all target groups in your IONOS CLOUD account",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
-		tgs, _, err := client.TargetGroupsApi.TargetgroupsGet(ctx).Execute()
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListTargetGroupsInput) (*mcp.CallToolResult, any, error) {
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		tgs, _, err := client.TargetGroupsApi.TargetgroupsGet(ctx).Depth(depth).Execute()
 		return tools.ToResult(tgs, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_target_group",
 		Description: "Get details of a specific target group",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.TargetGroupIDInput) (*mcp.CallToolResult, any, error) {
-		tg, _, err := client.TargetGroupsApi.TargetgroupsFindByTargetGroupId(ctx, input.TargetGroupID).Execute()
+		apiReq := client.TargetGroupsApi.TargetgroupsFindByTargetGroupId(ctx, input.TargetGroupID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		tg, _, err := apiReq.Execute()
 		return tools.ToResult(tg, err)
 	})
 }

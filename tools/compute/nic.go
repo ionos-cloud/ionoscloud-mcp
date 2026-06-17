@@ -14,7 +14,11 @@ func RegisterNicTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "list_nics",
 		Description: "List all network interfaces (NICs) attached to a server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
-		nics, _, err := client.NetworkInterfacesApi.DatacentersServersNicsGet(ctx, input.DatacenterID, input.ServerID).Execute()
+		depth := int32(1)
+		if input.Depth != nil {
+			depth = *input.Depth
+		}
+		nics, _, err := client.NetworkInterfacesApi.DatacentersServersNicsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth).Execute()
 		return tools.ToResult(nics, err)
 	})
 
@@ -22,7 +26,11 @@ func RegisterNicTools(server *mcp.Server, client *ionos.APIClient) {
 		Name:        "get_nic",
 		Description: "Get details of a specific network interface (NIC)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NicIDInput) (*mcp.CallToolResult, any, error) {
-		nic, _, err := client.NetworkInterfacesApi.DatacentersServersNicsFindById(ctx, input.DatacenterID, input.ServerID, input.NicID).Execute()
+		apiReq := client.NetworkInterfacesApi.DatacentersServersNicsFindById(ctx, input.DatacenterID, input.ServerID, input.NicID)
+		if input.Depth != nil {
+			apiReq = apiReq.Depth(*input.Depth)
+		}
+		nic, _, err := apiReq.Execute()
 		return tools.ToResult(nic, err)
 	})
 }

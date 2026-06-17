@@ -13,7 +13,9 @@ Lists all reserved IP blocks in your IONOS CLOUD account.
 
 **Parameters:**
 
-None.
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
@@ -37,6 +39,7 @@ Gets detailed information about a specific reserved IP block.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `ipblock_id` | string | Yes | The ID of the IP block |
+| `depth` | integer | No | Nesting depth of returned objects (0–5). |
 
 **Example:**
 
