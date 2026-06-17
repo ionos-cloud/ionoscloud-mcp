@@ -255,7 +255,7 @@ func assertNoGoroutineLeak(t *testing.T, before int) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for runtime.NumGoroutine() > before && time.Now().Before(deadline) {
-		runtime.Gosched()
+		time.Sleep(10 * time.Millisecond)
 	}
 	if after := runtime.NumGoroutine(); after > before {
 		t.Errorf("goroutine leak: started with %d, ended with %d", before, after)
