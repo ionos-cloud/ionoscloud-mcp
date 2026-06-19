@@ -18,7 +18,11 @@ func RegisterPrivateCrossConnectTools(server *mcp.Server, client *ionos.APIClien
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		pccs, _, err := client.PrivateCrossConnectsApi.PccsGet(ctx).Depth(depth).Execute()
+		r := client.PrivateCrossConnectsApi.PccsGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		pccs, _, err := r.Execute()
 		return tools.ToResult(pccs, err)
 	})
 

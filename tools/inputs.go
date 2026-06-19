@@ -8,7 +8,8 @@ package tools
 
 // ListDatacentersInput is the input for list_datacenters (no required ID fields).
 type ListDatacentersInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1); depth 1 includes names and basic properties"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1); depth 1 includes names and basic properties"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property name to value pairs (case-sensitive contains match); e.g. {\"name\":\"prod\",\"location\":\"de/fra\"}. Filterable properties include: name, description, location, version"`
 }
 
 type DatacenterIDInput struct {
@@ -131,39 +132,110 @@ type GetContractInput struct {
 // List*Input types for list_ tools that have no required ID parameters (previously struct{}).
 
 type ListIPBlocksInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\",\"location\":\"de/fra\"}"`
 }
 
 type ListTargetGroupsInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
 }
 
 type ListPrivateCrossConnectsInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
 }
 
 type ListTemplatesInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\",\"cpuFamily\":\"INTEL_SKYLAKE\"}"`
 }
 
 type ListImagesInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"ubuntu\",\"imageType\":\"HDD\",\"licenceType\":\"LINUX\",\"location\":\"de/fra\"}"`
 }
 
 type ListLocationsInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"Frankfurt\"}"`
 }
 
 type ListSnapshotsInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\",\"location\":\"de/fra\"}"`
 }
 
 type ListRequestsInput struct {
-	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"method\":\"POST\",\"requestStatus\":\"DONE\",\"createdBy\":\"user@example.com\"}"`
 }
 
 type ListK8sClustersInput struct {
 	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+}
+
+type ListInDatacenterInput struct {
+	DatacenterID string            `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	Depth        *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters      map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
+}
+
+type ListInServerInput struct {
+	DatacenterID string            `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	ServerID     string            `json:"server_id"     jsonschema:"the ID of the server"`
+	Depth        *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters      map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
+}
+
+type ListNatGatewayRulesInput struct {
+	DatacenterID string            `json:"datacenter_id"  jsonschema:"the ID of the data center"`
+	NatGatewayID string            `json:"nat_gateway_id" jsonschema:"the ID of the NAT gateway"`
+	Depth        *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters      map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\",\"type\":\"SNAT\"}"`
+}
+
+type ListLanNicsInput struct {
+	DatacenterID string            `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LanID        string            `json:"lan_id"        jsonschema:"the ID of the LAN"`
+	Depth        *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters      map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
+}
+
+type ListAlbForwardingRulesInput struct {
+	DatacenterID              string            `json:"datacenter_id"               jsonschema:"the ID of the data center"`
+	ApplicationLoadBalancerID string            `json:"application_loadbalancer_id" jsonschema:"the ID of the application load balancer"`
+	Depth                     *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters                   map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
+}
+
+type ListNlbForwardingRulesInput struct {
+	DatacenterID          string            `json:"datacenter_id"           jsonschema:"the ID of the data center"`
+	NetworkLoadBalancerID string            `json:"network_loadbalancer_id" jsonschema:"the ID of the network load balancer"`
+	Depth                 *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters               map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
+}
+
+type ListLoadBalancerNicsInput struct {
+	DatacenterID   string            `json:"datacenter_id"   jsonschema:"the ID of the data center"`
+	LoadBalancerID string            `json:"loadbalancer_id" jsonschema:"the ID of the load balancer"`
+	Depth          *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters        map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\"}"`
+}
+
+type ListSecurityGroupRulesInput struct {
+	DatacenterID    string            `json:"datacenter_id"     jsonschema:"the ID of the data center"`
+	SecurityGroupID string            `json:"security_group_id" jsonschema:"the ID of the security group"`
+	Depth           *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters         map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\",\"type\":\"INGRESS\",\"direction\":\"INBOUND\"}"`
+}
+
+type ListFirewallRulesInput struct {
+	DatacenterID string            `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	ServerID     string            `json:"server_id"     jsonschema:"the ID of the server"`
+	NicID        string            `json:"nic_id"        jsonschema:"the ID of the network interface"`
+	Depth        *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
+	Filters      map[string]string `json:"filters,omitempty" jsonschema:"server-side filters as property→value pairs (contains match); e.g. {\"name\":\"prod\",\"type\":\"INGRESS\",\"direction\":\"INBOUND\"}"`
 }
 
 // DNS input types

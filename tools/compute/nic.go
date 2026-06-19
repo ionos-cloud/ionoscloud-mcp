@@ -13,12 +13,16 @@ func RegisterNicTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_nics",
 		Description: "List all network interfaces (NICs) attached to a server",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		nics, _, err := client.NetworkInterfacesApi.DatacentersServersNicsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth).Execute()
+		r := client.NetworkInterfacesApi.DatacentersServersNicsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		nics, _, err := r.Execute()
 		return tools.ToResult(nics, err)
 	})
 

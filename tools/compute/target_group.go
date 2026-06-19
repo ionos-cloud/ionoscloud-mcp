@@ -18,7 +18,11 @@ func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		tgs, _, err := client.TargetGroupsApi.TargetgroupsGet(ctx).Depth(depth).Execute()
+		r := client.TargetGroupsApi.TargetgroupsGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		tgs, _, err := r.Execute()
 		return tools.ToResult(tgs, err)
 	})
 

@@ -13,12 +13,16 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_servers",
 		Description: "List all servers in a data center",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		servers, _, err := client.ServersApi.DatacentersServersGet(ctx, input.DatacenterID).Depth(depth).Execute()
+		r := client.ServersApi.DatacentersServersGet(ctx, input.DatacenterID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		servers, _, err := r.Execute()
 		return tools.ToResult(servers, err)
 	})
 
@@ -37,36 +41,48 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_server_volumes",
 		Description: "List all volumes attached to a specific server",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		vols, _, err := client.ServersApi.DatacentersServersVolumesGet(ctx, input.DatacenterID, input.ServerID).Depth(depth).Execute()
+		r := client.ServersApi.DatacentersServersVolumesGet(ctx, input.DatacenterID, input.ServerID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		vols, _, err := r.Execute()
 		return tools.ToResult(vols, err)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_server_cdroms",
 		Description: "List all CD-ROMs attached to a specific server",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		cdroms, _, err := client.ServersApi.DatacentersServersCdromsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth).Execute()
+		r := client.ServersApi.DatacentersServersCdromsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		cdroms, _, err := r.Execute()
 		return tools.ToResult(cdroms, err)
 	})
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_server_gpus",
 		Description: "List all GPUs attached to a specific server",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		gpus, _, err := client.GraphicsProcessingUnitCardsApi.DatacentersServersGPUsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth).Execute()
+		r := client.GraphicsProcessingUnitCardsApi.DatacentersServersGPUsGet(ctx, input.DatacenterID, input.ServerID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		gpus, _, err := r.Execute()
 		return tools.ToResult(gpus, err)
 	})
 

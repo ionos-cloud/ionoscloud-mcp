@@ -13,12 +13,16 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_application_loadbalancers",
 		Description: "List all application load balancers (ALB) in a data center",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		albs, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(ctx, input.DatacenterID).Depth(depth).Execute()
+		r := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersGet(ctx, input.DatacenterID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		albs, _, err := r.Execute()
 		return tools.ToResult(albs, err)
 	})
 
@@ -37,12 +41,16 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_alb_forwarding_rules",
 		Description: "List all forwarding rules of an application load balancer",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ApplicationLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListAlbForwardingRulesInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		rules, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Depth(depth).Execute()
+		r := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.ApplicationLoadBalancerID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		rules, _, err := r.Execute()
 		return tools.ToResult(rules, err)
 	})
 }

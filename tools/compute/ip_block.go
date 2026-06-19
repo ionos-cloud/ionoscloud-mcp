@@ -18,7 +18,11 @@ func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		ipblocks, _, err := client.IPBlocksApi.IpblocksGet(ctx).Depth(depth).Execute()
+		r := client.IPBlocksApi.IpblocksGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		ipblocks, _, err := r.Execute()
 		return tools.ToResult(ipblocks, err)
 	})
 

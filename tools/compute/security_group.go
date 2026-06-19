@@ -13,12 +13,16 @@ func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_security_groups",
 		Description: "List all security groups in a data center",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		sgs, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsGet(ctx, input.DatacenterID).Depth(depth).Execute()
+		r := client.SecurityGroupsApi.DatacentersSecuritygroupsGet(ctx, input.DatacenterID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		sgs, _, err := r.Execute()
 		return tools.ToResult(sgs, err)
 	})
 
@@ -37,12 +41,16 @@ func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_security_group_rules",
 		Description: "List all rules in a specific security group",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SecurityGroupIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListSecurityGroupRulesInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		rules, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsRulesGet(ctx, input.DatacenterID, input.SecurityGroupID).Depth(depth).Execute()
+		r := client.SecurityGroupsApi.DatacentersSecuritygroupsRulesGet(ctx, input.DatacenterID, input.SecurityGroupID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		rules, _, err := r.Execute()
 		return tools.ToResult(rules, err)
 	})
 

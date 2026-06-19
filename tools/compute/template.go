@@ -18,7 +18,11 @@ func RegisterTemplateTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		templates, _, err := client.TemplatesApi.TemplatesGet(ctx).Depth(depth).Execute()
+		r := client.TemplatesApi.TemplatesGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		templates, _, err := r.Execute()
 		return tools.ToResult(templates, err)
 	})
 
