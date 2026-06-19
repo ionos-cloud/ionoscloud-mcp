@@ -129,7 +129,7 @@ type GetContractInput struct {
 	Depth *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
-// List*Input types for list_ tools that have no required ID parameters (previously struct{}).
+// List*Input types for list_ tools (account-scoped and resource-scoped variants).
 
 type ListIPBlocksInput struct {
 	Depth   *int32            `json:"depth,omitempty"   jsonschema:"nesting depth of returned objects (0-5, default 1)"`
