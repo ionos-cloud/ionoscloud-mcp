@@ -18,6 +18,7 @@ Lists all volumes attached to a specific server.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `depth` | integer | No | Nesting depth of returned objects (0–5). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod","type":"HDD"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 
@@ -46,6 +47,7 @@ Lists all CD-ROMs attached to a specific server.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `depth` | integer | No | Nesting depth of returned objects (0–5). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 
@@ -74,6 +76,7 @@ Lists all GPUs attached to a specific server.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `server_id` | string | Yes | The ID of the server |
 | `depth` | integer | No | Nesting depth of returned objects (0–5). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 
