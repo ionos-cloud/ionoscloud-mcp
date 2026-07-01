@@ -18,7 +18,11 @@ func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		requests, _, err := client.RequestsApi.RequestsGet(ctx).Depth(depth).Execute()
+		r := client.RequestsApi.RequestsGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		requests, _, err := r.Execute()
 		return tools.ToResult(requests, err)
 	})
 

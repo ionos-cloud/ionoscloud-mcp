@@ -13,12 +13,16 @@ func RegisterVolumeTools(server *mcp.Server, client *ionos.APIClient) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_volumes",
 		Description: "List all volumes in a data center",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		volumes, _, err := client.VolumesApi.DatacentersVolumesGet(ctx, input.DatacenterID).Depth(depth).Execute()
+		r := client.VolumesApi.DatacentersVolumesGet(ctx, input.DatacenterID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		volumes, _, err := r.Execute()
 		return tools.ToResult(volumes, err)
 	})
 

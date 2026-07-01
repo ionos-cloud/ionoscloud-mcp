@@ -18,7 +18,11 @@ func RegisterImageTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		images, _, err := client.ImagesApi.ImagesGet(ctx).Depth(depth).Execute()
+		r := client.ImagesApi.ImagesGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		images, _, err := r.Execute()
 		return tools.ToResult(images, err)
 	})
 }

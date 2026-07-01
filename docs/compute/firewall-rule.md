@@ -19,6 +19,7 @@ Lists all firewall rules on a specific network interface.
 | `server_id` | string | Yes | The ID of the server |
 | `nic_id` | string | Yes | The ID of the network interface |
 | `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod","type":"INGRESS"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 

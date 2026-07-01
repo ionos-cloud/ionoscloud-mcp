@@ -17,6 +17,7 @@ Lists all NAT gateways in a specific data center.
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 
@@ -72,6 +73,7 @@ Lists all rules of a specific NAT gateway.
 | `datacenter_id` | string | Yes | The ID of the data center |
 | `nat_gateway_id` | string | Yes | The ID of the NAT gateway |
 | `depth` | integer | No | Nesting depth of returned objects (0–5). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod","type":"SNAT"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 

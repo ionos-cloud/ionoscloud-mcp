@@ -16,6 +16,7 @@ Lists all available locations (regions) in IONOS CLOUD.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `depth` | integer | No | Nesting depth of returned objects (0–5, default `1`). Depth 1 includes names and basic properties. |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"Frankfurt"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 

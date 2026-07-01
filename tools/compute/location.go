@@ -18,7 +18,11 @@ func RegisterLocationTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		locations, _, err := client.LocationsApi.LocationsGet(ctx).Depth(depth).Execute()
+		r := client.LocationsApi.LocationsGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		locations, _, err := r.Execute()
 		return tools.ToResult(locations, err)
 	})
 }

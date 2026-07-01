@@ -16,6 +16,7 @@ Lists all target groups in your IONOS CLOUD account.
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `depth` | integer | No | Nesting depth of returned objects (0–5). |
+| `filters` | object | No | Server-side property filters; e.g. `{"name":"prod"}`. If the result is empty, retry without filters — a filter typo or mismatch silently returns nothing. |
 
 **Example:**
 

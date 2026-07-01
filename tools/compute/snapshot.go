@@ -18,7 +18,11 @@ func RegisterSnapshotTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		snapshots, _, err := client.SnapshotsApi.SnapshotsGet(ctx).Depth(depth).Execute()
+		r := client.SnapshotsApi.SnapshotsGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		snapshots, _, err := r.Execute()
 		return tools.ToResult(snapshots, err)
 	})
 

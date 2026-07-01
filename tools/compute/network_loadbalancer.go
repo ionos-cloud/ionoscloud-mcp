@@ -13,12 +13,16 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_network_loadbalancers",
 		Description: "List all network load balancers (NLB) in a data center",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		nlbs, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(ctx, input.DatacenterID).Depth(depth).Execute()
+		r := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersGet(ctx, input.DatacenterID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		nlbs, _, err := r.Execute()
 		return tools.ToResult(nlbs, err)
 	})
 
@@ -37,12 +41,16 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "list_nlb_forwarding_rules",
 		Description: "List all forwarding rules of a network load balancer",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NetworkLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListNlbForwardingRulesInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		rules, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.NetworkLoadBalancerID).Depth(depth).Execute()
+		r := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersForwardingrulesGet(ctx, input.DatacenterID, input.NetworkLoadBalancerID).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		rules, _, err := r.Execute()
 		return tools.ToResult(rules, err)
 	})
 }

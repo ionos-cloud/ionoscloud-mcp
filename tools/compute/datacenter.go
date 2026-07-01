@@ -18,7 +18,11 @@ func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
 		if input.Depth != nil {
 			depth = *input.Depth
 		}
-		datacenters, _, err := client.DataCentersApi.DatacentersGet(ctx).Depth(depth).Execute()
+		r := client.DataCentersApi.DatacentersGet(ctx).Depth(depth)
+		for k, v := range input.Filters {
+			r = r.Filter(k, v)
+		}
+		datacenters, _, err := r.Execute()
 		return tools.ToResult(datacenters, err)
 	})
 
