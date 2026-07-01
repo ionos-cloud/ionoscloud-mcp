@@ -52,6 +52,9 @@ This server is published across multiple MCP registries and IDE marketplaces:
 | Glama | [ionoscloud-mcp](https://glama.ai/mcp/servers/ionos-cloud/ionoscloud-mcp) |
 | Cursor | [ionoscloud-mcp](https://cursor.directory/plugins/ionoscloud-mcp) |
 | mcpservers.org | [ionoscloud-mcp](https://mcpservers.org/servers/ionos-cloud/ionoscloud-mcp) |
+| PulseMCP | [ionoscloud](https://www.pulsemcp.com/servers/ionoscloud) |
+| MCPMarket | [ionos-cloud](https://mcpmarket.com/server/ionos-cloud) |
+| punkpeye/awesome-mcp-servers | [ionos-cloud/ionoscloud-mcp](https://github.com/punkpeye/awesome-mcp-servers) |
 
 ## Supported products
 
@@ -269,3 +272,4 @@ For more information about the IONOS CLOUD API:
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE).
+
