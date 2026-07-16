@@ -107,7 +107,24 @@ func Register(ctx context.Context, public *mcp.Server, products []Product) (io.C
 		Name: "ionos_call_tool",
 		Description: "Invoke an IONOS Cloud tool by name with the given arguments and return its " +
 			"result. The name must be an exact tool name from ionos_search_tools; arguments must match " +
-			"the schema from ionos_describe_tools. All catalog tools are read-only.",
+			"the schema from ionos_describe_tools. All catalog tools are read-only.\n\n" +
+			"USE OPTIONAL PARAMETERS IF NEEDED. Beyond the required IDs, many tools (especially list_/get_) accept " +
+			"optional arguments that are easy to overlook but are often what makes a single call answer " +
+			"the request. Always read the tool's schema via ionos_describe_tools first, then pass every " +
+			"optional argument the request needs or clearly implies — do not call with only the required " +
+			"fields when an optional one fits. Two are especially impactful where a tool's schema offers " +
+			"them:\n" +
+			"  - filters (on list_ tools): server-side filtering as property→value pairs (contains match). " +
+			"Filter at the API instead of listing everything and filtering the result yourself.\n" +
+			"  - depth (on both list_ and get_ tools): nesting depth of returned objects (default 1). " +
+			"depth 1 returns only the object and its basic properties; depth 2 embeds its child resources in " +
+			"the SAME response. Prefer depth 2 so nested resources come back in one round-trip instead of a " +
+			"follow-up call per parent; depth 2 is enough for this and higher values add nothing useful. " +
+			"When a user asks to browse or inspect a resource, assume they will also want the resources " +
+			"nested inside it and default to depth 2.\n" +
+			"Other tools expose different optional arguments (filtering, date ranges, pagination, " +
+			"aggregation, and so on) — the set varies per tool, so always check the schema and use what the " +
+			"request implies.",
 		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 	}, d.callHandler)
 
