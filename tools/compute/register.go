@@ -3,11 +3,16 @@ package compute
 import (
 	ionos "github.com/ionos-cloud/sdk-go-bundle/products/compute/v2"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterAll registers all compute engine tools with the MCP server.
-func RegisterAll(server *mcp.Server, client *ionos.APIClient) {
-	RegisterDatacenterTools(server, client)
+// RegisterAll registers all compute engine tools with the MCP server. scope
+// gates the datacenter write tools (they register only if opted in); confirm is
+// the shared two-phase confirmation store used by create/delete.
+func RegisterAll(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
+	RegisterDatacenterTools(server, client, scope)
+	RegisterDatacenterWriteTools(server, client, scope, confirm)
 	RegisterServerTools(server, client)
 	RegisterVolumeTools(server, client)
 	RegisterNicTools(server, client)

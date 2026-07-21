@@ -4,7 +4,8 @@
       "command": "ionoscloud-mcp",
       "env": {
         "IONOS_TOKEN": "${IONOS_TOKEN}",
-        "IONOS_MCP_LOAD_MODE": "eager"
+        "IONOS_MCP_LOAD_MODE": "eager",
+        "IONOS_MCP_TOOL_SCOPE": "destructive"
       }
     }
   }

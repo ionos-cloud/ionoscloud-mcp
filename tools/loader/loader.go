@@ -16,8 +16,10 @@ import (
 )
 
 // RegisterComputeLoader registers an MCP tool that lazily loads
-// all Compute Engine tools on first call.
-func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient) {
+// all Compute Engine tools on first call. scope and confirm are forwarded to
+// compute.RegisterAll so lazy mode applies the same scope gate and shares the
+// same two-phase confirmation store as eager/dynamic mode.
+func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	var (
 		mu     sync.Mutex
 		loaded bool
@@ -31,7 +33,7 @@ func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient) {
 		if loaded {
 			return tools.TextResult("Compute tools are already loaded."), nil, nil
 		}
-		compute.RegisterAll(server, client)
+		compute.RegisterAll(server, client, scope, confirm)
 		loaded = true
 		return tools.TextResult("Compute tools loaded. The tool list has been updated — you can now call list_servers, list_datacenters, and other compute tools."), nil, nil
 	})

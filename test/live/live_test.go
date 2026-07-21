@@ -30,6 +30,7 @@ import (
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
@@ -59,7 +60,7 @@ func session(t *testing.T) *mcp.ClientSession {
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "ionos-cloud-mcp", Version: "live-test"}, nil)
 	activitylog.RegisterAll(server, activitylogSDK.NewAPIClient(cfg))
-	compute.RegisterAll(server, computeSDK.NewAPIClient(cfg))
+	compute.RegisterAll(server, computeSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	dns.RegisterAll(server, dnsSDK.NewAPIClient(cfg))
 	billing.RegisterAll(server, billSDK.NewAPIClient(cfg), "")
 	cert.RegisterAll(server, certSDK.NewAPIClient(cfg))

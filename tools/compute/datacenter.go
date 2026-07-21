@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_datacenters",
 		Description: "List all virtual data centers. Returns names and basic properties by default (depth=1).",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListDatacentersInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterDatacenterTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(datacenters, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_datacenter",
 		Description: "Get details of a specific virtual data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DatacenterIDInput) (*mcp.CallToolResult, any, error) {

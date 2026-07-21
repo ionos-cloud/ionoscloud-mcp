@@ -19,6 +19,7 @@ import (
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
@@ -67,6 +68,14 @@ func main() {
 	// mode and its source to stderr, so client-config issues are diagnosable.
 	mode, modeSrc := resolveLoadMode(loadModeFlag, os.Getenv("IONOS_MCP_LOAD_MODE"))
 	log.Printf("load mode: %s (source: %s)", mode, modeSrc)
+
+	// Resolve the tool scope once. Read-only by default; write and destructive
+	// tools register only when IONOS_MCP_TOOL_SCOPE opts in (hierarchical).
+	scope := tools.ParseScope(os.Getenv("IONOS_MCP_TOOL_SCOPE"))
+	log.Printf("tool scope: %s", scope)
+
+	// Shared two-phase confirmation store for the create/delete write tools.
+	confirm := tools.NewConfirmationStore()
 
 	cfg := shared.NewConfigurationFromEnv()
 
@@ -132,7 +141,7 @@ func main() {
 	// so the three modes can never drift. Order here is the catalog listing order
 	// in dynamic mode.
 	products := []dynamic.Product{
-		{Name: "compute", Summary: "Compute Engine: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots.", Register: func(s *mcp.Server) { compute.RegisterAll(s, client) }},
+		{Name: "compute", Summary: "Compute Engine: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots.", Register: func(s *mcp.Server) { compute.RegisterAll(s, client, scope, confirm) }},
 		{Name: "k8s", Summary: "Managed Kubernetes: clusters, node pools, nodes, versions.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, client) }},
 		{Name: "objectstorage", Summary: "S3-compatible Object Storage: buckets, bucket config (CORS, encryption, lifecycle, policy, replication, versioning), objects, access keys, regions.", Register: func(s *mcp.Server) { objectstorage.RegisterAll(s, objstClient, objmgmtClient, cfg) }},
 		{Name: "dns", Summary: "DNS: zones, records, reverse records, secondary zones, DNSSEC, quota.", Register: func(s *mcp.Server) { dns.RegisterAll(s, dnsClient) }},
@@ -149,7 +158,7 @@ func main() {
 		// The returned closer tears down the private catalog connection on exit.
 		// The catalog is a process-lifetime singleton, so this only matters for a
 		// clean shutdown (server.Run returning); the OS would reclaim it anyway.
-		d, err := dynamic.Register(ctx, server, products)
+		d, err := dynamic.Register(ctx, server, products, scope)
 		if err != nil {
 			log.Fatalf("dynamic load mode: %v", err)
 		}
@@ -159,7 +168,7 @@ func main() {
 		// behind ionos_load_*_tools sentinel tools. Requires MCP client support
 		// for notifications/tools/list_changed.
 		eagerRegister(server, products, "dns", "billing", "cert", "activitylog", "k8s")
-		loader.RegisterComputeLoader(server, client)
+		loader.RegisterComputeLoader(server, client, scope, confirm)
 		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
 	default:
 		// Eager: register every tool at startup.
@@ -216,6 +225,9 @@ Flags:
 
 Environment:
   IONOS_MCP_LOAD_MODE          same values as --load-mode (the flag wins if both set).
+  IONOS_MCP_TOOL_SCOPE         write access, off by default. Comma-separated: read (default),
+                               write (enables create_/update_ tools), destructive (also enables
+                               delete_ tools; implies write). Unrecognised values stay read-only.
   IONOS_TOKEN                  IONOS Cloud API token (required for API calls; all products).
   IONOS_S3_ACCESS_KEY          Object Storage access key (Object Storage tools only).
   IONOS_S3_SECRET_KEY          Object Storage secret key (Object Storage tools only).

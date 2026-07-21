@@ -102,6 +102,27 @@ func TextResult(text string) *mcp.CallToolResult {
 	}
 }
 
+// ErrorText wraps a message as an MCP text result flagged as an error
+// (IsError). Use it for actionable, user-facing failures (missing input,
+// confirmation-token problems) that are surfaced as tool content rather than a
+// transport-level error.
+func ErrorText(msg string) *mcp.CallToolResult {
+	r := TextResult(msg)
+	r.IsError = true
+	return r
+}
+
+// IsNotFound reports whether err is an IONOS SDK error carrying HTTP 404. It
+// matches by the same behavioural interface as enrichSDKError (the SDK returns
+// its error by value), so both value and pointer forms bind.
+func IsNotFound(err error) bool {
+	var sdkErr sdkAPIError
+	if !errors.As(err, &sdkErr) {
+		return false
+	}
+	return sdkErr.StatusCode() == 404
+}
+
 // ToRawResult returns the raw response payload as an MCP text result.
 // Use this for API endpoints that return non-JSON content (e.g. zone files).
 func ToRawResult(resp *shared.APIResponse, apiErr error) (*mcp.CallToolResult, any, error) {

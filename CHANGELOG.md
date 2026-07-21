@@ -4,6 +4,8 @@
 
 ### Added
 
+- **Opt-in write operations for data centers** (`create_datacenter`, `update_datacenter`, `delete_datacenter`): the server is read-only by default and its tool list is unchanged unless `IONOS_MCP_TOOL_SCOPE` opts in (`write` enables create/update; `destructive`, which implies write, also enables delete). Tools are classified by HTTP method and gated at registration through a single `tools.RegisterTool` helper, so blocked tools never appear in `tools/list` — applied in all three load modes and re-checked in the dynamic dispatcher. `create_datacenter` and `delete_datacenter` use a two-phase confirmation (preview → single-use, target-bound, 5-minute token → execute); delete's preview shows the blast radius (contained servers, volumes, LANs, and more). `create_datacenter` makes exactly one data center per call. Write tools set MCP annotations (`readOnlyHint`/`destructiveHint`/`idempotentHint`). This is the blueprint for extending writes to other resources.
+
 - **`filters` parameter on all compute `list_*` tools**: every compute list tool now accepts an optional `filters` object (`{"property": "value"}` pairs) that is forwarded to the API as server-side query params, so only matching resources are returned. Useful for scoping large result sets by name, location, state, image type, and more without client-side post-processing. If a filter returns an empty result, retry without it — a typo or value mismatch silently returns nothing. Filterable properties vary by resource (e.g. `name`, `location`, `vmState`, `cpuFamily`, `imageType`).
 
 ## v1.0.1 — June 2026
