@@ -290,6 +290,46 @@ func TestDeleteDatacenterDynamicParity(t *testing.T) {
 	}
 }
 
+func TestDynamicCallToolAnnotationReflectsScope(t *testing.T) {
+	ctx := context.Background()
+	find := func(h *testSetup) *mcp.Tool {
+		for tool, err := range h.session.Tools(ctx, nil) {
+			if err != nil {
+				t.Fatalf("listing tools: %v", err)
+			}
+			if tool.Name == "ionos_call_tool" {
+				return tool
+			}
+		}
+		t.Fatal("ionos_call_tool not found")
+		return nil
+	}
+
+	// Read-only scope: the dispatcher is genuinely read-only.
+	ro := find(setupDynamic(t))
+	if ro.Annotations == nil || !ro.Annotations.ReadOnlyHint {
+		t.Errorf("read-only scope: ionos_call_tool ReadOnlyHint = %v, want true", ro.Annotations)
+	}
+
+	// Write scope: not read-only, and not destructive (create/update only).
+	w := find(setupDynamicWithScope(t, tools.Scope{Write: true}))
+	if w.Annotations == nil || w.Annotations.ReadOnlyHint {
+		t.Error("write scope: ionos_call_tool must not advertise ReadOnlyHint:true")
+	}
+	if w.Annotations.DestructiveHint == nil || *w.Annotations.DestructiveHint {
+		t.Error("write scope: ionos_call_tool DestructiveHint should be false")
+	}
+
+	// Destructive scope: not read-only, and destructive-capable.
+	d := find(setupDynamicWithScope(t, tools.Scope{Write: true, Destructive: true}))
+	if d.Annotations == nil || d.Annotations.ReadOnlyHint {
+		t.Error("destructive scope: ionos_call_tool must not advertise ReadOnlyHint:true")
+	}
+	if d.Annotations.DestructiveHint == nil || !*d.Annotations.DestructiveHint {
+		t.Error("destructive scope: ionos_call_tool DestructiveHint should be true")
+	}
+}
+
 func TestWriteToolsHiddenInDynamicReadOnly(t *testing.T) {
 	// In dynamic read-only mode, write tools must not be callable through the
 	// dispatcher (they are neither catalogued nor permitted).

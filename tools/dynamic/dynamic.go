@@ -126,10 +126,23 @@ func Register(ctx context.Context, public *mcp.Server, products []Product, scope
 			"Other tools expose different optional arguments (filtering, date ranges, pagination, " +
 			"aggregation, and so on) — the set varies per tool, so always check the schema and use what the " +
 			"request implies.",
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+		Annotations: callToolAnnotations(scope),
 	}, d.callHandler)
 
 	return d, nil
+}
+
+func callToolAnnotations(scope tools.Scope) *mcp.ToolAnnotations {
+	switch {
+	case scope.Allows(tools.ClassDestructive):
+		destructive := true
+		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: &destructive}
+	case scope.Allows(tools.ClassWrite):
+		destructive := false
+		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: &destructive}
+	default:
+		return &mcp.ToolAnnotations{ReadOnlyHint: true}
+	}
 }
 
 // searchResult is one row of an ionos_search_tools response.
