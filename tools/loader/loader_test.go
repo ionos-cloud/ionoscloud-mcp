@@ -12,6 +12,8 @@ import (
 	objmgmtSDK "github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2"
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 // loaderHarness wires an in-memory MCP server+client. notify receives a value
@@ -101,7 +103,7 @@ func (h *loaderHarness) waitNotify(t *testing.T) {
 func TestComputeLoaderRegistersOnFirstCall(t *testing.T) {
 	client := computeSDK.NewAPIClient(testConfig())
 	h := newHarness(t, func(server *mcp.Server) {
-		RegisterComputeLoader(server, client)
+		RegisterComputeLoader(server, client, tools.Scope{}, tools.NewConfirmationStore())
 	})
 
 	before := h.toolNames(t)
@@ -129,7 +131,7 @@ func TestComputeLoaderRegistersOnFirstCall(t *testing.T) {
 func TestComputeLoaderIdempotent(t *testing.T) {
 	client := computeSDK.NewAPIClient(testConfig())
 	h := newHarness(t, func(server *mcp.Server) {
-		RegisterComputeLoader(server, client)
+		RegisterComputeLoader(server, client, tools.Scope{}, tools.NewConfirmationStore())
 	})
 
 	first := h.call(t, "ionos_load_compute_tools")
@@ -171,7 +173,7 @@ func TestObjectStorageLoaderRegistersOnFirstCall(t *testing.T) {
 func TestComputeLoaderConcurrent(t *testing.T) {
 	client := computeSDK.NewAPIClient(testConfig())
 	h := newHarness(t, func(server *mcp.Server) {
-		RegisterComputeLoader(server, client)
+		RegisterComputeLoader(server, client, tools.Scope{}, tools.NewConfirmationStore())
 	})
 
 	const n = 10

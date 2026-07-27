@@ -29,19 +29,22 @@ func callText(t *testing.T, d *dispatcher, in tools.CallToolInput) (bool, string
 	return res.IsError, b.String()
 }
 
-func TestCallHandlerReadOnlyGuard(t *testing.T) {
-	// A (hypothetical) mutating tool in the catalog must be refused before any
-	// dispatch, even though it's a known name. session is nil to prove the guard
-	// returns before forwarding.
-	d := &dispatcher{byName: map[string]catalogEntry{
-		"create_server": {Name: "create_server", Group: "compute", ReadOnly: false},
+func TestCallHandlerScopeGuard(t *testing.T) {
+	// Mutating tools in the catalog must be refused when the scope does not allow
+	// their class, even though the names are known. session is nil to prove the
+	// guard returns before forwarding.
+	d := &dispatcher{scope: tools.Scope{}, byName: map[string]catalogEntry{
+		"create_datacenter": {Name: "create_datacenter", Group: "compute", Class: tools.ClassWrite},
+		"delete_datacenter": {Name: "delete_datacenter", Group: "compute", Class: tools.ClassDestructive},
 	}}
-	isErr, text := callText(t, d, tools.CallToolInput{Name: "create_server"})
-	if !isErr {
-		t.Fatal("calling a non-read-only tool should be an error")
-	}
-	if !strings.Contains(text, "not read-only") {
-		t.Errorf("guard message = %q, want it to mention 'not read-only'", text)
+	for _, name := range []string{"create_datacenter", "delete_datacenter"} {
+		isErr, text := callText(t, d, tools.CallToolInput{Name: name})
+		if !isErr {
+			t.Fatalf("calling %q under read-only scope should be an error", name)
+		}
+		if !strings.Contains(text, "IONOS_MCP_TOOL_SCOPE") {
+			t.Errorf("guard message for %q = %q, want it to mention IONOS_MCP_TOOL_SCOPE", name, text)
+		}
 	}
 }
 
@@ -272,7 +275,7 @@ func TestBuildCatalogDuplicateNoLeak(t *testing.T) {
 	}
 
 	before := runtime.NumGoroutine()
-	d, err := buildCatalog(context.Background(), products)
+	d, err := buildCatalog(context.Background(), products, tools.Scope{})
 	if err == nil {
 		_ = d.Close()
 		t.Fatal("buildCatalog with a duplicate tool name should error")
@@ -292,7 +295,7 @@ func TestBuildCatalogEmptyNoLeak(t *testing.T) {
 	}
 
 	before := runtime.NumGoroutine()
-	d, err := buildCatalog(context.Background(), products)
+	d, err := buildCatalog(context.Background(), products, tools.Scope{})
 	if err == nil {
 		_ = d.Close()
 		t.Fatal("buildCatalog with no tools should error (empty catalog)")
@@ -316,7 +319,7 @@ func TestBuildCatalogCloseNoLeak(t *testing.T) {
 	}
 
 	before := runtime.NumGoroutine()
-	d, err := buildCatalog(context.Background(), products)
+	d, err := buildCatalog(context.Background(), products, tools.Scope{})
 	if err != nil {
 		t.Fatalf("buildCatalog: %v", err)
 	}

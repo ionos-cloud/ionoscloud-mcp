@@ -137,15 +137,18 @@ func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer, args
 
 	// Strip keys that the test controls from the ambient environment. On Linux
 	// getenv() returns the first match, so ambient values would otherwise win
-	// over anything appended later. IONOS_MCP_LOAD_MODE is always stripped:
-	// tests that need a specific mode set it via extraEnv; tests that omit it
-	// get the binary's compiled-in default (eager).
+	// over anything appended later. IONOS_MCP_LOAD_MODE and IONOS_MCP_TOOL_SCOPE
+	// are always stripped: tests that need a specific value set it via extraEnv;
+	// tests that omit it get the binary's default (eager / read-only). Stripping
+	// the scope also stops a developer's exported write scope from silently
+	// enabling write tools in the e2e binary.
 	overrideKeys := map[string]bool{
-		"IONOS_TOKEN":         true,
-		"IONOS_API_URL":       true,
-		"IONOS_S3_ACCESS_KEY": true,
-		"IONOS_S3_SECRET_KEY": true,
-		"IONOS_MCP_LOAD_MODE": true,
+		"IONOS_TOKEN":          true,
+		"IONOS_API_URL":        true,
+		"IONOS_S3_ACCESS_KEY":  true,
+		"IONOS_S3_SECRET_KEY":  true,
+		"IONOS_MCP_LOAD_MODE":  true,
+		"IONOS_MCP_TOOL_SCOPE": true,
 	}
 	for k := range extraEnv {
 		overrideKeys[k] = true

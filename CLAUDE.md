@@ -70,6 +70,7 @@ docs/
 Environment variables (read from the MCP server process — typically inherited from the MCP client that spawns it, e.g. via `env` block in `.mcp.json` or the shell running Claude Code):
 - `IONOS_TOKEN` — IONOS Cloud API token (all products). Not required to start the server. If unset, expired, or revoked, the IONOS API returns 401 which `tools.enrichSDKError` wraps with an actionable message (where to set the token in the MCP client config + restart hint) before it reaches the LLM.
 - `IONOS_S3_ACCESS_KEY` + `IONOS_S3_SECRET_KEY` — Required only for Object Storage tools (per-region S3 endpoint authentication).
+- `IONOS_MCP_TOOL_SCOPE` — Opt-in write access; read-only by default. `write` enables `create_*`/`update_*`; `destructive` (which implies `write`) also enables `delete_*`. Comma-separated, case-insensitive, hierarchical; unrecognised values stay read-only. Parsed by `tools.ParseScope`, resolved once in `main.go`. See "Write operations & tool scope".
 
 ### Load modes
 
@@ -85,6 +86,17 @@ Parsing is case-insensitive. Any unknown value warns on stderr and falls back to
 
 In `eager` and `lazy` modes, the small products (DNS, Billing, Cert, Activity Log, k8s) always register eagerly. In `dynamic` mode every product — including those — is hidden behind the meta-tools. The product list is defined once as a `[]dynamic.Product` slice in `main.go` and shared across all three modes so they cannot drift.
 
+### Write operations & tool scope
+
+Read-only is the default; write tools are gated behind `IONOS_MCP_TOOL_SCOPE` (see Authentication). Key invariants:
+
+- **Gate at registration, in one place.** Tools register through `tools.RegisterTool(server, scope, method, tool, handler)` (`tools/scope.go`). It classifies by HTTP `method`, sets MCP annotations, panics if the name prefix disagrees with the method (`create_`/`update_`/`delete_` vs `list_`/`get_`/`head_`), and skips registration entirely when the scope disallows the class — a skipped tool never enters `tools/list`.
+- **No bypass across load modes.** `scope` is captured in the `main.go` compute closure and threaded into `compute.RegisterAll` and the lazy `RegisterComputeLoader`, so eager, lazy, and dynamic all apply the same filter. The dynamic dispatcher re-checks scope in `callHandler` (`tools/dynamic/`) as defense-in-depth, classifying catalog entries by name via `tools.ClassFromName`.
+- **Two-phase confirmation** for create/delete lives in `tools.ConfirmationStore` (`tools/confirm.go`): a single-use, target-bound, TTL'd token minted on the first (preview) call and consumed on the second (execute) call. One shared store is built in `main.go` and threaded through registration, so both calls — including via `ionos_call_tool` in dynamic mode — hit the same store.
+- **No bulk creation:** `create_*` tools take no count/batch parameter (one resource per call).
+
+The data-center write tools (`tools/compute/datacenter_write.go`) are the blueprint for extending writes to other resources.
+
 ### Adding New Tools
 
 1. Define an input struct in `tools/inputs.go` with `json` and `jsonschema` tags (non-pointer fields are automatically required)
@@ -97,6 +109,7 @@ In `eager` and `lazy` modes, the small products (DNS, Billing, Cert, Activity Lo
    - Add docs under `docs/<product>/`
 5. If it needs to be a lazy-loaded product, add a loader function in `tools/loader/loader.go`
 6. The handler receives the typed input struct and returns `(*mcp.CallToolResult, any, error)`
+7. **Write tools** (`create_*`/`update_*`/`delete_*`) must register via `tools.RegisterTool(server, scope, tools.Method*, ...)` instead of `mcp.AddTool`, so they are scope-gated and annotated. Thread `scope` (and, for create/delete, the shared `*tools.ConfirmationStore`) down from `RegisterAll`, and put destructive ops behind the two-phase confirmation flow. See `tools/compute/datacenter_write.go`.
 
 ### Adding MCP Resources
 

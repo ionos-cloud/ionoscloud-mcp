@@ -20,6 +20,7 @@ import (
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
@@ -34,7 +35,13 @@ import (
 // meta-tools are public; the full catalog lives on a private in-memory server),
 // backed by the same mock HTTP API the eager setup uses.
 func setupDynamic(t *testing.T) *testSetup {
+	return setupDynamicWithScope(t, tools.Scope{})
+}
+
+func setupDynamicWithScope(t *testing.T, scope tools.Scope) *testSetup {
 	t.Helper()
+
+	confirm := tools.NewConfirmationStore()
 
 	log := &requestLog{}
 	resp := newResponder()
@@ -70,7 +77,7 @@ func setupDynamic(t *testing.T) *testSetup {
 	server := mcp.NewServer(&mcp.Implementation{Name: "ionos-cloud-mcp", Version: "1.0.0-test"}, nil)
 
 	products := []dynamic.Product{
-		{Name: "compute", Summary: "Compute Engine.", Register: func(s *mcp.Server) { compute.RegisterAll(s, computeClient) }},
+		{Name: "compute", Summary: "Compute Engine.", Register: func(s *mcp.Server) { compute.RegisterAll(s, computeClient, scope, confirm) }},
 		{Name: "k8s", Summary: "Managed Kubernetes.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, computeClient) }},
 		{Name: "objectstorage", Summary: "Object Storage.", Register: func(s *mcp.Server) { objectstorage.RegisterAll(s, objstClient, objmgmtClient, testCfg()) }},
 		{Name: "dns", Summary: "DNS.", Register: func(s *mcp.Server) { dns.RegisterAll(s, dnsClient) }},
@@ -80,7 +87,7 @@ func setupDynamic(t *testing.T) *testSetup {
 	}
 
 	ctx := context.Background()
-	closer, err := dynamic.Register(ctx, server, products)
+	closer, err := dynamic.Register(ctx, server, products, scope)
 	if err != nil {
 		t.Fatalf("dynamic.Register failed: %v", err)
 	}

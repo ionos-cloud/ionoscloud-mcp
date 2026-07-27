@@ -43,7 +43,7 @@ type catalogEntry struct {
 	Group       string
 	Description string
 	InputSchema json.RawMessage
-	ReadOnly    bool // tool only reads (list_/get_/head_); enforced by callHandler
+	Class       tools.Class // mutation class (read/write/destructive); enforced by callHandler
 }
 
 // dispatcher holds the immutable post-startup state shared by the three
@@ -53,6 +53,7 @@ type catalogEntry struct {
 type dispatcher struct {
 	entries    []catalogEntry
 	byName     map[string]catalogEntry
+	scope      tools.Scope        // enabled tool classes; re-checked in callHandler (defense-in-depth)
 	session    *mcp.ClientSession // client side of the self-connection to the catalog
 	srvSession *mcp.ServerSession // server side; retained so Close can tear it down
 }
@@ -78,8 +79,8 @@ func (d *dispatcher) Close() error {
 // dynamic meta-tools on the public server. It returns an io.Closer that tears
 // down the catalog connection; main defers it for a clean shutdown and tests
 // Close it to avoid leaks. Returns an error if the catalog cannot be built.
-func Register(ctx context.Context, public *mcp.Server, products []Product) (io.Closer, error) {
-	d, err := buildCatalog(ctx, products)
+func Register(ctx context.Context, public *mcp.Server, products []Product, scope tools.Scope) (io.Closer, error) {
+	d, err := buildCatalog(ctx, products, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +108,7 @@ func Register(ctx context.Context, public *mcp.Server, products []Product) (io.C
 		Name: "ionos_call_tool",
 		Description: "Invoke an IONOS Cloud tool by name with the given arguments and return its " +
 			"result. The name must be an exact tool name from ionos_search_tools; arguments must match " +
-			"the schema from ionos_describe_tools. All catalog tools are read-only.\n\n" +
+			"the schema from ionos_describe_tools. Most tools are read-only; create_/update_/delete_ tools mutate and are only callable when IONOS_MCP_TOOL_SCOPE enables them.\n\n" +
 			"USE OPTIONAL PARAMETERS IF NEEDED. Beyond the required IDs, many tools (especially list_/get_) accept " +
 			"optional arguments that are easy to overlook but are often what makes a single call answer " +
 			"the request. Always read the tool's schema via ionos_describe_tools first, then pass every " +
@@ -125,10 +126,23 @@ func Register(ctx context.Context, public *mcp.Server, products []Product) (io.C
 			"Other tools expose different optional arguments (filtering, date ranges, pagination, " +
 			"aggregation, and so on) — the set varies per tool, so always check the schema and use what the " +
 			"request implies.",
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
+		Annotations: callToolAnnotations(scope),
 	}, d.callHandler)
 
 	return d, nil
+}
+
+func callToolAnnotations(scope tools.Scope) *mcp.ToolAnnotations {
+	switch {
+	case scope.Allows(tools.ClassDestructive):
+		destructive := true
+		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: &destructive}
+	case scope.Allows(tools.ClassWrite):
+		destructive := false
+		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: &destructive}
+	default:
+		return &mcp.ToolAnnotations{ReadOnlyHint: true}
+	}
 }
 
 // searchResult is one row of an ionos_search_tools response.
@@ -215,13 +229,12 @@ func (r *dispatcher) callHandler(ctx context.Context, _ *mcp.CallToolRequest, in
 		return errorResult(msg), nil, nil
 	}
 
-	// Defense-in-depth: dynamic mode only proxies read-only tools. Every product
-	// tool today is list_/get_/head_ (read-only by the repo's naming convention),
-	// so this never fires; it fails closed if a mutating tool is ever added and
-	// reaches the catalog, rather than silently exposing it through a generic
-	// dispatcher that advertises ReadOnlyHint:true.
-	if !entry.ReadOnly {
-		return errorResult(fmt.Sprintf("tool %q is not read-only; dynamic mode only serves read-only tools", name)), nil, nil
+	// Defense-in-depth: enforce the scope gate here too. Registration already
+	// keeps classes the scope disallows out of the catalog, so this is a second
+	// gate — a mutating tool is only dispatched when IONOS_MCP_TOOL_SCOPE opts its
+	// class in, and it fails closed otherwise.
+	if !r.scope.Allows(entry.Class) {
+		return errorResult(fmt.Sprintf("tool %q requires IONOS_MCP_TOOL_SCOPE to include the %q capability; current scope is %q", name, entry.Class.String(), r.scope.String())), nil, nil
 	}
 
 	// Forward to the catalog server. Input validation, schema enforcement and

@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/activitylog"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/billing"
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/cert"
@@ -33,6 +35,7 @@ type recordedRequest struct {
 	Method string
 	Path   string
 	Query  url.Values
+	Body   string
 }
 
 // requestLog records HTTP requests hitting the test server
@@ -121,6 +124,9 @@ type toolTest struct {
 	fixture string
 	// wantContain asserts the tool's text output contains each substring.
 	wantContain []string
+	// wantBody, when non-empty, asserts the concatenation of all request bodies
+	// contains each substring (useful for POST/PUT/PATCH payloads).
+	wantBody []string
 }
 
 func (r *requestLog) record(req recordedRequest) {
@@ -217,6 +223,19 @@ func (h *testSetup) run(t *testing.T, tests []toolTest) {
 					}
 				}
 			}
+
+			if len(tt.wantBody) > 0 {
+				var bodies strings.Builder
+				for _, req := range reqs {
+					bodies.WriteString(req.Body)
+				}
+				all := bodies.String()
+				for _, want := range tt.wantBody {
+					if !strings.Contains(all, want) {
+						t.Errorf("CallTool(%q) request body missing %q\ngot: %s", tt.name, want, all)
+					}
+				}
+			}
 		})
 	}
 }
@@ -234,6 +253,12 @@ func equalStrings(a, b []string) bool {
 }
 
 func setup(t *testing.T) *testSetup {
+	return setupWithScope(t, tools.Scope{})
+}
+
+// setupWithScope wires the MCP server with the given tool scope, so write-tool
+// tests can enable create/update/delete while the default setup stays read-only.
+func setupWithScope(t *testing.T, scope tools.Scope) *testSetup {
 	t.Helper()
 
 	log := &requestLog{}
@@ -241,7 +266,8 @@ func setup(t *testing.T) *testSetup {
 
 	// local server replaces the real api.ionos.com
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.record(recordedRequest{Method: r.Method, Path: r.URL.Path, Query: r.URL.Query()})
+		reqBody, _ := io.ReadAll(r.Body)
+		log.record(recordedRequest{Method: r.Method, Path: r.URL.Path, Query: r.URL.Query(), Body: string(reqBody)})
 		status, body := resp.get(r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
@@ -279,7 +305,7 @@ func setup(t *testing.T) *testSetup {
 	}, nil)
 
 	activitylog.RegisterAll(server, activitylogClient)
-	compute.RegisterAll(server, computeClient)
+	compute.RegisterAll(server, computeClient, scope, tools.NewConfirmationStore())
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient, "")
 	cert.RegisterAll(server, certClient)

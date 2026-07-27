@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
 // buildCatalog registers every product onto a private in-memory "catalog"
@@ -20,7 +22,7 @@ import (
 // products — which the combined catalog could not, because mcp.AddTool silently
 // replaces a tool of the same name (leaving describe/search showing one
 // product's metadata while call_tool would invoke the other's handler).
-func buildCatalog(ctx context.Context, products []Product) (d *dispatcher, err error) {
+func buildCatalog(ctx context.Context, products []Product, scope tools.Scope) (d *dispatcher, err error) {
 	catalog := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionos-cloud-mcp-catalog",
 		Version: "internal",
@@ -52,6 +54,7 @@ func buildCatalog(ctx context.Context, products []Product) (d *dispatcher, err e
 
 	d = &dispatcher{
 		byName:     make(map[string]catalogEntry),
+		scope:      scope,
 		session:    session,
 		srvSession: srvSession,
 	}
@@ -61,11 +64,11 @@ func buildCatalog(ctx context.Context, products []Product) (d *dispatcher, err e
 		p.Register(catalog)
 
 		// Attribution + dedup: register on a throwaway server and read it back.
-		tools, err := productTools(ctx, p)
+		prodTools, err := productTools(ctx, p)
 		if err != nil {
 			return nil, err
 		}
-		for _, tool := range tools {
+		for _, tool := range prodTools {
 			if prev, dup := d.byName[tool.Name]; dup {
 				return nil, fmt.Errorf("dynamic: duplicate tool name %q registered by products %q and %q", tool.Name, prev.Group, p.Name)
 			}
@@ -78,7 +81,7 @@ func buildCatalog(ctx context.Context, products []Product) (d *dispatcher, err e
 				Group:       p.Name,
 				Description: tool.Description,
 				InputSchema: schema,
-				ReadOnly:    isReadOnlyName(tool.Name),
+				Class:       tools.ClassFromName(tool.Name),
 			}
 			d.entries = append(d.entries, e)
 			d.byName[tool.Name] = e
@@ -121,15 +124,6 @@ func productTools(ctx context.Context, p Product) ([]*mcp.Tool, error) {
 		out = append(out, tool)
 	}
 	return out, nil
-}
-
-// isReadOnlyName reports whether a tool name follows the repo's read-only naming
-// convention (list_/get_/head_). Used by callHandler to fail closed on any
-// future mutating tool reached through the generic dispatcher.
-func isReadOnlyName(name string) bool {
-	return strings.HasPrefix(name, "list_") ||
-		strings.HasPrefix(name, "get_") ||
-		strings.HasPrefix(name, "head_")
 }
 
 // catalogSummary renders the product listing embedded in the ionos_search_tools

@@ -17,6 +17,32 @@ type DatacenterIDInput struct {
 	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
+// CreateDatacenterInput is the input for create_datacenter. Two-phase confirmed;
+// creates exactly one data center per call (no batch/count field).
+type CreateDatacenterInput struct {
+	Name              string  `json:"name" jsonschema:"the name of the new data center"`
+	Location          string  `json:"location" jsonschema:"the physical location where the data center will be created, e.g. de/fra, de/txl, us/las, us/ewr, gb/lhr, es/vit, fr/par. Cannot be changed after creation."`
+	Description       *string `json:"description,omitempty" jsonschema:"an optional description, such as staging or production"`
+	SecAuthProtection *bool   `json:"sec_auth_protection,omitempty" jsonschema:"if true, the data center requires extra protection such as two-step verification"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of what will be created plus a one-time token; pass that token on the SECOND call (with the same name and location) to actually create the data center. The token expires after a few minutes."`
+}
+
+// UpdateDatacenterInput is the input for update_datacenter. Partial update;
+// location is immutable and cannot be set here.
+type UpdateDatacenterInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center to update"`
+	Name              *string `json:"name,omitempty" jsonschema:"a new name for the data center"`
+	Description       *string `json:"description,omitempty" jsonschema:"a new description for the data center"`
+	SecAuthProtection *bool   `json:"sec_auth_protection,omitempty" jsonschema:"set the extra-protection (two-step verification) flag"`
+}
+
+// DeleteDatacenterInput is the input for delete_datacenter. Two-phase confirmed:
+// deleting removes the data center and every resource inside it.
+type DeleteDatacenterInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (what will be destroyed) plus a one-time token; pass that token on the SECOND call to actually delete. The token authorizes deleting only the data center it was issued for and expires after a few minutes."`
+}
+
 type ServerIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ServerID     string `json:"server_id" jsonschema:"the ID of the server"`
