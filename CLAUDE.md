@@ -95,7 +95,12 @@ Read-only is the default; write tools are gated behind `IONOS_MCP_TOOL_SCOPE` (s
 - **Two-phase confirmation** for create/delete lives in `tools.ConfirmationStore` (`tools/confirm.go`): a single-use, target-bound, TTL'd token minted on the first (preview) call and consumed on the second (execute) call. One shared store is built in `main.go` and threaded through registration, so both calls — including via `ionos_call_tool` in dynamic mode — hit the same store.
 - **No bulk creation:** `create_*` tools take no count/batch parameter (one resource per call).
 
-The data-center write tools (`tools/compute/datacenter_write.go`) are the blueprint for extending writes to other resources.
+- **PATCH bodies must contain only the fields the caller supplied.** Build the properties struct as a zero-valued literal (`&ionos.VolumeProperties{}`), never with the SDK's generated `New*Properties[WithDefaults]()` constructor. Those constructors pre-set documented API defaults — `NicProperties` gets `dhcp=true`; `VolumeProperties` gets `exposeSerial=false`, `requireLegacyBios=true`, `bootOrder="AUTO"` — and a PATCH built from one sends them as though the caller had asked, so renaming a volume would also force legacy BIOS on and reset its boot order (which can stop a server booting). `TestUpdateBodiesContainOnlyRequestedFields` asserts the exact JSON key set of every update body, so a future SDK bump that adds a default is caught.
+- **Watch for non-pointer property fields**, which the SDK serializes unconditionally regardless of the above. `NicProperties.Lan` is the known case: a PATCH that omits it sends `"lan": 0` and moves the NIC off its LAN as a side effect of an unrelated change, so `update_nic` reads the NIC's current LAN and sends it back unchanged. Check `ToMap` in the model file for any `toSerialize[...]` line that is not behind an `IsNil` guard.
+
+The presentation half of the two-phase flow lives in `tools/preview.go` (`tools.Preview`, `tools.Fields`, `tools.BlastRadius`, `tools.ConfirmErrorText`, `tools.Target`, `tools.HasToken`, `tools.DeletedAsync`, `tools.Opt*`). It is product-agnostic on purpose — DNS, cert and object storage write tools should reuse it rather than growing their own preview format, so a model only has to learn one shape.
+
+The data-center write tools (`tools/compute/datacenter_write.go`) are the blueprint for extending writes to other resources; `tools/compute/server_write.go` additionally shows pre-flight validation, a delete flag bound into the confirmation target, and secret redaction in previews.
 
 ### Adding New Tools
 

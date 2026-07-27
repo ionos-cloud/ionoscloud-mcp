@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_ip_blocks",
 		Description: "List all reserved IP blocks in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListIPBlocksInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterIpBlockTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(ipblocks, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_ip_block",
 		Description: "Get details of a specific reserved IP block",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.IpBlockIDInput) (*mcp.CallToolResult, any, error) {

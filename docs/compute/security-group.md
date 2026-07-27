@@ -2,7 +2,7 @@
 subcategory: "Compute Engine"
 page_title: "Security Group"
 description: |-
-  Tools for listing and inspecting security groups and their rules in IONOS CLOUD.
+  Tools for listing and inspecting security groups and their rules, and (opt-in) assigning them to servers and NICs, in IONOS CLOUD.
 ---
 
 # Security Groups
@@ -118,3 +118,37 @@ Gets details of a specific security group rule.
 ```
 
 **API Reference:** [datacentersSecuritygroupsRulesFindById](https://api.ionos.com/docs/cloud/v6/#tag/SecurityGroups/operation/datacentersSecuritygroupsRulesFindById)
+
+---
+
+## assign_server_security_groups / assign_nic_security_groups
+
+Sets which security groups a server or a NIC has. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Single call.
+
+Both tools **replace the entire set**: any group you omit is unassigned, and an empty list unassigns all of them, removing the protection those groups provided. To *add* a group, first read the current set (`get_server` or `get_nic` at depth 2), then pass that set plus the new ID.
+
+Only the assignment changes — no security group is created or deleted, and the change is reversible by assigning the previous set back. The underlying API call is a `PUT`, so the tools carry `idempotentHint: true`.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `datacenter_id` | string | Yes | The ID of the data center. |
+| `server_id` | string | Yes | The ID of the server (both tools). |
+| `nic_id` | string | Yes (NIC tool only) | The ID of the NIC. |
+| `security_group_ids` | array of string | Yes | The **complete** list of security group IDs the resource should have. Replaces the current set. An empty list unassigns all groups. |
+
+**Example (replace the set with two groups):**
+
+```json
+{
+  "name": "assign_server_security_groups",
+  "arguments": {
+    "datacenter_id": "12345678-1234-1234-1234-123456789012",
+    "server_id": "87654321-4321-4321-4321-210987654321",
+    "security_group_ids": ["sg-aaaa", "sg-bbbb"]
+  }
+}
+```
+
+**API Reference:** [datacentersServersSecuritygroupsPut](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersServersSecuritygroupsPut), [datacentersServersNicsSecuritygroupsPut](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersServersNicsSecuritygroupsPut)

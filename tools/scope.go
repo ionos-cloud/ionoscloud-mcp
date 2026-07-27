@@ -131,11 +131,76 @@ func (m Method) annotations() *mcp.ToolAnnotations {
 	}
 }
 
+// actionVerbs maps the name prefix of a non-CRUD operation to its mutation
+// class. Server power control, snapshot restore and attach/detach read far
+// better to a model as domain verbs than as create_/delete_, so they get an
+// explicit table instead of being forced into the CRUD prefixes.
+//
+// This table is the single source of truth for action classification, with two
+// readers: RegisterActionTool (the registration gate) and ClassFromName (the
+// dynamic dispatcher's gate). Adding a verb here without a matching handler is
+// harmless; registering an action whose verb is absent panics at boot.
+//
+// Invariant: no verb may be a prefix of another, so at most one can match a
+// given tool name and map iteration order cannot affect the result.
+// TestActionVerbsAreNotPrefixesOfEachOther enforces it.
+var actionVerbs = map[string]Class{
+	// Mutating but recoverable: they add or resume, never discard.
+	"start_":  ClassWrite,
+	"resume_": ClassWrite,
+	"attach_": ClassWrite,
+	"assign_": ClassWrite,
+	// Destructive despite not being delete_: these interrupt a running
+	// workload, discard data, or detach a resource in use.
+	"stop_":    ClassDestructive,
+	"reboot_":  ClassDestructive,
+	"suspend_": ClassDestructive,
+	"upgrade_": ClassDestructive,
+	"restore_": ClassDestructive,
+	"detach_":  ClassDestructive,
+}
+
+// Action describes a non-CRUD operation whose tool name uses a domain verb
+// instead of create_/update_/delete_. Method is the underlying HTTP method,
+// used only to issue the request — POST for power control and attach, DELETE
+// for detach, PUT for set-replacing assignment. The mutation class comes from
+// the verb, never from the method, because the two disagree in both directions:
+// stop_server is a POST that is destructive, detach_server_volume is a DELETE
+// that is not a resource deletion.
+type Action struct {
+	Verb       string // name prefix; must be a key of actionVerbs
+	Method     Method // HTTP method used for the request
+	Idempotent bool   // safe to repeat with the same effect (start/stop yes, reboot/upgrade no)
+}
+
+// Class returns the mutation class the verb implies.
+func (a Action) Class() Class { return actionVerbs[a.Verb] }
+
+// annotations returns the MCP tool annotations implied by the action. Unlike
+// Method.annotations, DestructiveHint follows the verb's class and
+// IdempotentHint is declared per action rather than inferred.
+func (a Action) annotations() *mcp.ToolAnnotations {
+	return &mcp.ToolAnnotations{
+		ReadOnlyHint:    false,
+		DestructiveHint: boolPtr(a.Class() == ClassDestructive),
+		IdempotentHint:  a.Idempotent,
+	}
+}
+
 // ClassFromName derives a tool's class from its name prefix. The dynamic
 // dispatcher only has tool names to work with, so it classifies by the strict
-// naming convention (create_/update_ => write, delete_ => destructive, else
-// read). RegisterTool guarantees write tools carry the matching prefix.
+// naming convention (create_/update_ => write, delete_ => destructive, an
+// actionVerbs prefix => that verb's class, else read). RegisterTool and
+// RegisterActionTool guarantee mutating tools carry a matching prefix.
 func ClassFromName(name string) Class {
+	// Action verbs first: they are the classes a prefix-only heuristic would
+	// otherwise miss, and missing one would silently classify a destructive
+	// tool as read.
+	for verb, class := range actionVerbs {
+		if strings.HasPrefix(name, verb) {
+			return class
+		}
+	}
 	switch {
 	case strings.HasPrefix(name, "delete_"):
 		return ClassDestructive
@@ -178,6 +243,27 @@ func RegisterTool[In, Out any](s *mcp.Server, sc Scope, m Method, t *mcp.Tool, h
 		return // gate: not permitted by the current scope — never registered
 	}
 	t.Annotations = m.annotations()
+	mcp.AddTool(s, t, h)
+}
+
+// RegisterActionTool is RegisterTool for non-CRUD operations named with a domain
+// verb (start_, stop_, attach_, detach_, ...). It applies the same gate: assert
+// the name carries the declared verb — panicking on mismatch, a boot-time coding
+// error caught by tests; set verb-derived annotations; and register only if the
+// scope permits the verb's class, otherwise skipping it entirely so it never
+// appears in tools/list. The class comes from actionVerbs, not from a.Method, so
+// a destructive POST like stop_server needs "destructive" and not merely "write".
+func RegisterActionTool[In, Out any](s *mcp.Server, sc Scope, a Action, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
+	if _, ok := actionVerbs[a.Verb]; !ok {
+		panic(fmt.Sprintf("RegisterActionTool: tool %q declares unknown action verb %q; add it to actionVerbs with its class", t.Name, a.Verb))
+	}
+	if !strings.HasPrefix(t.Name, a.Verb) {
+		panic(fmt.Sprintf("RegisterActionTool: tool %q name does not start with its declared action verb %q", t.Name, a.Verb))
+	}
+	if !sc.Allows(a.Class()) {
+		return // gate: not permitted by the current scope — never registered
+	}
+	t.Annotations = a.annotations()
 	mcp.AddTool(s, t, h)
 }
 

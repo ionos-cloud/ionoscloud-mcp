@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterNicTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterNicTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_nics",
 		Description: "List all network interfaces (NICs) attached to a server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterNicTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(nics, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_nic",
 		Description: "Get details of a specific network interface (NIC)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NicIDInput) (*mcp.CallToolResult, any, error) {

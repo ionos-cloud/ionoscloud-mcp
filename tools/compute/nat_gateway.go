@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterNatGatewayTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterNatGatewayTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_nat_gateways",
 		Description: "List all NAT gateways in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterNatGatewayTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(nats, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_nat_gateway",
 		Description: "Get details of a specific NAT gateway",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NatGatewayIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterNatGatewayTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(nat, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_nat_gateway_rules",
 		Description: "List all rules of a specific NAT gateway",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListNatGatewayRulesInput) (*mcp.CallToolResult, any, error) {

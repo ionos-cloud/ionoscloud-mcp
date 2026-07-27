@@ -48,6 +48,78 @@ func TestCallHandlerScopeGuard(t *testing.T) {
 	}
 }
 
+// TestCatalogClassifiesActionVerbs is the defence-in-depth guard for action
+// tools. Registration is the primary gate, so a tool the scope disallows is
+// normally absent from the catalog entirely. This test covers the case that gate
+// cannot catch: a tool registered with bare mcp.AddTool instead of
+// tools.RegisterActionTool, which lands in the catalog whatever the scope. The
+// only thing standing between it and the API is buildCatalog classifying it by
+// name (tools.ClassFromName) and callHandler refusing it.
+//
+// Before actionVerbs was wired into ClassFromName, a destructive POST named
+// stop_server classified as ClassRead and this second gate silently no-opped for
+// every action verb.
+func TestCatalogClassifiesActionVerbs(t *testing.T) {
+	// A product that bypasses the registration gate, as a careless addition
+	// would. Under a write-only scope the destructive verbs must still be
+	// refused, and the write-class ones allowed.
+	ungated := Product{
+		Name:    "ungated",
+		Summary: "tools registered without the scope gate",
+		Register: func(s *mcp.Server) {
+			for _, name := range []string{
+				"stop_server", "reboot_server", "detach_server_volume", "restore_volume_snapshot",
+				"start_server", "attach_server_volume", "list_servers",
+			} {
+				mcp.AddTool(s, &mcp.Tool{Name: name, Description: "ungated " + name},
+					func(context.Context, *mcp.CallToolRequest, struct{}) (*mcp.CallToolResult, any, error) {
+						return tools.TextResult("reached the handler"), nil, nil
+					})
+			}
+		},
+	}
+
+	d, err := buildCatalog(context.Background(), []Product{ungated}, tools.Scope{Write: true})
+	if err != nil {
+		t.Fatalf("buildCatalog: %v", err)
+	}
+	t.Cleanup(func() { d.Close() })
+
+	// Destructive verbs: present in the catalog (nothing filtered them out) but
+	// refused by the dispatcher, citing the scope.
+	for _, name := range []string{"stop_server", "reboot_server", "detach_server_volume", "restore_volume_snapshot"} {
+		entry, ok := d.byName[name]
+		if !ok {
+			t.Fatalf("%q should be in the catalog — this test relies on it bypassing the registration gate", name)
+		}
+		if entry.Class != tools.ClassDestructive {
+			t.Errorf("catalog classified %q as %s, want destructive", name, entry.Class)
+		}
+		isErr, text := callText(t, d, tools.CallToolInput{Name: name})
+		if !isErr {
+			t.Errorf("%q must be refused under a write-only scope", name)
+		}
+		if !strings.Contains(text, "IONOS_MCP_TOOL_SCOPE") {
+			t.Errorf("refusal for %q = %q, want it to cite IONOS_MCP_TOOL_SCOPE", name, text)
+		}
+		if strings.Contains(text, "reached the handler") {
+			t.Errorf("%q reached its handler despite the scope", name)
+		}
+	}
+
+	// Write-class verbs and reads must still be classified correctly, so the
+	// guard discriminates rather than blocking anything unfamiliar.
+	for name, want := range map[string]tools.Class{
+		"start_server":         tools.ClassWrite,
+		"attach_server_volume": tools.ClassWrite,
+		"list_servers":         tools.ClassRead,
+	} {
+		if got := d.byName[name].Class; got != want {
+			t.Errorf("catalog classified %q as %s, want %s", name, got, want)
+		}
+	}
+}
+
 func TestCallHandlerUnknownNoSuggestion(t *testing.T) {
 	// Unknown name with no close matches exercises the no-suggestion branch.
 	d := &dispatcher{entries: nil, byName: map[string]catalogEntry{}}

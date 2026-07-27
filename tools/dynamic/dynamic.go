@@ -108,7 +108,14 @@ func Register(ctx context.Context, public *mcp.Server, products []Product, scope
 		Name: "ionos_call_tool",
 		Description: "Invoke an IONOS Cloud tool by name with the given arguments and return its " +
 			"result. The name must be an exact tool name from ionos_search_tools; arguments must match " +
-			"the schema from ionos_describe_tools. Most tools are read-only; create_/update_/delete_ tools mutate and are only callable when IONOS_MCP_TOOL_SCOPE enables them.\n\n" +
+			"the schema from ionos_describe_tools. Most tools are read-only (list_/get_/head_). Mutating " +
+			"tools are only callable when IONOS_MCP_TOOL_SCOPE enables them, and the name tells you which " +
+			"kind a tool is: create_/update_ and start_/resume_/attach_/assign_ need \"write\"; delete_ and " +
+			"stop_/reboot_/suspend_/upgrade_/restore_/detach_ need \"destructive\". Note that a destructive " +
+			"tool is not always a delete_ — stopping, rebooting, upgrading or detaching interrupts a running " +
+			"workload or discards data, and restore_ overwrites it. create_ and delete_ tools are two-phase: " +
+			"call once without confirmation_token to get a preview plus a one-time token, then call again " +
+			"with that token to execute.\n\n" +
 			"USE OPTIONAL PARAMETERS IF NEEDED. Beyond the required IDs, many tools (especially list_/get_) accept " +
 			"optional arguments that are easy to overlook but are often what makes a single call answer " +
 			"the request. Always read the tool's schema via ionos_describe_tools first, then pass every " +

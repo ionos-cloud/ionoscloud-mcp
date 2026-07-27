@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterContractTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterContractTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_contract",
 		Description: "Get contract and resource limit information for your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.GetContractInput) (*mcp.CallToolResult, any, error) {

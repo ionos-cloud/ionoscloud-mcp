@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterVolumeTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterVolumeTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_volumes",
 		Description: "List all volumes in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterVolumeTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(volumes, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_volume",
 		Description: "Get details of a specific volume",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.VolumeIDInput) (*mcp.CallToolResult, any, error) {

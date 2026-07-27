@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterServerTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_servers",
 		Description: "List all servers in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(servers, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_server",
 		Description: "Get details of a specific server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(s, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_server_volumes",
 		Description: "List all volumes attached to a specific server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
@@ -54,7 +54,7 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(vols, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_server_cdroms",
 		Description: "List all CD-ROMs attached to a specific server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
@@ -70,7 +70,7 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(cdroms, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_server_gpus",
 		Description: "List all GPUs attached to a specific server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInServerInput) (*mcp.CallToolResult, any, error) {
@@ -86,7 +86,7 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(gpus, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_server_gpu",
 		Description: "Get details of a specific GPU attached to a server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.GpuIDInput) (*mcp.CallToolResult, any, error) {
@@ -98,7 +98,7 @@ func RegisterServerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(gpu, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_server_remote_console",
 		Description: "Get the remote console URL for a specific server",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ServerIDInput) (*mcp.CallToolResult, any, error) {

@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterSnapshotTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterSnapshotTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_snapshots",
 		Description: "List all snapshots in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListSnapshotsInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterSnapshotTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(snapshots, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_snapshot",
 		Description: "Get details of a specific snapshot",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SnapshotIDInput) (*mcp.CallToolResult, any, error) {

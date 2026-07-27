@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_target_groups",
 		Description: "List all target groups in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListTargetGroupsInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterTargetGroupTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(tgs, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_target_group",
 		Description: "Get details of a specific target group",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.TargetGroupIDInput) (*mcp.CallToolResult, any, error) {

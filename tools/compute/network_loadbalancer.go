@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_network_loadbalancers",
 		Description: "List all network load balancers (NLB) in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 		return tools.ToResult(nlbs, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_network_loadbalancer",
 		Description: "Get details of a specific network load balancer (NLB)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.NetworkLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterNetworkLoadBalancerTools(server *mcp.Server, client *ionos.APIClien
 		return tools.ToResult(nlb, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_nlb_forwarding_rules",
 		Description: "List all forwarding rules of a network load balancer",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListNlbForwardingRulesInput) (*mcp.CallToolResult, any, error) {

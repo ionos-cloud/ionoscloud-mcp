@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_application_loadbalancers",
 		Description: "List all application load balancers (ALB) in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 		return tools.ToResult(albs, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_application_loadbalancer",
 		Description: "Get details of a specific application load balancer (ALB)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ApplicationLoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterApplicationLoadBalancerTools(server *mcp.Server, client *ionos.APIC
 		return tools.ToResult(alb, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_alb_forwarding_rules",
 		Description: "List all forwarding rules of an application load balancer",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListAlbForwardingRulesInput) (*mcp.CallToolResult, any, error) {

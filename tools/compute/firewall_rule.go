@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterFirewallRuleTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_firewall_rules",
 		Description: "List all firewall rules on a network interface",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListFirewallRulesInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterFirewallRuleTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(rules, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_firewall_rule",
 		Description: "Get details of a specific firewall rule",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.FirewallRuleIDInput) (*mcp.CallToolResult, any, error) {

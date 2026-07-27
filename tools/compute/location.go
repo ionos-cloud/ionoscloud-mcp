@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterLocationTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterLocationTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_locations",
 		Description: "List all available locations (regions) in IONOS CLOUD",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListLocationsInput) (*mcp.CallToolResult, any, error) {

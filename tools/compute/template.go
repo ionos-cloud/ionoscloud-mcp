@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterTemplateTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterTemplateTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_templates",
 		Description: "List all available server templates in IONOS CLOUD",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListTemplatesInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterTemplateTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(templates, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_template",
 		Description: "Get details of a specific server template",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.TemplateIDInput) (*mcp.CallToolResult, any, error) {

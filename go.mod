@@ -6,7 +6,7 @@ require (
 	github.com/ionos-cloud/sdk-go-bundle/products/activitylog/v2 v2.0.1
 	github.com/ionos-cloud/sdk-go-bundle/products/billing/v2 v2.0.1
 	github.com/ionos-cloud/sdk-go-bundle/products/cert/v2 v2.2.1
-	github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.5
+	github.com/ionos-cloud/sdk-go-bundle/products/compute/v2 v2.0.7
 	github.com/ionos-cloud/sdk-go-bundle/products/dns/v2 v2.2.2
 	github.com/ionos-cloud/sdk-go-bundle/products/objectstorage/v2 v2.0.3
 	github.com/ionos-cloud/sdk-go-bundle/products/objectstoragemanagement/v2 v2.0.1

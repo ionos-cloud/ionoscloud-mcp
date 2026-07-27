@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterLanTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterLanTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_lans",
 		Description: "List all LANs in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterLanTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(lans, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_lan",
 		Description: "Get details of a specific LAN",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.LanIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterLanTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(lan, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_lan_nics",
 		Description: "List all NICs attached to a specific LAN",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListLanNicsInput) (*mcp.CallToolResult, any, error) {
