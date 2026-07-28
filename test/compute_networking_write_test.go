@@ -369,6 +369,165 @@ func TestUpdateFirewallRuleRejectsEmptyUpdate(t *testing.T) {
 	}
 }
 
+// TestUpdateFirewallRuleClearsNullableFields covers widening a rule back to "any".
+// The six nullable rule fields are the only way to express "do not match on this",
+// and a set-only implementation cannot reach it: an omitted field means "leave
+// unchanged", so a rule that once had a source_ip could never be reopened without
+// deleting and recreating it (losing its ID). Clearing must emit an explicit null.
+func TestUpdateFirewallRuleClearsNullableFields(t *testing.T) {
+	for _, tool := range []string{"update_firewall_rule", "update_security_group_rule"} {
+		t.Run(tool, func(t *testing.T) {
+			h := destructiveSetup(t)
+			args := map[string]any{
+				"datacenter_id": dcID,
+				"clear":         []any{"source_ip", "icmp_code"},
+			}
+			if tool == "update_firewall_rule" {
+				args["server_id"], args["nic_id"], args["firewallrule_id"] = srvID, "nic-1", "fw-1"
+			} else {
+				args["security_group_id"], args["rule_id"] = "sg-1", "r-1"
+			}
+			res := callTool(t, h, tool, args)
+			if res.IsError {
+				t.Fatalf("clear-only update failed: %s", resultText(res))
+			}
+			req := singleRequest(t, h, http.MethodPatch)
+			for _, want := range []string{`"sourceIp":null`, `"icmpCode":null`} {
+				if !strings.Contains(req.Body, want) {
+					t.Errorf("PATCH should carry %s to reset the field:\n%s", want, req.Body)
+				}
+			}
+			// Only the cleared fields; the rest still follow the PATCH-purity rule.
+			for _, unwanted := range []string{"targetIp", "sourceMac", "ipVersion", "icmpType", "name", "protocol"} {
+				if strings.Contains(req.Body, unwanted) {
+					t.Errorf("PATCH carries %s, which was neither set nor cleared:\n%s", unwanted, req.Body)
+				}
+			}
+		})
+	}
+}
+
+// TestRuleClearValidation rejects the two ways a clear list can be wrong before any
+// API call: a name that is not nullable, and a field both set and cleared at once.
+func TestRuleClearValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		extra   map[string]any
+		wantMsg string
+	}{
+		{"unknown field", map[string]any{"clear": []any{"protocol"}}, "not a clearable field"},
+		{"set and cleared", map[string]any{"source_ip": "10.0.0.1", "clear": []any{"source_ip"}}, "both given a value and listed in clear"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			args := map[string]any{
+				"datacenter_id": dcID, "server_id": srvID, "nic_id": "nic-1", "firewallrule_id": "fw-1",
+			}
+			for k, v := range tt.extra {
+				args[k] = v
+			}
+			res := callTool(t, h, "update_firewall_rule", args)
+			if !res.IsError {
+				t.Fatalf("expected rejection, got: %s", resultText(res))
+			}
+			if !strings.Contains(resultText(res), tt.wantMsg) {
+				t.Errorf("want %q, got: %s", tt.wantMsg, resultText(res))
+			}
+			if len(h.log.allRequests()) != 0 {
+				t.Error("validation failure must not reach the API")
+			}
+		})
+	}
+}
+
+// TestRuleRejectsAllAddressesCidr guards a trap in the API: "0.0.0.0/0" is accepted
+// and echoed back, then stored as the bare "0.0.0.0" once the request settles. That
+// address matches no traffic, so a rule written to open a port to the world silently
+// closes it. The remedy differs by operation, so the message must too.
+func TestRuleRejectsAllAddressesCidr(t *testing.T) {
+	tests := []struct {
+		tool    string
+		args    map[string]any
+		wantMsg string
+	}{
+		{"create_firewall_rule", map[string]any{
+			"datacenter_id": dcID, "server_id": srvID, "nic_id": "nic-1",
+			"protocol": "TCP", "source_ip": "0.0.0.0/0",
+		}, "omit source_ip entirely"},
+		{"update_firewall_rule", map[string]any{
+			"datacenter_id": dcID, "server_id": srvID, "nic_id": "nic-1", "firewallrule_id": "fw-1",
+			"source_ip": "0.0.0.0/0",
+		}, `list "source_ip" in the clear field`},
+		{"update_security_group_rule", map[string]any{
+			"datacenter_id": dcID, "security_group_id": "sg-1", "rule_id": "r-1",
+			"target_ip": "::/0",
+		}, `list "target_ip" in the clear field`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.tool, func(t *testing.T) {
+			h := destructiveSetup(t)
+			res := callTool(t, h, tt.tool, tt.args)
+			if !res.IsError {
+				t.Fatalf("expected rejection, got: %s", resultText(res))
+			}
+			if !strings.Contains(resultText(res), tt.wantMsg) {
+				t.Errorf("want %q, got: %s", tt.wantMsg, resultText(res))
+			}
+			if len(h.log.allRequests()) != 0 {
+				t.Error("validation failure must not reach the API")
+			}
+		})
+	}
+}
+
+// TestDeletePccRefusesWhileLansAreConnected pins a documented API constraint that
+// the preview previously contradicted: PccsDelete states a cross connect "can be
+// deleted only if it is not connected to any LANs". The old preview described the
+// peered LANs as merely losing their private connection, minted a token, and left
+// the caller to discover the rejection. Worse, there is no detach anywhere in the
+// tooling, so the error has to name the only real escape.
+func TestDeletePccRefusesWhileLansAreConnected(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(pccsAPI+"/pcc-1", `{"id":"pcc-1","properties":{"name":"dc-link","peers":[
+		{"id":"1","name":"prod-lan","datacenterName":"fra-dc"},
+		{"id":"2","name":"dr-lan","datacenterName":"txl-dc"}]}}`)
+
+	res := callTool(t, h, "delete_pcc", map[string]any{"pcc_id": "pcc-1"})
+	if !res.IsError {
+		t.Fatalf("a cross connect with peers cannot be deleted; want a refusal, got:\n%s", resultText(res))
+	}
+	out := resultText(res)
+	// The blocking LANs are named, not just counted, since the caller has to go and
+	// deal with each one.
+	for _, want := range []string{"still connects 2 LAN", "prod-lan", "fra-dc", "dr-lan", "txl-dc", "no way to detach", "delete_lan"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("refusal should explain the constraint and the escape (%q):\n%s", want, out)
+		}
+	}
+	// The refusal must land before a token exists, or the model will keep the token
+	// and retry a call that can never succeed.
+	if strings.Contains(out, "confirmation_token") {
+		t.Errorf("no token should be minted for an impossible delete:\n%s", out)
+	}
+}
+
+// TestDeletePccProceedsWithNoPeers is the other half: the constraint must not block
+// the case it does not apply to.
+func TestDeletePccProceedsWithNoPeers(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(pccsAPI+"/pcc-1", `{"id":"pcc-1","properties":{"name":"unused"}}`)
+
+	preview, res := previewThenExecute(t, h, "delete_pcc", map[string]any{"pcc_id": "pcc-1"})
+	if res.IsError {
+		t.Fatalf("execute failed: %s", resultText(res))
+	}
+	if !strings.Contains(preview, "No LANs are connected") {
+		t.Errorf("preview should say nothing else is affected:\n%s", preview)
+	}
+	singleRequest(t, h, http.MethodDelete)
+}
+
 // TestDeleteFirewallRuleShowsWhatItAllows checks the preview describes the rule's
 // effect, so the caller can see which traffic stops being permitted.
 func TestDeleteFirewallRuleShowsWhatItAllows(t *testing.T) {
@@ -517,27 +676,6 @@ func TestUpdatePcc(t *testing.T) {
 	if len(body) != 1 || body["description"] != "new" {
 		t.Errorf("PATCH should contain only the description, got %s", req.Body)
 	}
-}
-
-// TestDeletePccNamesPeeredLans checks the preview identifies which connections
-// break, not just how many.
-func TestDeletePccNamesPeeredLans(t *testing.T) {
-	h := destructiveSetup(t)
-	h.resp.serve(pccsAPI+"/pcc-1", `{"id":"pcc-1","properties":{"name":"dc-link","peers":[
-		{"id":"1","name":"prod-lan","datacenterName":"fra-dc"},
-		{"id":"2","name":"dr-lan","datacenterName":"txl-dc"}]}}`)
-
-	preview, res := previewThenExecute(t, h, "delete_pcc", map[string]any{"pcc_id": "pcc-1"})
-
-	for _, want := range []string{"prod-lan", "fra-dc", "dr-lan", "2 LANs that lose their private connection"} {
-		if !strings.Contains(preview, want) {
-			t.Errorf("preview missing %q:\n%s", want, preview)
-		}
-	}
-	if res.IsError {
-		t.Fatalf("execute failed: %s", resultText(res))
-	}
-	singleRequest(t, h, http.MethodDelete)
 }
 
 // ---------- cross-cutting ----------

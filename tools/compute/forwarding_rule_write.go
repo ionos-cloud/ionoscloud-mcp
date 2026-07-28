@@ -212,7 +212,7 @@ func registerNlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient,
 			return tools.ToResult(nil, err)
 		}
 		cp := rule.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.AffectedRadius()
 		radius.Add("backends that stop receiving traffic through this rule", len(cp.GetTargets()))
 		token, mErr := confirm.Mint("delete_nlb_forwarding_rule", target)
 		if mErr != nil {
@@ -426,7 +426,7 @@ func registerAlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient,
 			return tools.ToResult(nil, err)
 		}
 		cp := rule.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.DestroyedRadius()
 		radius.Add("HTTP rules deleted with it", len(cp.GetHttpRules()))
 		token, mErr := confirm.Mint("delete_alb_forwarding_rule", target)
 		if mErr != nil {

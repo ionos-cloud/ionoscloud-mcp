@@ -24,6 +24,61 @@ func RegisterFirewallRuleWriteTools(server *mcp.Server, client *ionos.APIClient,
 	registerSecurityGroupRuleTools(server, client, scope, confirm)
 }
 
+// clearableRuleFields are the rule properties the API models as nullable, where
+// null means "do not match on this at all". They are the only fields `clear` accepts.
+var clearableRuleFields = map[string]bool{
+	"source_ip": true, "target_ip": true, "source_mac": true,
+	"ip_version": true, "icmp_type": true, "icmp_code": true,
+}
+
+// validateRuleAddress rejects an all-addresses CIDR on source_ip or target_ip.
+//
+// This looks pedantic and is not: the API accepts "0.0.0.0/0", echoes it back
+// unchanged in the immediate response, and then — once the asynchronous request
+// finishes — stores it as the bare host address "0.0.0.0". That address is
+// non-routable, so the rule ends up matching no traffic at all. Anyone who wrote
+// "0.0.0.0/0" meaning "open to the world" gets the exact opposite, with a stored
+// value that looks deliberate. The documented way to mean "any" is a null field:
+// omit it on create, or list it in `clear` on update.
+func validateRuleAddress(field string, v *string, onUpdate bool) string {
+	if v == nil {
+		return ""
+	}
+	addr := strings.TrimSpace(*v)
+	if !strings.HasSuffix(addr, "/0") {
+		return ""
+	}
+	remedy := fmt.Sprintf("omit %s entirely", field)
+	if onUpdate {
+		remedy = fmt.Sprintf("list %q in the clear field", field)
+	}
+	return fmt.Sprintf("%s = %q means every address, but the API does not store it that way: it keeps the bare network address (0.0.0.0), which is non-routable and matches NO traffic — the rule would silently allow nothing. To match any address, %s instead.",
+		field, addr, remedy)
+}
+
+// validateRuleClear checks the clear list: every name must be a nullable field, and
+// a field cannot be both set and cleared in the same call.
+func validateRuleClear(clear []string, f tools.RuleFields) string {
+	for _, name := range clear {
+		key := strings.ToLower(strings.TrimSpace(name))
+		if !clearableRuleFields[key] {
+			return fmt.Sprintf("clear contains %q, which is not a clearable field. Only these can be reset to 'any': source_ip, target_ip, source_mac, ip_version, icmp_type, icmp_code", name)
+		}
+		set := map[string]bool{
+			"source_ip":  f.SourceIp != nil,
+			"target_ip":  f.TargetIp != nil,
+			"source_mac": f.SourceMac != nil,
+			"ip_version": f.IpVersion != nil,
+			"icmp_type":  f.IcmpType != nil,
+			"icmp_code":  f.IcmpCode != nil,
+		}
+		if set[key] {
+			return fmt.Sprintf("%s is both given a value and listed in clear; pick one — set it to match on that value, or clear it to stop matching on it", key)
+		}
+	}
+	return ""
+}
+
 // validateRuleFields rejects the field combinations the API refuses, naming the
 // field to fix. requireProtocol is set for creates, where the API needs one; an
 // update may legitimately change a single unrelated field.
@@ -31,6 +86,13 @@ func validateRuleFields(f tools.RuleFields, requireProtocol bool) string {
 	protocol := strings.ToUpper(strings.TrimSpace(tools.OptStr(f.Protocol)))
 	if requireProtocol && protocol == "" {
 		return "protocol is required to create a firewall rule: TCP, UDP, ICMP, ICMPv6, GRE, VRRP, ESP, AH or ANY"
+	}
+	// onUpdate is the inverse of requireProtocol, which is the only signal available
+	// here for which flavour of remedy to suggest.
+	for field, v := range map[string]*string{"source_ip": f.SourceIp, "target_ip": f.TargetIp} {
+		if msg := validateRuleAddress(field, v, !requireProtocol); msg != "" {
+			return msg
+		}
 	}
 
 	hasPorts := f.PortRangeStart != nil || f.PortRangeEnd != nil
@@ -84,8 +146,28 @@ func validateRuleFields(f tools.RuleFields, requireProtocol bool) string {
 // only what the caller supplied. FirewallruleProperties is all-pointer and its
 // ToMap guards every field, so a zero literal sends nothing extra — the "PATCH
 // bodies" rule in CLAUDE.md is satisfied without special handling here.
-func buildRuleProperties(f tools.RuleFields) *ionos.FirewallruleProperties {
+func buildRuleProperties(f tools.RuleFields, clear []string) *ionos.FirewallruleProperties {
 	props := &ionos.FirewallruleProperties{}
+	// Clearing sends an explicit JSON null, which is how the API expresses "do not
+	// match on this field". Without it these fields are set-only: once a rule had a
+	// source_ip there was no way to widen it again short of deleting and recreating
+	// the rule, which loses its ID.
+	for _, name := range clear {
+		switch strings.ToLower(strings.TrimSpace(name)) {
+		case "source_ip":
+			props.SetSourceIpNil()
+		case "target_ip":
+			props.SetTargetIpNil()
+		case "source_mac":
+			props.SetSourceMacNil()
+		case "ip_version":
+			props.SetIpVersionNil()
+		case "icmp_type":
+			props.SetIcmpTypeNil()
+		case "icmp_code":
+			props.SetIcmpCodeNil()
+		}
+	}
 	if f.Name != nil {
 		props.SetName(*f.Name)
 	}
@@ -190,7 +272,7 @@ func registerNicFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, s
 			if err := confirm.Consume(*input.ConfirmationToken, "create_firewall_rule", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("create_firewall_rule", "the same parent IDs, protocol and name", err)), nil, nil
 			}
-			body := ionos.NewFirewallRule(*buildRuleProperties(input.RuleFields))
+			body := ionos.NewFirewallRule(*buildRuleProperties(input.RuleFields, nil))
 			created, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPost(ctx, dcID, serverID, nicID).Firewallrule(*body).Execute()
 			return tools.ToResult(created, err)
 		}
@@ -212,7 +294,7 @@ func registerNicFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, s
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
 		Name: "update_firewall_rule",
 		Description: "Update a firewall rule on a NIC. Applies a partial update (only the fields you provide). " +
-			"Widening a rule (for example clearing source_ip, or broadening the port range) exposes the server to more traffic, and narrowing it can cut off a service that depends on it. " +
+			"To WIDEN a rule back to 'any' — for example so it matches every source address — list the field in clear; that is the only way, since omitting a field leaves it unchanged and no value means anywhere. Clearing source_ip on an INGRESS rule opens it to the whole internet, so say so first. Narrowing a rule can cut off a service that depends on it. " +
 			"Ports apply only to TCP and UDP; icmp_type and icmp_code only to ICMP and ICMPv6.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateFirewallRuleInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -225,10 +307,13 @@ func registerNicFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, s
 		if msg := validateRuleFields(input.RuleFields, false); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		if !anyRuleFieldSet(input.RuleFields) {
-			return tools.ErrorText("nothing to update: provide at least one of name, protocol, type, source_ip, target_ip, source_mac, ip_version, port_range_start, port_range_end, icmp_type, icmp_code"), nil, nil
+		if msg := validateRuleClear(input.Clear, input.RuleFields); msg != "" {
+			return tools.ErrorText(msg), nil, nil
 		}
-		props := buildRuleProperties(input.RuleFields)
+		if !anyRuleFieldSet(input.RuleFields) && len(input.Clear) == 0 {
+			return tools.ErrorText("nothing to update: provide at least one of name, protocol, type, source_ip, target_ip, source_mac, ip_version, port_range_start, port_range_end, icmp_type, icmp_code, or list fields in clear"), nil, nil
+		}
+		props := buildRuleProperties(input.RuleFields, input.Clear)
 		updated, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPatch(ctx, dcID, serverID, nicID, id).Firewallrule(*props).Execute()
 		return tools.ToResult(updated, err)
 	})
@@ -302,7 +387,7 @@ func registerSecurityGroupRuleTools(server *mcp.Server, client *ionos.APIClient,
 			if err := confirm.Consume(*input.ConfirmationToken, "create_security_group_rule", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("create_security_group_rule", "datacenter_id, security_group_id, protocol and name", err)), nil, nil
 			}
-			body := ionos.NewFirewallRule(*buildRuleProperties(input.RuleFields))
+			body := ionos.NewFirewallRule(*buildRuleProperties(input.RuleFields, nil))
 			created, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsFirewallrulesPost(ctx, dcID, groupID).FirewallRule(*body).Execute()
 			return tools.ToResult(created, err)
 		}
@@ -329,7 +414,7 @@ func registerSecurityGroupRuleTools(server *mcp.Server, client *ionos.APIClient,
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
 		Name: "update_security_group_rule",
 		Description: "Update a firewall rule in a security group. Applies a partial update (only the fields you provide). " +
-			"The change takes effect at once for EVERY server and NIC assigned to the group, so widening a rule here exposes all of them and narrowing it can cut off a service on any of them. " +
+			"The change takes effect at once for EVERY server and NIC assigned to the group, so widening a rule here exposes all of them and narrowing it can cut off a service on any of them. To widen a field back to 'any', list it in clear — omitting it leaves it unchanged. " +
 			"Ports apply only to TCP and UDP; icmp_type and icmp_code only to ICMP and ICMPv6.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateSecurityGroupRuleInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -341,10 +426,13 @@ func registerSecurityGroupRuleTools(server *mcp.Server, client *ionos.APIClient,
 		if msg := validateRuleFields(input.RuleFields, false); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		if !anyRuleFieldSet(input.RuleFields) {
-			return tools.ErrorText("nothing to update: provide at least one of name, protocol, type, source_ip, target_ip, source_mac, ip_version, port_range_start, port_range_end, icmp_type, icmp_code"), nil, nil
+		if msg := validateRuleClear(input.Clear, input.RuleFields); msg != "" {
+			return tools.ErrorText(msg), nil, nil
 		}
-		props := buildRuleProperties(input.RuleFields)
+		if !anyRuleFieldSet(input.RuleFields) && len(input.Clear) == 0 {
+			return tools.ErrorText("nothing to update: provide at least one of name, protocol, type, source_ip, target_ip, source_mac, ip_version, port_range_start, port_range_end, icmp_type, icmp_code, or list fields in clear"), nil, nil
+		}
+		props := buildRuleProperties(input.RuleFields, input.Clear)
 		updated, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsRulesPatch(ctx, dcID, groupID, id).Rule(*props).Execute()
 		return tools.ToResult(updated, err)
 	})
@@ -412,7 +500,7 @@ func anyRuleFieldSet(f tools.RuleFields) bool {
 // not fatal: the rule operation is still valid, so the preview degrades to showing
 // no counts rather than blocking on a read that is only informational.
 func securityGroupMemberCounts(ctx context.Context, client *ionos.APIClient, dcID, groupID string) *tools.BlastRadius {
-	r := &tools.BlastRadius{}
+	r := tools.AffectedRadius()
 	group, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsFindById(ctx, dcID, groupID).Depth(2).Execute()
 	if err != nil {
 		return r

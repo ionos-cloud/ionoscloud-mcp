@@ -53,13 +53,39 @@ type LabeledCount struct {
 	Count int
 }
 
-// BlastRadius accumulates the child resources a delete would destroy. Callers
-// Add each collection they fetched; zero counts are dropped so a preview lists
-// only what actually exists.
+// BlastRadius accumulates the resources an operation touches. Callers Add each
+// collection they fetched; zero counts are dropped so a preview lists only what
+// actually exists.
+//
+// Two very different things end up here — resources destroyed along with their
+// parent, and resources that survive but are affected (a NIC losing its LAN, every
+// member of a security group gaining a rule) — so the renderer has to be told
+// which. Labelling the second kind "will be destroyed" is not a cosmetic error: it
+// is a false claim in the one place a caller looks before authorizing a change, and
+// a preview that overstates once teaches the reader to discount the section
+// entirely, including when it is right.
+//
+// This is a flag rather than a caller-supplied heading because free text invited
+// exactly the overreach it was meant to prevent — every per-site heading written
+// for it either restated its own labels or repeated the headline, and two made
+// claims about the API that turned out to be wrong. What each entry loses belongs
+// in its label, and what the operation does belongs in the headline.
 type BlastRadius struct {
-	Counts []LabeledCount
-	Total  int
+	// Destroys marks entries that cease to exist with their parent. The zero value
+	// is the safe one, so a radius built without thinking reads as merely affected
+	// rather than announcing a destruction that is not happening.
+	Destroys bool
+	Counts   []LabeledCount
+	Total    int
 }
+
+// DestroyedRadius is for entries that cease to exist with their parent.
+func DestroyedRadius() *BlastRadius { return &BlastRadius{Destroys: true} }
+
+// AffectedRadius is for entries that survive the operation. Say what each one
+// loses in its Add label; the section heading only has to establish that they are
+// not being deleted.
+func AffectedRadius() *BlastRadius { return &BlastRadius{} }
 
 // Add records a non-zero count under label. Zero counts are ignored.
 func (b *BlastRadius) Add(label string, n int) {
@@ -109,11 +135,19 @@ func (p Preview) Render(token string) string {
 				fmt.Fprintf(&b, "\n%s\n", p.EmptyNote)
 			}
 		} else {
-			b.WriteString("\nContained resources that will be destroyed:\n")
+			if p.Radius.Destroys {
+				b.WriteString("\nContained resources that will be destroyed:\n")
+			} else {
+				b.WriteString("\nNot deleted, but affected:\n")
+			}
 			for _, c := range p.Radius.Counts {
 				fmt.Fprintf(&b, "  - %d %s\n", c.Count, c.Label)
 			}
-			fmt.Fprintf(&b, "Total resources that will be destroyed: %d\n", p.Radius.Total)
+			// A total is worth stating for a destroy, where the entries are alike and
+			// the number is the warning. Summing unlike affected categories is not.
+			if p.Radius.Destroys {
+				fmt.Fprintf(&b, "Total resources that will be destroyed: %d\n", p.Radius.Total)
+			}
 		}
 	}
 

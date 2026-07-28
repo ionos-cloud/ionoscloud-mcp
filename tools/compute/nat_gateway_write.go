@@ -168,7 +168,7 @@ func registerNatGatewayCRUD(server *mcp.Server, client *ionos.APIClient, scope t
 			return tools.ToResult(nil, err)
 		}
 		cp := gw.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.AffectedRadius()
 		if e := gw.Entities; e != nil && e.Rules != nil {
 			radius.Add("translation rules deleted with it", len(e.Rules.Items))
 		}

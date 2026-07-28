@@ -144,7 +144,7 @@ func registerDeleteIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 		if mErr != nil {
 			return nil, nil, mErr
 		}
-		headline := "About to RELEASE a block of public IPv4 addresses. This is IRREVERSIBLE — the addresses return to the pool and cannot be reclaimed."
+		headline := "About to RELEASE a block of public IPv4 addresses. This is IRREVERSIBLE — a block is requested by location and size only, so there is no way to ask for these same addresses back."
 		if inUse > 0 {
 			headline += fmt.Sprintf("\nWARNING: %d of these addresses are still assigned. Releasing the block breaks connectivity for the resources listed below.", inUse)
 		}
@@ -171,7 +171,7 @@ func registerDeleteIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 // the preview names what breaks rather than just counting addresses, and returns
 // the total number of addresses in use.
 func ipBlockBlastRadius(props ionos.IpBlockProperties) (*tools.BlastRadius, int) {
-	r := &tools.BlastRadius{}
+	r := tools.AffectedRadius()
 	consumers := props.GetIpConsumers()
 	if len(consumers) == 0 {
 		return r, 0

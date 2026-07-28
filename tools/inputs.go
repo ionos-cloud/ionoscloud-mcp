@@ -324,7 +324,7 @@ type UpdateLanInput struct {
 	LanID         string  `json:"lan_id" jsonschema:"the ID of the LAN to update"`
 	Name          *string `json:"name,omitempty" jsonschema:"a new name for the LAN"`
 	Public        *bool   `json:"public,omitempty" jsonschema:"make the LAN public (internet-connected) or private. Making a public LAN private removes internet access for every server on it."`
-	Pcc           *string `json:"pcc,omitempty" jsonschema:"attach the LAN to this private cross connect ID, or pass an empty string to detach it"`
+	Pcc           *string `json:"pcc,omitempty" jsonschema:"attach the LAN to this private cross connect ID. Detaching is not exposed: the API models this field as a plain string with no null form, so there is no verified way to clear it — delete and recreate the LAN, or manage the connection from the cross connect side."`
 	Ipv6CidrBlock *string `json:"ipv6_cidr_block,omitempty" jsonschema:"set the LAN's /64 IPv6 block, or AUTO to have one assigned. Changing it reassigns the /80 blocks and addresses of every connected NIC."`
 }
 
@@ -485,7 +485,7 @@ type UpdateIpBlockInput struct {
 // preview lists which resources are still using the addresses.
 type DeleteIpBlockInput struct {
 	IpBlockID         string  `json:"ipblock_id" jsonschema:"the ID of the IP block to release"`
-	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview listing every resource still using these addresses, plus a one-time token; pass that token on the SECOND call to actually release the block. Releasing addresses that are still assigned breaks connectivity for those resources, and the same addresses cannot be reclaimed afterwards. The token expires after a few minutes."`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview listing every resource still using these addresses, plus a one-time token; pass that token on the SECOND call to actually release the block. Releasing addresses that are still assigned breaks connectivity for those resources, and a new block can only be requested by location and size, so there is no way to ask for the same addresses back. The token expires after a few minutes."`
 }
 
 // CreateSecurityGroupInput is the input for create_security_group. Two-phase
@@ -524,14 +524,14 @@ type RuleFields struct {
 	Protocol       *string `json:"protocol,omitempty" jsonschema:"the protocol the rule matches: TCP, UDP, ICMP, ICMPv6, GRE, VRRP, ESP, AH or ANY. Required when creating a rule. ANY matches every protocol and forbids ports and ICMP fields."`
 	Name           *string `json:"name,omitempty" jsonschema:"a name for the rule"`
 	Type           *string `json:"type,omitempty" jsonschema:"direction the rule applies to: INGRESS (inbound, the default) or EGRESS (outbound)"`
-	SourceMac      *string `json:"source_mac,omitempty" jsonschema:"match only traffic from this MAC address, e.g. aa:bb:cc:dd:ee:ff. Omit to match any source MAC."`
-	SourceIp       *string `json:"source_ip,omitempty" jsonschema:"match only traffic from this IP address or CIDR range. Omit to match any source."`
-	TargetIp       *string `json:"target_ip,omitempty" jsonschema:"match only traffic to this IP address or CIDR range; for an INGRESS rule this is usually one of the NIC's own IPs. Omit to match any destination."`
-	IpVersion      *string `json:"ip_version,omitempty" jsonschema:"IPv4 or IPv6. Defaults to the version implied by the addresses given, or IPv4."`
+	SourceMac      *string `json:"source_mac,omitempty" jsonschema:"match only traffic from this MAC address, e.g. aa:bb:cc:dd:ee:ff. On create, omitting it matches any source MAC. On update, omitting it leaves the current value unchanged — to widen the rule back to any MAC, list source_mac in the clear field instead."`
+	SourceIp       *string `json:"source_ip,omitempty" jsonschema:"match only traffic from this IP address or CIDR range. On create, omitting it matches any source. On update, omitting it leaves the current value unchanged — to widen the rule back to any source, list source_ip in the clear field instead. Do NOT pass 0.0.0.0/0 to mean anywhere: the API stores that as the literal address 0.0.0.0, which matches no real traffic."`
+	TargetIp       *string `json:"target_ip,omitempty" jsonschema:"match only traffic to this IP address or CIDR range; for an INGRESS rule this is usually one of the NIC's own IPs. On create, omitting it matches any destination. On update, omitting it leaves the current value unchanged — to widen it back to any destination, list target_ip in the clear field instead. Do NOT pass 0.0.0.0/0."`
+	IpVersion      *string `json:"ip_version,omitempty" jsonschema:"IPv4 or IPv6. Defaults to the version implied by the addresses given, or IPv4. On update, list ip_version in the clear field to go back to that automatic behaviour."`
 	PortRangeStart *int32  `json:"port_range_start,omitempty" jsonschema:"first port in the allowed range (1-65534). Only valid with protocol TCP or UDP, and must be given together with port_range_end. Omit both to allow all ports."`
 	PortRangeEnd   *int32  `json:"port_range_end,omitempty" jsonschema:"last port in the allowed range (1-65534). Only valid with protocol TCP or UDP, and must be given together with port_range_start."`
-	IcmpType       *int32  `json:"icmp_type,omitempty" jsonschema:"ICMP type to allow (0-254). Only valid with protocol ICMP or ICMPv6. Omit to allow all types."`
-	IcmpCode       *int32  `json:"icmp_code,omitempty" jsonschema:"ICMP code to allow (0-254). Only valid with protocol ICMP or ICMPv6. Omit to allow all codes."`
+	IcmpType       *int32  `json:"icmp_type,omitempty" jsonschema:"ICMP type to allow (0-254). Only valid with protocol ICMP or ICMPv6. On create, omitting it allows all types. On update, omitting it leaves the current value unchanged — list icmp_type in the clear field to allow all types again."`
+	IcmpCode       *int32  `json:"icmp_code,omitempty" jsonschema:"ICMP code to allow (0-254). Only valid with protocol ICMP or ICMPv6. On create, omitting it allows all codes. On update, omitting it leaves the current value unchanged — list icmp_code in the clear field to allow all codes again."`
 }
 
 // CreateFirewallRuleInput is the input for create_firewall_rule, which adds a rule
@@ -551,6 +551,7 @@ type UpdateFirewallRuleInput struct {
 	NicID          string `json:"nic_id" jsonschema:"the ID of the NIC the rule is on"`
 	FirewallRuleID string `json:"firewallrule_id" jsonschema:"the ID of the firewall rule to update"`
 	RuleFields
+	Clear []string `json:"clear,omitempty" jsonschema:"field names to reset so the rule stops matching on them, i.e. to WIDEN it: source_ip, target_ip, source_mac, ip_version, icmp_type, icmp_code. This is the only way to go back to 'any' — omitting a field leaves it unchanged, and there is no value that means anywhere (0.0.0.0/0 is stored by the API as the literal address 0.0.0.0 and matches nothing). Clearing source_ip on an INGRESS rule opens it to the whole internet, so say so before you do it. Listing a field you also set in the same call is rejected."`
 }
 
 // DeleteFirewallRuleInput is the input for delete_firewall_rule. Two-phase
@@ -580,6 +581,7 @@ type UpdateSecurityGroupRuleInput struct {
 	SecurityGroupID string `json:"security_group_id" jsonschema:"the ID of the security group the rule belongs to"`
 	RuleID          string `json:"rule_id" jsonschema:"the ID of the rule to update"`
 	RuleFields
+	Clear []string `json:"clear,omitempty" jsonschema:"field names to reset so the rule stops matching on them, i.e. to WIDEN it: source_ip, target_ip, source_mac, ip_version, icmp_type, icmp_code. This is the only way to go back to 'any' — omitting a field leaves it unchanged, and there is no value that means anywhere (0.0.0.0/0 is stored by the API as the literal address 0.0.0.0 and matches nothing). Clearing source_ip on an INGRESS rule opens it to the whole internet, so say so before you do it. Listing a field you also set in the same call is rejected."`
 }
 
 // DeleteSecurityGroupRuleInput is the input for delete_security_group_rule.

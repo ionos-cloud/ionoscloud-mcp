@@ -507,7 +507,7 @@ func firstNonEmpty(a, b string) string {
 // otherwise they survive the delete, which volumeFateNote spells out instead. It
 // also returns the attached volume count so the caller can describe their fate.
 func serverBlastRadius(srv ionos.Server, deleteVolumes bool) (*tools.BlastRadius, int) {
-	r := &tools.BlastRadius{}
+	r := tools.DestroyedRadius()
 	e := srv.Entities
 	if e == nil {
 		return r, 0

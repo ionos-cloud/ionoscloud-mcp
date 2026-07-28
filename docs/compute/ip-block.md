@@ -99,7 +99,7 @@ Renames an IP block. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Single 
 
 Releases a block of public IPv4 addresses. Irreversible. Requires `IONOS_MCP_TOOL_SCOPE` to include `destructive`. Two-phase.
 
-The preview lists every resource still using the addresses — servers, NICs and Kubernetes node pools — because releasing a block whose addresses are assigned breaks connectivity for exactly those resources. The addresses return to the pool and **cannot be reclaimed**.
+The preview lists every resource still using the addresses — servers, NICs and Kubernetes node pools — because releasing a block whose addresses are assigned breaks connectivity for exactly those resources. A block is requested by location and size only, so there is **no way to ask for the same addresses back**.
 
 **Parameters:**
 

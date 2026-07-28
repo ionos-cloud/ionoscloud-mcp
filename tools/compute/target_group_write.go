@@ -187,7 +187,7 @@ func registerDeleteTargetGroup(server *mcp.Server, client *ionos.APIClient, scop
 			return tools.ToResult(nil, err)
 		}
 		cp := group.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.AffectedRadius()
 		radius.Add("backends in this group", len(cp.GetTargets()))
 		token, mErr := confirm.Mint("delete_target_group", target)
 		if mErr != nil {

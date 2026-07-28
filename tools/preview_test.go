@@ -95,7 +95,7 @@ func TestPreviewTokenIsAlignedWithReplay(t *testing.T) {
 }
 
 func TestPreviewBlastRadius(t *testing.T) {
-	r := &BlastRadius{}
+	r := DestroyedRadius()
 	r.Add("servers", 2)
 	r.Add("volumes", 0) // zero counts are dropped
 	r.Add("LANs", 1)
@@ -139,6 +139,53 @@ func TestPreviewEmptyBlastRadiusUsesEmptyNote(t *testing.T) {
 	}
 	if strings.Contains(out, "will be destroyed") {
 		t.Errorf("empty radius must not render a count list:\n%s", out)
+	}
+}
+
+// TestAffectedRadiusNeverClaimsDestruction is the regression guard for a preview
+// that told a caller adding a firewall rule to a security group that confirming it
+// would "destroy" the NIC assigned to that group. The counts were right and the
+// framing was invented by the renderer, which wrapped every list in destruction
+// wording. That is worse than a typo: it is a false claim in the one place a caller
+// looks before authorizing a change, and the agent that met it correctly judged the
+// warning bogus and proceeded — which is precisely the habit that makes a truthful
+// warning ineffective later.
+func TestAffectedRadiusNeverClaimsDestruction(t *testing.T) {
+	r := AffectedRadius()
+	r.Add("NICs assigned to this group", 1)
+	out := Preview{
+		Headline:  "About to CREATE one firewall rule in a security group:",
+		Radius:    r,
+		Tool:      "create_security_group_rule",
+		TokenNote: "note",
+	}.Render("tok")
+
+	if strings.Contains(out, "destroy") || strings.Contains(out, "Destroy") {
+		t.Errorf("a create preview must never speak of destruction:\n%s", out)
+	}
+	for _, want := range []string{"Not deleted, but affected:", "1 NICs assigned to this group"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("preview missing %q:\n%s", want, out)
+		}
+	}
+	// No total: summing unlike categories produces a number that means nothing.
+	if strings.Contains(out, "Total") {
+		t.Errorf("an affected list should not print a total:\n%s", out)
+	}
+}
+
+// TestBareRadiusFailsSafe pins the direction of the zero value. A radius built as a
+// bare literal — the obvious thing to write, and what every call site did before
+// this — must read as merely affected, never as a fabricated destruction.
+func TestBareRadiusFailsSafe(t *testing.T) {
+	r := &BlastRadius{}
+	r.Add("things", 2)
+	out := Preview{Headline: "About to do something:", Radius: r, Tool: "t", TokenNote: "n"}.Render("tok")
+	if strings.Contains(out, "destroyed") {
+		t.Errorf("a radius with no heading must not claim destruction:\n%s", out)
+	}
+	if !strings.Contains(out, "Not deleted, but affected:") {
+		t.Errorf("want the neutral heading:\n%s", out)
 	}
 }
 

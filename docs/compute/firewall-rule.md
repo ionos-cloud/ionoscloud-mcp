@@ -81,13 +81,26 @@ Firewall rules are **allow-rules**: an active firewall permits only what its rul
 | `protocol` | string | `TCP`, `UDP`, `ICMP`, `ICMPv6`, `GRE`, `VRRP`, `ESP`, `AH` or `ANY`. **Required on create.** |
 | `name` | string | A name for the rule. |
 | `type` | string | `INGRESS` (inbound, default) or `EGRESS` (outbound). |
-| `source_ip` / `target_ip` | string | Restrict to an address or CIDR range. Omit to match any. |
+| `source_ip` / `target_ip` | string | Restrict to an address or CIDR range. On create, omit to match any. |
 | `source_mac` | string | Restrict to a MAC address. |
 | `ip_version` | string | `IPv4` or `IPv6`. |
 | `port_range_start` / `port_range_end` | integer | 1–65534, **given together**. TCP/UDP only. **Omitting both allows every port.** |
-| `icmp_type` / `icmp_code` | integer | 0–254. ICMP/ICMPv6 only. Omit to allow all. |
+| `icmp_type` / `icmp_code` | integer | 0–254. ICMP/ICMPv6 only. On create, omit to allow all. |
+| `clear` | array of string | **Update only.** Resets fields to "match anything" by sending an explicit `null`. Accepts `source_ip`, `target_ip`, `source_mac`, `ip_version`, `icmp_type`, `icmp_code`. |
 
 Combinations the tools reject before sending, since the API's own message does not name the offending field: ICMP fields with TCP/UDP, ports with ICMP, a half-open port range, an inverted range, and out-of-range values.
+
+### Widening a rule back to "any"
+
+Omitting a field on **update** means "leave it unchanged", not "match anything" — so `clear` is the only way to reopen a field that already has a value:
+
+```json
+{"datacenter_id": "…", "server_id": "…", "nic_id": "…", "firewallrule_id": "…", "clear": ["source_ip"]}
+```
+
+Do not reach for `0.0.0.0/0` (or `::/0`) instead. The API accepts it and echoes it back unchanged, then stores the bare network address `0.0.0.0` once the request settles — a non-routable address that matches **no** traffic, so a rule written to open a port to the world silently closes it. Both create and update reject an all-addresses CIDR and point you at the right mechanism.
+
+A field cannot be both given a value and listed in `clear`.
 
 ---
 
@@ -116,6 +129,6 @@ NIC-scoped. `create` and `delete` are two-phase; `update` is a single partial `P
 
 ## create_security_group_rule / update_security_group_rule / delete_security_group_rule
 
-Group-scoped, so a change reaches every member at once. Parent IDs: `datacenter_id`, `security_group_id`, plus `rule_id` for update and delete.
+Group-scoped, so a change reaches every member at once — including `clear`, which widens the rule for every server and NIC in the group. Parent IDs: `datacenter_id`, `security_group_id`, plus `rule_id` for update and delete.
 
 **API Reference:** [datacentersSecuritygroupsFirewallrulesPost](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersSecuritygroupsFirewallrulesPost), [datacentersSecuritygroupsRulesPatch](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersSecuritygroupsRulesPatch), [datacentersSecuritygroupsFirewallrulesDelete](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersSecuritygroupsFirewallrulesDelete)

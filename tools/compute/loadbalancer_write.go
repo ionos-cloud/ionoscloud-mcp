@@ -155,7 +155,7 @@ func registerDeleteLoadBalancer(server *mcp.Server, client *ionos.APIClient, sco
 			return tools.ToResult(nil, err)
 		}
 		props := lb.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.AffectedRadius()
 		if e := lb.Entities; e != nil && e.Balancednics != nil {
 			radius.Add("NICs that stop having traffic balanced to them", len(e.Balancednics.Items))
 		}

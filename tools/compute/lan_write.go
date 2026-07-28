@@ -160,7 +160,7 @@ func registerDeleteLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 			return tools.ToResult(nil, err)
 		}
 		props := lan.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.AffectedRadius()
 		if e := lan.Entities; e != nil && e.Nics != nil {
 			// NICs are not deleted with the LAN, but they lose connectivity, so
 			// the count is the number of interfaces about to go dark.

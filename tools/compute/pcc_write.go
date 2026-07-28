@@ -128,25 +128,34 @@ func registerDeletePcc(server *mcp.Server, client *ionos.APIClient, scope tools.
 			return tools.ToResult(nil, err)
 		}
 		props := pcc.GetProperties()
-		radius := &tools.BlastRadius{}
-		// Peers are the LANs currently joined by this cross connect. They survive
-		// the delete but stop being able to reach each other privately.
-		radius.Add("LANs that lose their private connection", len(props.GetPeers()))
+
+		// The API refuses this outright: "Cross connect can be deleted only if it is
+		// not connected to any LANs" (PccsDelete). Since the peers are already loaded
+		// for the preview, say so here rather than minting a token for a call that
+		// cannot succeed — and name the escape, because there is no detach. Neither
+		// this server, the Terraform provider nor ionosctl can clear a LAN's pcc
+		// field: it is an optional string with no null setter, and the provider's
+		// update only assigns it when non-empty. Removing the LAN from the cross
+		// connect therefore means deleting or recreating the LAN itself.
+		if peers := props.GetPeers(); len(peers) > 0 {
+			return tools.ErrorText(fmt.Sprintf(
+				"cross connect %s still connects %d LAN(s), and the API allows deleting one only when no LANs are connected, so this call would be rejected:\n%s\n\n"+
+					"There is no way to detach a LAN from a cross connect — not in this server, the Terraform provider or ionosctl. The LANs must be deleted (delete_lan) before the cross connect can be. Check what each LAN carries first: delete_lan disconnects every NIC on it.",
+				id, len(peers), pccPeerSummary(peers))), nil, nil
+		}
+
 		token, mErr := confirm.Mint("delete_pcc", target)
 		if mErr != nil {
 			return nil, nil, mErr
 		}
 		return tools.TextResult(tools.Preview{
 			Headline: "About to DELETE a private cross connect. This is IRREVERSIBLE.\n" +
-				"The peered LANs are not deleted, but they lose the private connection between them and any traffic relying on it stops working.",
+				"No LANs are connected to it, so nothing else is affected.",
 			Fields: tools.Fields(
 				"pcc_id", id,
 				"name", props.GetName(),
 				"description", props.GetDescription(),
-				"peered LANs", pccPeerSummary(props.GetPeers()),
 			),
-			Radius:    radius,
-			EmptyNote: "No LANs are peered through this cross connect; deleting it affects nothing else.",
 			Tool:      "delete_pcc",
 			Replay:    tools.Fields("pcc_id", id),
 			TokenNote: "This token authorizes deleting ONLY this cross connect",

@@ -232,7 +232,7 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 >
 > **Enabling `IONOS_MCP_TOOL_SCOPE` lets an AI model provision billable infrastructure in your live IONOS CLOUD account.** Every create is a real resource on a real invoice, effective immediately.
 >
-> Some resources cost money even when nothing is using them — a reserved IP block, a snapshot, or a volume left behind after its server was deleted. Deletions are equally real: destroyed data is not recoverable without a snapshot, and released IP addresses cannot be reclaimed.
+> Some resources cost money even when nothing is using them — a reserved IP block, a snapshot, or a volume left behind after its server was deleted. Deletions are equally real: destroyed data is not recoverable without a snapshot, and a released IP address cannot be asked for again.
 >
 > **An AI model decides when and how often to call these tools.** It can misread your intent, retry more than you expected, or pick a larger resource than you had in mind. The two-phase confirmation exists to put a human in that loop, but it cannot stop a client configured to approve tool calls automatically — in that setup the model can complete both phases on its own.
 >

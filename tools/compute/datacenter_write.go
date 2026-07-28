@@ -135,7 +135,7 @@ func registerDeleteDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 // datacenterBlastRadius counts the resources a delete would destroy, from a
 // datacenter fetched at depth 2 (which populates the direct child collections).
 func datacenterBlastRadius(dc ionos.Datacenter) *tools.BlastRadius {
-	r := &tools.BlastRadius{}
+	r := tools.DestroyedRadius()
 	e := dc.Entities
 	if e == nil {
 		return r

@@ -161,7 +161,7 @@ func registerDeleteSecurityGroup(server *mcp.Server, client *ionos.APIClient, sc
 			return tools.ToResult(nil, err)
 		}
 		props := group.GetProperties()
-		radius := &tools.BlastRadius{}
+		radius := tools.AffectedRadius()
 		if e := group.Entities; e != nil {
 			if e.Rules != nil {
 				radius.Add("rules deleted with the group", len(e.Rules.Items))

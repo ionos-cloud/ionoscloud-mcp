@@ -228,7 +228,7 @@ func registerDeleteNic(server *mcp.Server, client *ionos.APIClient, scope tools.
 // depth 2. Security groups are listed but not destroyed — the NIC is only
 // unassigned from them.
 func nicBlastRadius(nic ionos.Nic) *tools.BlastRadius {
-	r := &tools.BlastRadius{}
+	r := tools.DestroyedRadius()
 	e := nic.Entities
 	if e == nil {
 		return r

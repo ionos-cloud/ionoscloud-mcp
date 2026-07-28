@@ -290,7 +290,7 @@ func registerManagedLbDelete(server *mcp.Server, client *ionos.APIClient, scope 
 			}
 			return tools.ToResult(nil, err)
 		}
-		radius := &tools.BlastRadius{}
+		radius := tools.DestroyedRadius()
 		radius.Add("forwarding rules deleted with it", current.RuleCount)
 		token, mErr := confirm.Mint("delete_"+api.toolName, target)
 		if mErr != nil {
