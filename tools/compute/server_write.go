@@ -450,6 +450,7 @@ func buildBootVolume(bv *tools.BootVolumeInput) *ionos.Volume {
 	if bv.UserData != nil {
 		props.SetUserData(*bv.UserData)
 	}
+	applyHotPlugFlags(props, bv.HotPlugFlags)
 	vol := ionos.NewVolume()
 	vol.SetProperties(*props)
 	return vol
@@ -477,7 +478,7 @@ func bootVolumePreviewFields(serverType string, bv *tools.BootVolumeInput) []too
 			volType = "(not set)"
 		}
 	}
-	return tools.Fields(
+	out := tools.Fields(
 		"boot_volume.type", volType,
 		"boot_volume.name", tools.OptStr(bv.Name),
 		"boot_volume.size (GB)", size,
@@ -489,6 +490,7 @@ func bootVolumePreviewFields(serverType string, bv *tools.BootVolumeInput) []too
 		"boot_volume.bus", tools.OptStr(bv.Bus),
 		"boot_volume.user_data", redacted(bv.UserData),
 	)
+	return append(out, hotPlugPreviewFields("boot_volume.", bv.HotPlugFlags)...)
 }
 
 // firstNonEmpty returns the first non-empty string, used to keep error messages

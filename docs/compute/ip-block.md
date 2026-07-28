@@ -2,10 +2,12 @@
 subcategory: "Compute Engine"
 page_title: "IP Block"
 description: |-
-  Tools for listing and inspecting reserved IP blocks in IONOS CLOUD.
+  Tools for listing, inspecting, and (opt-in) reserving, renaming and releasing public IP blocks in IONOS CLOUD.
 ---
 
 # IP Blocks
+
+The `list_*` and `get_*` tools are always available. The write tools register only when `IONOS_MCP_TOOL_SCOPE` opts in (`write` enables create/update; `destructive` also enables delete). `create_*` and `delete_*` use a two-phase confirmation: call once **without** `confirmation_token` to get a preview plus a one-time token, then call again **with** that token to execute.
 
 ## list_ip_blocks
 
@@ -54,3 +56,56 @@ Gets detailed information about a specific reserved IP block.
 ```
 
 **API Reference:** [ipblocksFindById](https://api.ionos.com/docs/cloud/v6/#tag/IPBlocks/operation/ipblocksFindById)
+
+---
+
+## create_ip_block
+
+Reserves a block of public IPv4 addresses. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Two-phase.
+
+An IP block belongs to the **account**, not to a data center — but its `location` must match the data center whose resources will use the addresses. Both `location` and `size` are **fixed once reserved**: to change either, reserve a new block and release this one. The block is billed from the moment it exists, whether or not its addresses are assigned to anything.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `location` | string | Yes | Where to reserve the addresses, e.g. `de/fra`. Must match the data center that will use them. Immutable. |
+| `size` | integer | Yes | How many addresses to reserve. Immutable. |
+| `name` | string | No | A name for the block — the only property you can change later. |
+| `confirmation_token` | string | No | Omit on the first call for a preview + token; pass it (with the same `location` and `size`) on the second call. |
+
+**API Reference:** [ipblocksPost](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksPost)
+
+---
+
+## update_ip_block
+
+Renames an IP block. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Single call.
+
+`name` is the **only** mutable property. The tool issues a `GET` before its `PATCH`: the IONOS SDK always serializes a block's `location` and `size`, so a partial update built without them would send `"location": ""` and `"size": 0` and ask the API to relocate and resize the block as a side effect of a rename. The current values are read and sent back unchanged.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `ipblock_id` | string | Yes | The ID of the block to rename. |
+| `name` | string | Yes | The new name. |
+
+**API Reference:** [ipblocksPatch](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksPatch)
+
+---
+
+## delete_ip_block
+
+Releases a block of public IPv4 addresses. Irreversible. Requires `IONOS_MCP_TOOL_SCOPE` to include `destructive`. Two-phase.
+
+The preview lists every resource still using the addresses — servers, NICs and Kubernetes node pools — because releasing a block whose addresses are assigned breaks connectivity for exactly those resources. The addresses return to the pool and **cannot be reclaimed**.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `ipblock_id` | string | Yes | The ID of the block to release. |
+| `confirmation_token` | string | No | Omit on the first call for the in-use preview + token; pass it on the second call to release. |
+
+**API Reference:** [ipblocksDelete](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksDelete)

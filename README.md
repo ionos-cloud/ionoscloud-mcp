@@ -4,7 +4,7 @@
 [![Apache 2.0](https://img.shields.io/github/license/ionos-cloud/ionoscloud-mcp)](LICENSE)
 [![Go reference](https://pkg.go.dev/badge/github.com/ionos-cloud/ionoscloud-mcp.svg)](https://pkg.go.dev/github.com/ionos-cloud/ionoscloud-mcp)
 
-A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations (currently data centers) are strictly opt-in — see [Write operations](#write-operations).
+A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations across Compute (servers, volumes, networking, load balancing) are strictly opt-in and create real, billable resources — see [Write operations](#write-operations).
 
 Built and maintained by the IONOS Cloud team. The server runs as a local binary on your workstation, a CI runner, or inside a container. IONOS CLOUD API calls go directly to IONOS over HTTPS; no third-party AI provider sits in the data path.
 
@@ -211,9 +211,36 @@ Scope is a comma-separated, hierarchical set of capabilities (`read` is always o
 
 Unrecognised values fall back to read-only, and the effective scope is logged to stderr at startup. Because the levels are hierarchical, a single value is enough — `destructive` alone already grants `write` and `read`; you don't need to list them all (though a comma-separated list like `read,write` is also accepted).
 
-**Two-phase confirmation.** `create_datacenter` and `delete_datacenter` are confirmation-gated. The first call returns a preview — for delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target). Only a second call carrying that token performs the operation. This keeps a human in the loop and makes the agent create or delete one resource at a time. `update_datacenter` (a reversible, non-destructive change) is a single call.
+### What can be written
 
-**Annotations.** Write tools carry MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) so clients can build their own approval UX — but enforcement is always server-side.
+| Area | Resources |
+|------|-----------|
+| Compute | data centers, servers (+ start/stop/reboot/suspend/resume/upgrade), volumes (+ snapshot & restore, attach/detach), NICs, LANs |
+| Networking | IP blocks, security groups + rules, firewall rules, private cross connects |
+| Load balancing | classic, network and application load balancers + forwarding rules, target groups, NAT gateways + rules |
+| Images | snapshot and image update/delete |
+
+70 tools in total: 118 at the default read-only scope, 162 with `write`, 188 with `destructive`. Reads remain read-only and always available; nothing below changes that.
+
+**Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`), is confirmation-gated. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
+
+**Annotations.** Write tools carry MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) so clients can build their own approval UX — but enforcement is always server-side. Note that the class comes from the operation, not the HTTP verb: `stop_server` is a `POST` that is destructive.
+
+---
+
+> ## ⚠️ Write operations create real resources and real charges
+>
+> **Enabling `IONOS_MCP_TOOL_SCOPE` lets an AI model provision billable infrastructure in your live IONOS CLOUD account.** Every create is a real resource on a real invoice, effective immediately.
+>
+> Some resources cost money even when nothing is using them — a reserved IP block, a snapshot, or a volume left behind after its server was deleted. Deletions are equally real: destroyed data is not recoverable without a snapshot, and released IP addresses cannot be reclaimed.
+>
+> **An AI model decides when and how often to call these tools.** It can misread your intent, retry more than you expected, or pick a larger resource than you had in mind. The two-phase confirmation exists to put a human in that loop, but it cannot stop a client configured to approve tool calls automatically — in that setup the model can complete both phases on its own.
+>
+> **You are responsible for everything created, modified or deleted in your account through these tools, and for the resulting charges.** IONOS does not control and is not responsible for how a model chooses to call them, or for any cost, data loss or outage arising from those calls.
+>
+> Reduce the risk: leave the server read-only unless you need writes; grant `write` rather than `destructive` when deletion isn't required; require manual approval of tool calls in your client; read the preview before returning a confirmation token; and prefer a non-production account when experimenting.
+
+---
 
 Enable writes in your MCP client config, for example:
 

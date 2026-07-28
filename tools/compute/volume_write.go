@@ -94,6 +94,7 @@ func registerCreateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			if input.ExposeSerial != nil {
 				props.SetExposeSerial(*input.ExposeSerial)
 			}
+			applyHotPlugFlags(props, input.HotPlugFlags)
 			body := ionos.NewVolume()
 			body.SetProperties(*props)
 			created, _, err := client.VolumesApi.DatacentersVolumesPost(ctx, dcID).Volume(*body).Execute()
@@ -105,24 +106,26 @@ func registerCreateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 		if err != nil {
 			return nil, nil, err
 		}
+		fields := tools.Fields(
+			"datacenter_id", dcID,
+			"name", name,
+			"size (GB)", fmt.Sprintf("%g", input.Size),
+			"type", volType,
+			"image", tools.OptStr(input.Image),
+			"image_alias", tools.OptStr(input.ImageAlias),
+			"image_password", redacted(input.ImagePassword),
+			"ssh_keys", sshKeySummary(input.SshKeys),
+			"licence_type", tools.OptStr(input.LicenceType),
+			"availability_zone", tools.OptStr(input.AvailabilityZone),
+			"bus", tools.OptStr(input.Bus),
+			"user_data", redacted(input.UserData),
+			"backupunit_id", tools.OptStr(input.BackupunitId),
+			"expose_serial", tools.OptBool(input.ExposeSerial),
+		)
+		fields = append(fields, hotPlugPreviewFields("", input.HotPlugFlags)...)
 		return tools.TextResult(tools.Preview{
-			Headline: "About to CREATE one storage volume:",
-			Fields: tools.Fields(
-				"datacenter_id", dcID,
-				"name", name,
-				"size (GB)", fmt.Sprintf("%g", input.Size),
-				"type", volType,
-				"image", tools.OptStr(input.Image),
-				"image_alias", tools.OptStr(input.ImageAlias),
-				"image_password", redacted(input.ImagePassword),
-				"ssh_keys", sshKeySummary(input.SshKeys),
-				"licence_type", tools.OptStr(input.LicenceType),
-				"availability_zone", tools.OptStr(input.AvailabilityZone),
-				"bus", tools.OptStr(input.Bus),
-				"user_data", redacted(input.UserData),
-				"backupunit_id", tools.OptStr(input.BackupunitId),
-				"expose_serial", tools.OptBool(input.ExposeSerial),
-			),
+			Headline:  "About to CREATE one storage volume:",
+			Fields:    fields,
 			Tool:      "create_volume",
 			Replay:    tools.Fields("datacenter_id", dcID, "name", name),
 			TokenNote: "This creates exactly one volume, not attached to any server. The token authorizes creating only this volume in this data center",
@@ -136,6 +139,7 @@ func registerUpdateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 		Description: "Update a volume's name, size, bus type, serial exposure or boot order. Applies a partial update (only the fields you provide). " +
 			"boot_order controls whether the volume is the server's boot disk (PRIMARY, NONE or AUTO), but PRIMARY requires every other volume on the server to be NONE — to just point a server at a different disk, use update_server with boot_volume_id instead. " +
 			"size can only be INCREASED — the API rejects shrinking a volume — and after growing it the guest operating system still has to extend its own filesystem to use the new space. " +
+			"The cpu_hot_plug, ram_hot_plug, nic_hot_plug, nic_hot_unplug, disc_virtio_hot_plug and disc_virtio_hot_unplug flags control whether the server this volume is attached to can change that hardware without rebooting — set them before you need to resize a running server. " +
 			"image_password, user_data and backupunit_id are set at creation only and cannot be changed here.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateVolumeInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -147,8 +151,8 @@ func registerUpdateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			return tools.ErrorText("volume_id is required"), nil, nil
 		}
 		if input.Name == nil && input.Size == nil && input.Bus == nil &&
-			input.ExposeSerial == nil && input.BootOrder == nil {
-			return tools.ErrorText("nothing to update: provide at least one of name, size, bus, expose_serial, boot_order"), nil, nil
+			input.ExposeSerial == nil && input.BootOrder == nil && !anyHotPlugFlagSet(input.HotPlugFlags) {
+			return tools.ErrorText("nothing to update: provide at least one of name, size, bus, expose_serial, boot_order, cpu_hot_plug, ram_hot_plug, nic_hot_plug, nic_hot_unplug, disc_virtio_hot_plug, disc_virtio_hot_unplug"), nil, nil
 		}
 		// A zero-valued literal, NOT NewVolumePropertiesWithDefaults(): that
 		// constructor pre-sets exposeSerial=false, requireLegacyBios=true and
@@ -177,6 +181,7 @@ func registerUpdateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			}
 			props.SetBootOrder(order)
 		}
+		applyHotPlugFlags(props, input.HotPlugFlags)
 		updated, _, err := client.VolumesApi.DatacentersVolumesPatch(ctx, dcID, id).Volume(*props).Execute()
 		return tools.ToResult(updated, err)
 	})
@@ -244,6 +249,51 @@ func registerDeleteVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			TokenNote: "This token authorizes deleting ONLY this volume",
 		}.Render(token)), nil, nil
 	})
+}
+
+// applyHotPlugFlags copies the supplied capability flags onto volume properties,
+// setting only the ones the caller provided. Shared by create_volume,
+// update_volume and create_server's inline boot volume so the three cannot drift.
+func applyHotPlugFlags(props *ionos.VolumeProperties, f tools.HotPlugFlags) {
+	if f.CpuHotPlug != nil {
+		props.SetCpuHotPlug(*f.CpuHotPlug)
+	}
+	if f.RamHotPlug != nil {
+		props.SetRamHotPlug(*f.RamHotPlug)
+	}
+	if f.NicHotPlug != nil {
+		props.SetNicHotPlug(*f.NicHotPlug)
+	}
+	if f.NicHotUnplug != nil {
+		props.SetNicHotUnplug(*f.NicHotUnplug)
+	}
+	if f.DiscVirtioHotPlug != nil {
+		props.SetDiscVirtioHotPlug(*f.DiscVirtioHotPlug)
+	}
+	if f.DiscVirtioHotUnplug != nil {
+		props.SetDiscVirtioHotUnplug(*f.DiscVirtioHotUnplug)
+	}
+}
+
+// anyHotPlugFlagSet reports whether the caller supplied any capability flag, so
+// update_volume's "nothing to update" guard counts them as a real change.
+func anyHotPlugFlagSet(f tools.HotPlugFlags) bool {
+	return f.CpuHotPlug != nil || f.RamHotPlug != nil || f.NicHotPlug != nil ||
+		f.NicHotUnplug != nil || f.DiscVirtioHotPlug != nil || f.DiscVirtioHotUnplug != nil
+}
+
+// hotPlugPreviewFields renders the capability flags for a preview. Unset flags
+// render as "" and are dropped by tools.Fields, so this can be appended
+// unconditionally.
+func hotPlugPreviewFields(prefix string, f tools.HotPlugFlags) []tools.KV {
+	return tools.Fields(
+		prefix+"cpu_hot_plug", tools.OptBool(f.CpuHotPlug),
+		prefix+"ram_hot_plug", tools.OptBool(f.RamHotPlug),
+		prefix+"nic_hot_plug", tools.OptBool(f.NicHotPlug),
+		prefix+"nic_hot_unplug", tools.OptBool(f.NicHotUnplug),
+		prefix+"disc_virtio_hot_plug", tools.OptBool(f.DiscVirtioHotPlug),
+		prefix+"disc_virtio_hot_unplug", tools.OptBool(f.DiscVirtioHotUnplug),
+	)
 }
 
 // redacted reports that a secret-bearing field was supplied without echoing it

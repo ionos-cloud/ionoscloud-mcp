@@ -987,6 +987,141 @@ func TestUpdateVolume(t *testing.T) {
 	}
 }
 
+// TestVolumeHotPlugFlags covers the capability flags that decide whether the
+// server a volume is attached to can change CPU, RAM, NICs or disks without a
+// reboot. They live on the VOLUME, not the server, which is easy to miss — and
+// without them a running server cannot be resized at all.
+//
+// They are exposed on all three paths that carry volume properties, matching
+// ionosctl (volume create and update) and the Terraform provider (the volume
+// resource plus the inline volume block of server, cube_server and gpu_server).
+func TestVolumeHotPlugFlags(t *testing.T) {
+	allFlags := map[string]any{
+		"cpu_hot_plug": true, "ram_hot_plug": true,
+		"nic_hot_plug": true, "nic_hot_unplug": false,
+		"disc_virtio_hot_plug": true, "disc_virtio_hot_unplug": false,
+	}
+	wantJSON := []string{
+		`"cpuHotPlug":true`, `"ramHotPlug":true`,
+		`"nicHotPlug":true`, `"nicHotUnplug":false`,
+		`"discVirtioHotPlug":true`, `"discVirtioHotUnplug":false`,
+	}
+
+	t.Run("update_volume", func(t *testing.T) {
+		h := destructiveSetup(t)
+		args := map[string]any{"datacenter_id": dcID, "volume_id": "vol-1"}
+		for k, v := range allFlags {
+			args[k] = v
+		}
+		if res := callTool(t, h, "update_volume", args); res.IsError {
+			t.Fatalf("update failed: %s", resultText(res))
+		}
+		req := singleRequest(t, h, http.MethodPatch)
+		for _, want := range wantJSON {
+			if !strings.Contains(req.Body, want) {
+				t.Errorf("PATCH body missing %s:\n%s", want, req.Body)
+			}
+		}
+	})
+
+	t.Run("create_volume", func(t *testing.T) {
+		h := destructiveSetup(t)
+		args := map[string]any{
+			"datacenter_id": dcID, "name": "data-1", "size": 50, "type": "SSD",
+			"image_alias": "ubuntu:latest",
+		}
+		for k, v := range allFlags {
+			args[k] = v
+		}
+		preview, res := previewThenExecute(t, h, "create_volume", args)
+		if !strings.Contains(preview, "cpu_hot_plug") {
+			t.Errorf("preview should list the capability flags it will set:\n%s", preview)
+		}
+		if res.IsError {
+			t.Fatalf("create failed: %s", resultText(res))
+		}
+		req := singleRequest(t, h, http.MethodPost)
+		for _, want := range wantJSON {
+			if !strings.Contains(req.Body, want) {
+				t.Errorf("POST body missing %s:\n%s", want, req.Body)
+			}
+		}
+	})
+
+	t.Run("create_server inline boot_volume", func(t *testing.T) {
+		h := destructiveSetup(t)
+		bootVol := map[string]any{"type": "SSD", "size": 30, "image_alias": "ubuntu:latest"}
+		for k, v := range allFlags {
+			bootVol[k] = v
+		}
+		_, res := previewThenExecute(t, h, "create_server", map[string]any{
+			"datacenter_id": dcID, "name": "web-1", "cores": 2, "ram": 1024,
+			"boot_volume": bootVol,
+		})
+		if res.IsError {
+			t.Fatalf("create failed: %s", resultText(res))
+		}
+		req := singleRequest(t, h, http.MethodPost)
+		for _, want := range wantJSON {
+			if !strings.Contains(req.Body, want) {
+				t.Errorf("composite POST body missing %s:\n%s", want, req.Body)
+			}
+		}
+	})
+}
+
+// TestUpdateVolumeHotPlugFlagsAreIndependent checks each flag can be set alone —
+// so a caller turning on RAM hot-plug does not silently reset the other five, which
+// is exactly the failure mode the PATCH-purity rule exists to prevent.
+func TestUpdateVolumeHotPlugFlagsAreIndependent(t *testing.T) {
+	cases := map[string]string{
+		"cpu_hot_plug":           "cpuHotPlug",
+		"ram_hot_plug":           "ramHotPlug",
+		"nic_hot_plug":           "nicHotPlug",
+		"nic_hot_unplug":         "nicHotUnplug",
+		"disc_virtio_hot_plug":   "discVirtioHotPlug",
+		"disc_virtio_hot_unplug": "discVirtioHotUnplug",
+	}
+	for field, jsonKey := range cases {
+		t.Run(field, func(t *testing.T) {
+			h := destructiveSetup(t)
+			if res := callTool(t, h, "update_volume", map[string]any{
+				"datacenter_id": dcID, "volume_id": "vol-1", field: true,
+			}); res.IsError {
+				t.Fatalf("update failed: %s", resultText(res))
+			}
+			req := singleRequest(t, h, http.MethodPatch)
+			var body map[string]any
+			if err := json.Unmarshal([]byte(req.Body), &body); err != nil {
+				t.Fatalf("PATCH body is not JSON (%v): %s", err, req.Body)
+			}
+			if body[jsonKey] != true {
+				t.Errorf("PATCH body should set %s: %s", jsonKey, req.Body)
+			}
+			// Exactly one property: none of the other five leaked in.
+			if len(body) != 1 {
+				t.Errorf("setting %s alone must send only that field, got %s", field, req.Body)
+			}
+		})
+	}
+}
+
+// TestUpdateVolumeStillRejectsEmptyUpdate guards the guard: adding six optional
+// fields must not make an all-empty update look like a real change.
+func TestUpdateVolumeStillRejectsEmptyUpdate(t *testing.T) {
+	h := destructiveSetup(t)
+	res := callTool(t, h, "update_volume", map[string]any{"datacenter_id": dcID, "volume_id": "vol-1"})
+	if !res.IsError {
+		t.Fatal("an update with no fields should still be rejected")
+	}
+	if !strings.Contains(resultText(res), "cpu_hot_plug") {
+		t.Errorf("the error should list the newly available fields too: %s", resultText(res))
+	}
+	if len(h.log.allRequests()) != 0 {
+		t.Error("an empty update must not reach the API")
+	}
+}
+
 func TestDeleteVolumeWarnsWhenAttached(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(volumesAPI+"/vol-1", `{"id":"vol-1","properties":{
@@ -1321,6 +1456,62 @@ func TestUpdateBodiesContainOnlyRequestedFields(t *testing.T) {
 		{
 			tool:     "update_datacenter",
 			args:     map[string]any{"datacenter_id": dcID, "name": "renamed"},
+			wantKeys: []string{"name"},
+		},
+		{
+			// update_ip_block legitimately also sends location and size, because the
+			// SDK serializes both unconditionally and omitting them would relocate
+			// and resize the block.
+			tool:      "update_ip_block",
+			args:      map[string]any{"ipblock_id": "ipb-1", "name": "renamed"},
+			wantKeys:  []string{"name", "location", "size"},
+			primePath: "/cloudapi/v6/ipblocks/ipb-1",
+			primeBody: `{"id":"ipb-1","properties":{"name":"old","location":"de/txl","size":8}}`,
+		},
+		{
+			// update_security_group also carries name, for the same reason.
+			tool:      "update_security_group",
+			args:      map[string]any{"datacenter_id": dcID, "security_group_id": "sg-1", "description": "new"},
+			wantKeys:  []string{"name", "description"},
+			primePath: "/cloudapi/v6/datacenters/dc-1/securitygroups/sg-1",
+			primeBody: `{"id":"sg-1","properties":{"name":"web-sg","description":"old"}}`,
+		},
+		{
+			tool: "update_firewall_rule",
+			args: map[string]any{
+				"datacenter_id": dcID, "server_id": srvID, "nic_id": "nic-1",
+				"firewallrule_id": "fw-1", "name": "renamed",
+			},
+			wantKeys: []string{"name"},
+		},
+		{
+			tool: "update_security_group_rule",
+			args: map[string]any{
+				"datacenter_id": dcID, "security_group_id": "sg-1", "rule_id": "r-1", "name": "renamed",
+			},
+			wantKeys: []string{"name"},
+		},
+		{
+			tool:     "update_pcc",
+			args:     map[string]any{"pcc_id": "pcc-1", "description": "new"},
+			wantKeys: []string{"description"},
+		},
+		{
+			tool:     "update_snapshot",
+			args:     map[string]any{"snapshot_id": "snap-1", "name": "renamed"},
+			wantKeys: []string{"name"},
+		},
+		{
+			// update_image also carries licenceType, which the SDK always sends.
+			tool:      "update_image",
+			args:      map[string]any{"image_id": "img-1", "description": "new"},
+			wantKeys:  []string{"description", "licenceType"},
+			primePath: "/cloudapi/v6/images/img-1",
+			primeBody: `{"id":"img-1","properties":{"name":"custom","licenceType":"LINUX"}}`,
+		},
+		{
+			tool:     "update_loadbalancer",
+			args:     map[string]any{"datacenter_id": dcID, "loadbalancer_id": "lb-1", "name": "renamed"},
 			wantKeys: []string{"name"},
 		},
 	}

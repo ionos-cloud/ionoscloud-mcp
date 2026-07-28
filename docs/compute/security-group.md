@@ -152,3 +152,42 @@ Only the assignment changes — no security group is created or deleted, and the
 ```
 
 **API Reference:** [datacentersServersSecuritygroupsPut](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersServersSecuritygroupsPut), [datacentersServersNicsSecuritygroupsPut](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersServersNicsSecuritygroupsPut)
+
+---
+
+## create_security_group
+
+Creates a security group — a reusable set of firewall rules assignable to several servers and NICs at once. Requires `write`. Two-phase.
+
+The new group has **no rules**, so it permits nothing until you add some with `create_security_group_rule`; assigning an empty group to a server has no effect.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `datacenter_id` | string | Yes | The data center to create the group in. |
+| `name` | string | Yes | The group's name. |
+| `description` | string | No | What the group is for. |
+| `confirmation_token` | string | No | Omit on the first call for a preview + token. |
+
+**API Reference:** [datacentersSecuritygroupsPost](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersSecuritygroupsPost)
+
+---
+
+## update_security_group
+
+Updates a group's `name` or `description`. Requires `write`. Partial update.
+
+**Omit `name` to keep the current one.** The IONOS SDK always serializes this field, so a partial update that changed only the description would send an empty name and wipe it — the tool reads the current name and sends it back unchanged, which is why it issues a `GET` before its `PATCH`. A blank `name` is rejected rather than applied.
+
+This changes only the group's own properties; its rules are managed with the `*_security_group_rule` tools, and its assignment with `assign_server_security_groups` / `assign_nic_security_groups`.
+
+**API Reference:** [datacentersSecuritygroupsPatch](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersSecuritygroupsPatch)
+
+---
+
+## delete_security_group
+
+Deletes a group and every rule in it. Irreversible. Requires `destructive`. Two-phase.
+
+The preview counts the rules deleted with it, plus the servers and NICs that lose the protection those rules provided — they are not deleted, but they stop being governed by the rules, which may expose traffic the rules restricted or cut off traffic they allowed.
+
+**API Reference:** [datacentersSecuritygroupsDelete](https://api.ionos.com/docs/cloud/v6/#tag/Security-Groups/operation/datacentersSecuritygroupsDelete)

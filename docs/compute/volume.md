@@ -123,6 +123,11 @@ Updates a volume's name, size, bus type or serial exposure. Requires `IONOS_MCP_
 | `size` | number | No | A new size in GB. **Increase only.** |
 | `bus` | string | No | `VIRTIO` or `IDE`. Requires a server restart to take effect. |
 | `expose_serial` | boolean | No | Expose the disk serial ID, or stop exposing it. |
+| `boot_order` | string | No | `PRIMARY`, `NONE` or `AUTO`. See "Boot order" below. |
+| `cpu_hot_plug` | boolean | No | Allow CPU cores to be added without rebooting the server. |
+| `ram_hot_plug` | boolean | No | Allow memory to be added without rebooting. Requires the server to have at least 1024 MB of RAM. |
+| `nic_hot_plug` / `nic_hot_unplug` | boolean | No | Allow a NIC to be attached / detached without rebooting. |
+| `disc_virtio_hot_plug` / `disc_virtio_hot_unplug` | boolean | No | Allow a VirtIO disk to be attached / detached without rebooting. Unplug is unsupported on Windows guests. |
 
 **Example:**
 
@@ -210,3 +215,34 @@ The confirmation token is bound to **both** the volume and the snapshot, so a to
 | `confirmation_token` | string | No | Omit on the first call for a preview + token; pass it on the second call to restore. |
 
 **API Reference:** [datacentersVolumesRestoreSnapshotPost](https://api.ionos.com/docs/cloud/v6/#tag/Volumes/operation/datacentersVolumesRestoreSnapshotPost)
+
+---
+
+## Hot-plug capability flags
+
+These six flags decide whether the server a volume is attached to can change hardware **without a reboot**. They live on the *volume*, not the server, which is easy to miss — and without them a running server cannot be resized at all:
+
+| Flag | Effect |
+|------|--------|
+| `cpu_hot_plug` | CPU cores can be added while the server runs |
+| `ram_hot_plug` | Memory can be added while the server runs. Requires ≥ 1024 MB RAM on the server. |
+| `nic_hot_plug` / `nic_hot_unplug` | A NIC can be attached / detached while the server runs |
+| `disc_virtio_hot_plug` / `disc_virtio_hot_unplug` | A VirtIO disk can be attached / detached while the server runs. Unplug is not supported on Windows guests. |
+
+Set them at creation where you can. Turning a flag on later is itself only picked up when the server restarts, so enabling `ram_hot_plug` on a running server does not make *that* server resizable until it reboots once.
+
+They are available on all three paths that carry volume properties: `create_volume`, `update_volume`, and `create_server`'s inline `boot_volume`.
+
+---
+
+## Boot order
+
+`boot_order` on a volume takes `PRIMARY`, `NONE` or `AUTO` (the default):
+
+- `PRIMARY` — this volume is the boot device. **Every other volume on the same server must be `NONE` first**, so this takes several calls in the right order.
+- `NONE` — never used as the boot device.
+- `AUTO` — legacy behaviour; requires *all* volumes on the server to be `AUTO`. The volume boots only if there is no other volume or CD-ROM.
+
+On a server with **Confidential Computing**, the confidential volume is the only one allowed to be `PRIMARY`, and it must never be set to `NONE`.
+
+To simply point a server at a different disk, use `update_server` with `boot_volume_id` instead — one call, no coordination between volumes. See [server.md](server.md).

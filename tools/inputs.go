@@ -49,6 +49,24 @@ type ServerIDInput struct {
 	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
+// HotPlugFlags are the volume capability flags that decide whether the server it
+// is attached to can change hardware without a reboot. They are embedded in every
+// input that carries volume properties — create_volume, update_volume and the
+// inline boot volume of create_server — because all three IONOS tooling paths
+// expose them on all three (ionosctl's volume create and update, and the volume
+// block of the Terraform server, cube_server and gpu_server resources).
+//
+// Embedded rather than repeated so the wording cannot drift between the three
+// tools; Go flattens the fields into the parent object's JSON schema.
+type HotPlugFlags struct {
+	CpuHotPlug          *bool `json:"cpu_hot_plug,omitempty" jsonschema:"whether CPU cores can be added to the server without rebooting it. Set this before you need to resize a running server, since turning it on later is itself only picked up on a restart."`
+	RamHotPlug          *bool `json:"ram_hot_plug,omitempty" jsonschema:"whether memory can be added to the server without rebooting it. A volume with RAM hot-plug enabled requires the server to have at least 1024 MB of RAM."`
+	NicHotPlug          *bool `json:"nic_hot_plug,omitempty" jsonschema:"whether a NIC can be attached to the server without rebooting it"`
+	NicHotUnplug        *bool `json:"nic_hot_unplug,omitempty" jsonschema:"whether a NIC can be detached from the server without rebooting it"`
+	DiscVirtioHotPlug   *bool `json:"disc_virtio_hot_plug,omitempty" jsonschema:"whether a VirtIO disk can be attached to the server without rebooting it"`
+	DiscVirtioHotUnplug *bool `json:"disc_virtio_hot_unplug,omitempty" jsonschema:"whether a VirtIO disk can be detached from the server without rebooting it. Not supported on Windows guests."`
+}
+
 // BootVolumeInput describes a volume to create together with a server, in the
 // same API request. This is not merely a convenience: CUBE and GPU servers are
 // template-sized and the API accepts their storage ONLY as part of a composite
@@ -67,6 +85,7 @@ type BootVolumeInput struct {
 	LicenceType   *string  `json:"licence_type,omitempty" jsonschema:"OS type: LINUX, WINDOWS, WINDOWS2016, WINDOWS2022, WINDOWS2025, UNKNOWN or OTHER. Required when neither image nor image_alias is given."`
 	Bus           *string  `json:"bus,omitempty" jsonschema:"bus type: VIRTIO (default, faster) or IDE"`
 	UserData      *string  `json:"user_data,omitempty" jsonschema:"cloud-init configuration as a base64-encoded string; requires a cloud-init-capable image"`
+	HotPlugFlags
 }
 
 // CreateServerInput is the input for create_server. Two-phase confirmed; creates
@@ -130,21 +149,22 @@ type VolumeIDInput struct {
 // exactly one volume per call. A standalone volume is not attached to any server
 // — use attach_server_volume afterwards.
 type CreateVolumeInput struct {
-	DatacenterID      string   `json:"datacenter_id" jsonschema:"the ID of the data center to create the volume in"`
-	Name              string   `json:"name" jsonschema:"the name of the new volume"`
-	Size              float32  `json:"size" jsonschema:"the size of the volume in GB"`
-	Type              string   `json:"type" jsonschema:"storage type: HDD, SSD, SSD Standard, SSD Premium, or DAS. DAS (Direct Attached Storage) works only inline with a CUBE server and ignores size."`
-	Image             *string  `json:"image,omitempty" jsonschema:"ID of an image or snapshot to use as the template for this volume. Provide exactly one of image, image_alias or licence_type; without one of the first two the volume is created empty and has no operating system. Find IDs with list_images or list_snapshots."`
-	ImageAlias        *string  `json:"image_alias,omitempty" jsonschema:"alias of an image to use as the template, e.g. ubuntu:latest. An alternative to image."`
-	ImagePassword     *string  `json:"image_password,omitempty" jsonschema:"initial root/administrator password for the installed OS; works with public images only. Allowed characters are a-z, A-Z and 0-9, minimum 8 characters. Cannot be changed later. Prefer ssh_keys for Linux images."`
-	SshKeys           []string `json:"ssh_keys,omitempty" jsonschema:"public SSH keys to authorize for login. Supported only when creating from a public Linux image. Can only be set at creation; reads always return null."`
-	LicenceType       *string  `json:"licence_type,omitempty" jsonschema:"OS type for the volume: LINUX, WINDOWS, WINDOWS2016, WINDOWS2022, WINDOWS2025, UNKNOWN or OTHER. Required when neither image nor image_alias is given, since the licence type cannot then be inferred."`
-	AvailabilityZone  *string  `json:"availability_zone,omitempty" jsonschema:"availability zone to provision in: AUTO (default), ZONE_1, ZONE_2 or ZONE_3. Not available for DAS."`
-	Bus               *string  `json:"bus,omitempty" jsonschema:"bus type: VIRTIO (default, faster) or IDE. Use IDE only for images without VirtIO drivers."`
-	UserData          *string  `json:"user_data,omitempty" jsonschema:"cloud-init configuration as a base64-encoded string. Requires a cloud-init-capable image or image_alias. Can only be set at creation."`
-	BackupunitId      *string  `json:"backupunit_id,omitempty" jsonschema:"ID of a backup unit to associate. Requires image or image_alias. Can only be set at creation."`
-	ExposeSerial      *bool    `json:"expose_serial,omitempty" jsonschema:"expose the disk serial ID to the server; some operating systems and licensed software require it"`
-	ConfirmationToken *string  `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of what will be created plus a one-time token; pass that token on the SECOND call (with the same datacenter_id and name) to actually create the volume. The token expires after a few minutes."`
+	DatacenterID     string   `json:"datacenter_id" jsonschema:"the ID of the data center to create the volume in"`
+	Name             string   `json:"name" jsonschema:"the name of the new volume"`
+	Size             float32  `json:"size" jsonschema:"the size of the volume in GB"`
+	Type             string   `json:"type" jsonschema:"storage type: HDD, SSD, SSD Standard, SSD Premium, or DAS. DAS (Direct Attached Storage) works only inline with a CUBE server and ignores size."`
+	Image            *string  `json:"image,omitempty" jsonschema:"ID of an image or snapshot to use as the template for this volume. Provide exactly one of image, image_alias or licence_type; without one of the first two the volume is created empty and has no operating system. Find IDs with list_images or list_snapshots."`
+	ImageAlias       *string  `json:"image_alias,omitempty" jsonschema:"alias of an image to use as the template, e.g. ubuntu:latest. An alternative to image."`
+	ImagePassword    *string  `json:"image_password,omitempty" jsonschema:"initial root/administrator password for the installed OS; works with public images only. Allowed characters are a-z, A-Z and 0-9, minimum 8 characters. Cannot be changed later. Prefer ssh_keys for Linux images."`
+	SshKeys          []string `json:"ssh_keys,omitempty" jsonschema:"public SSH keys to authorize for login. Supported only when creating from a public Linux image. Can only be set at creation; reads always return null."`
+	LicenceType      *string  `json:"licence_type,omitempty" jsonschema:"OS type for the volume: LINUX, WINDOWS, WINDOWS2016, WINDOWS2022, WINDOWS2025, UNKNOWN or OTHER. Required when neither image nor image_alias is given, since the licence type cannot then be inferred."`
+	AvailabilityZone *string  `json:"availability_zone,omitempty" jsonschema:"availability zone to provision in: AUTO (default), ZONE_1, ZONE_2 or ZONE_3. Not available for DAS."`
+	Bus              *string  `json:"bus,omitempty" jsonschema:"bus type: VIRTIO (default, faster) or IDE. Use IDE only for images without VirtIO drivers."`
+	UserData         *string  `json:"user_data,omitempty" jsonschema:"cloud-init configuration as a base64-encoded string. Requires a cloud-init-capable image or image_alias. Can only be set at creation."`
+	BackupunitId     *string  `json:"backupunit_id,omitempty" jsonschema:"ID of a backup unit to associate. Requires image or image_alias. Can only be set at creation."`
+	ExposeSerial     *bool    `json:"expose_serial,omitempty" jsonschema:"expose the disk serial ID to the server; some operating systems and licensed software require it"`
+	HotPlugFlags
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of what will be created plus a one-time token; pass that token on the SECOND call (with the same datacenter_id and name) to actually create the volume. The token expires after a few minutes."`
 }
 
 // UpdateVolumeInput is the input for update_volume. Partial update. Note that
@@ -157,7 +177,8 @@ type UpdateVolumeInput struct {
 	Size         *float32 `json:"size,omitempty" jsonschema:"a new size in GB. Can only be INCREASED; the API rejects any attempt to shrink a volume. The guest OS must then grow its filesystem to use the extra space."`
 	Bus          *string  `json:"bus,omitempty" jsonschema:"a new bus type: VIRTIO or IDE. Changing this requires a server restart to take effect."`
 	ExposeSerial *bool    `json:"expose_serial,omitempty" jsonschema:"expose the disk serial ID to the server, or stop exposing it"`
-	BootOrder    *string  `json:"boot_order,omitempty" jsonschema:"whether this volume is used as a boot volume: PRIMARY, NONE or AUTO. PRIMARY makes it the boot volume, and requires EVERY other volume on the same server to be set to NONE first, so set the others before this one. AUTO is the legacy behaviour and requires all volumes on the server to be AUTO. To point a server at a different disk, prefer update_server with boot_volume_id — it takes one call and needs no coordination between volumes."`
+	BootOrder    *string  `json:"boot_order,omitempty" jsonschema:"whether this volume is used as a boot volume: PRIMARY, NONE or AUTO. PRIMARY makes it the boot volume, and requires EVERY other volume on the same server to be set to NONE first, so set the others before this one. AUTO (the default) is the legacy behaviour and requires all volumes on the server to be AUTO. On a server with Confidential Computing the confidential volume is the only one allowed to be PRIMARY, and it must never be set to NONE. To point a server at a different disk, prefer update_server with boot_volume_id — it takes one call and needs no coordination between volumes."`
+	HotPlugFlags
 }
 
 // DeleteVolumeInput is the input for delete_volume. Two-phase confirmed; the data
@@ -166,6 +187,65 @@ type DeleteVolumeInput struct {
 	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the volume is in"`
 	VolumeID          string  `json:"volume_id" jsonschema:"the ID of the volume to delete"`
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview (including whether the volume is attached to a server) plus a one-time token; pass that token on the SECOND call to actually delete. All data on the volume is lost. The token authorizes deleting only the volume it was issued for and expires after a few minutes."`
+}
+
+// ExtraHotPlugFlags are the capability flags that snapshots and images carry but
+// volumes do not. They are kept separate from HotPlugFlags rather than merged so
+// each input exposes exactly the set its resource supports — VolumeProperties has
+// no cpuHotUnplug, ramHotUnplug or SCSI flags at all.
+type ExtraHotPlugFlags struct {
+	CpuHotUnplug      *bool `json:"cpu_hot_unplug,omitempty" jsonschema:"whether CPU cores can be removed from a server without rebooting it"`
+	RamHotUnplug      *bool `json:"ram_hot_unplug,omitempty" jsonschema:"whether memory can be removed from a server without rebooting it"`
+	DiscScsiHotPlug   *bool `json:"disc_scsi_hot_plug,omitempty" jsonschema:"whether a SCSI disk can be attached without rebooting the server"`
+	DiscScsiHotUnplug *bool `json:"disc_scsi_hot_unplug,omitempty" jsonschema:"whether a SCSI disk can be detached without rebooting the server"`
+}
+
+// UpdateSnapshotInput is the input for update_snapshot. There is no create_snapshot:
+// snapshots are taken from a volume with create_volume_snapshot.
+//
+// The hot-plug flags describe what a volume restored from this snapshot will
+// support, so changing them affects future restores rather than the snapshot's data.
+type UpdateSnapshotInput struct {
+	SnapshotID        string  `json:"snapshot_id" jsonschema:"the ID of the snapshot to update"`
+	Name              *string `json:"name,omitempty" jsonschema:"a new name for the snapshot"`
+	Description       *string `json:"description,omitempty" jsonschema:"a new description"`
+	LicenceType       *string `json:"licence_type,omitempty" jsonschema:"OS type recorded on the snapshot: LINUX, WINDOWS, WINDOWS2016, WINDOWS2022, WINDOWS2025, UNKNOWN or OTHER"`
+	SecAuthProtection *bool   `json:"sec_auth_protection,omitempty" jsonschema:"require extra protection such as two-step verification before the snapshot can be deleted"`
+	ExposeSerial      *bool   `json:"expose_serial,omitempty" jsonschema:"expose the disk serial ID on volumes restored from this snapshot"`
+	RequireLegacyBios *bool   `json:"require_legacy_bios,omitempty" jsonschema:"whether volumes restored from this snapshot need the legacy BIOS"`
+	HotPlugFlags
+	ExtraHotPlugFlags
+}
+
+// DeleteSnapshotInput is the input for delete_snapshot. Two-phase confirmed: a
+// snapshot is often the only copy of a volume's earlier state.
+type DeleteSnapshotInput struct {
+	SnapshotID        string  `json:"snapshot_id" jsonschema:"the ID of the snapshot to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the snapshot plus a one-time token; pass that token on the SECOND call to actually delete. A snapshot is frequently the only copy of a volume's earlier contents, so deleting it can remove your only way back. The token expires after a few minutes."`
+}
+
+// UpdateImageInput is the input for update_image. There is no create_image — the API
+// exposes no way to create one, and only private images you uploaded can be changed
+// or deleted; public IONOS images are read-only.
+//
+// licence_type is read and carried forward when omitted, because the API always
+// receives it and an empty value would be rejected or would clear the image's OS type.
+type UpdateImageInput struct {
+	ImageID           string  `json:"image_id" jsonschema:"the ID of the image to update. Only a private image you uploaded can be changed; public IONOS images are read-only."`
+	Name              *string `json:"name,omitempty" jsonschema:"a new name for the image"`
+	Description       *string `json:"description,omitempty" jsonschema:"a new description"`
+	LicenceType       *string `json:"licence_type,omitempty" jsonschema:"OS type: LINUX, WINDOWS, WINDOWS2016, WINDOWS2022, WINDOWS2025, UNKNOWN or OTHER. Omit to keep the current value — it is read and sent back unchanged."`
+	CloudInit         *string `json:"cloud_init,omitempty" jsonschema:"cloud-init compatibility: NONE or V1"`
+	ExposeSerial      *bool   `json:"expose_serial,omitempty" jsonschema:"expose the disk serial ID on volumes created from this image"`
+	RequireLegacyBios *bool   `json:"require_legacy_bios,omitempty" jsonschema:"whether volumes created from this image need the legacy BIOS"`
+	HotPlugFlags
+	ExtraHotPlugFlags
+}
+
+// DeleteImageInput is the input for delete_image. Two-phase confirmed.
+type DeleteImageInput struct {
+	ImageID           string  `json:"image_id" jsonschema:"the ID of the image to delete. Only a private image you uploaded can be deleted; public IONOS images cannot."`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the image plus a one-time token; pass that token on the SECOND call to actually delete. Anything that references this image by ID — Terraform configurations, scripts, autoscaling templates — stops being able to create volumes from it. The token expires after a few minutes."`
 }
 
 type SnapshotIDInput struct {
@@ -379,6 +459,484 @@ type NatGatewayIDInput struct {
 	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	NatGatewayID string `json:"nat_gateway_id" jsonschema:"the ID of the NAT gateway"`
 	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
+}
+
+// Networking write input types: IP blocks, security groups and their rules,
+// NIC firewall rules, and private cross connects.
+
+// CreateIpBlockInput is the input for create_ip_block. Two-phase confirmed. An IP
+// block is account-level rather than inside a data center, and it is billed from
+// creation whether or not its addresses are in use.
+type CreateIpBlockInput struct {
+	Location          string  `json:"location" jsonschema:"the physical location to reserve the addresses in, e.g. de/fra, de/txl, us/las, us/ewr, gb/lhr, es/vit, fr/par. Must match the location of the data center whose resources will use them, and cannot be changed afterwards."`
+	Size              int32   `json:"size" jsonschema:"how many public IPv4 addresses to reserve. Cannot be changed afterwards — reserve a new block if you need more."`
+	Name              *string `json:"name,omitempty" jsonschema:"a name for the block, which is the only property you can change later"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same location and size) to actually reserve the block. The token expires after a few minutes."`
+}
+
+// UpdateIpBlockInput is the input for update_ip_block. Only the name can change:
+// location and size are fixed at creation.
+type UpdateIpBlockInput struct {
+	IpBlockID string `json:"ipblock_id" jsonschema:"the ID of the IP block to update"`
+	Name      string `json:"name" jsonschema:"a new name for the IP block. This is the only mutable property — an IP block's location and size are fixed when it is reserved."`
+}
+
+// DeleteIpBlockInput is the input for delete_ip_block. Two-phase confirmed; the
+// preview lists which resources are still using the addresses.
+type DeleteIpBlockInput struct {
+	IpBlockID         string  `json:"ipblock_id" jsonschema:"the ID of the IP block to release"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview listing every resource still using these addresses, plus a one-time token; pass that token on the SECOND call to actually release the block. Releasing addresses that are still assigned breaks connectivity for those resources, and the same addresses cannot be reclaimed afterwards. The token expires after a few minutes."`
+}
+
+// CreateSecurityGroupInput is the input for create_security_group. Two-phase
+// confirmed. A new group has no rules, so it permits nothing until rules are added.
+type CreateSecurityGroupInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center to create the security group in"`
+	Name              string  `json:"name" jsonschema:"the name of the new security group"`
+	Description       *string `json:"description,omitempty" jsonschema:"an optional description of what the group is for"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same datacenter_id and name) to actually create the group. The token expires after a few minutes."`
+}
+
+// UpdateSecurityGroupInput is the input for update_security_group. name is
+// required because the IONOS SDK always serializes it: an update that omitted it
+// would send an empty name and wipe the group's name as a side effect.
+type UpdateSecurityGroupInput struct {
+	DatacenterID    string  `json:"datacenter_id" jsonschema:"the ID of the data center the security group is in"`
+	SecurityGroupID string  `json:"security_group_id" jsonschema:"the ID of the security group to update"`
+	Name            *string `json:"name,omitempty" jsonschema:"a new name for the group. Omit to keep the current name — it is read and sent back unchanged, because the API always receives this field and an empty value would clear it."`
+	Description     *string `json:"description,omitempty" jsonschema:"a new description for the group"`
+}
+
+// DeleteSecurityGroupInput is the input for delete_security_group. Two-phase
+// confirmed; the preview counts the rules deleted with it and the servers and NICs
+// that lose the protection it provided.
+type DeleteSecurityGroupInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the security group is in"`
+	SecurityGroupID   string  `json:"security_group_id" jsonschema:"the ID of the security group to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (its rules, and the servers and NICs it is assigned to) plus a one-time token; pass that token on the SECOND call to actually delete. Every server and NIC using the group loses the protection its rules provided. The token expires after a few minutes."`
+}
+
+// RuleFields are the properties of a firewall rule. Embedded by both the
+// NIC-scoped firewall rule tools and the security-group rule tools, because the
+// API uses one FirewallruleProperties model for both and the semantics are
+// identical — only the parent chain differs.
+type RuleFields struct {
+	Protocol       *string `json:"protocol,omitempty" jsonschema:"the protocol the rule matches: TCP, UDP, ICMP, ICMPv6, GRE, VRRP, ESP, AH or ANY. Required when creating a rule. ANY matches every protocol and forbids ports and ICMP fields."`
+	Name           *string `json:"name,omitempty" jsonschema:"a name for the rule"`
+	Type           *string `json:"type,omitempty" jsonschema:"direction the rule applies to: INGRESS (inbound, the default) or EGRESS (outbound)"`
+	SourceMac      *string `json:"source_mac,omitempty" jsonschema:"match only traffic from this MAC address, e.g. aa:bb:cc:dd:ee:ff. Omit to match any source MAC."`
+	SourceIp       *string `json:"source_ip,omitempty" jsonschema:"match only traffic from this IP address or CIDR range. Omit to match any source."`
+	TargetIp       *string `json:"target_ip,omitempty" jsonschema:"match only traffic to this IP address or CIDR range; for an INGRESS rule this is usually one of the NIC's own IPs. Omit to match any destination."`
+	IpVersion      *string `json:"ip_version,omitempty" jsonschema:"IPv4 or IPv6. Defaults to the version implied by the addresses given, or IPv4."`
+	PortRangeStart *int32  `json:"port_range_start,omitempty" jsonschema:"first port in the allowed range (1-65534). Only valid with protocol TCP or UDP, and must be given together with port_range_end. Omit both to allow all ports."`
+	PortRangeEnd   *int32  `json:"port_range_end,omitempty" jsonschema:"last port in the allowed range (1-65534). Only valid with protocol TCP or UDP, and must be given together with port_range_start."`
+	IcmpType       *int32  `json:"icmp_type,omitempty" jsonschema:"ICMP type to allow (0-254). Only valid with protocol ICMP or ICMPv6. Omit to allow all types."`
+	IcmpCode       *int32  `json:"icmp_code,omitempty" jsonschema:"ICMP code to allow (0-254). Only valid with protocol ICMP or ICMPv6. Omit to allow all codes."`
+}
+
+// CreateFirewallRuleInput is the input for create_firewall_rule, which adds a rule
+// to a single NIC. Two-phase confirmed.
+type CreateFirewallRuleInput struct {
+	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	ServerID     string `json:"server_id" jsonschema:"the ID of the server the NIC belongs to"`
+	NicID        string `json:"nic_id" jsonschema:"the ID of the NIC to add the rule to"`
+	RuleFields
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same parent IDs and protocol) to actually create the rule. The token expires after a few minutes."`
+}
+
+// UpdateFirewallRuleInput is the input for update_firewall_rule. Partial update.
+type UpdateFirewallRuleInput struct {
+	DatacenterID   string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	ServerID       string `json:"server_id" jsonschema:"the ID of the server the NIC belongs to"`
+	NicID          string `json:"nic_id" jsonschema:"the ID of the NIC the rule is on"`
+	FirewallRuleID string `json:"firewallrule_id" jsonschema:"the ID of the firewall rule to update"`
+	RuleFields
+}
+
+// DeleteFirewallRuleInput is the input for delete_firewall_rule. Two-phase
+// confirmed: removing a rule closes the traffic it was allowing.
+type DeleteFirewallRuleInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	ServerID          string  `json:"server_id" jsonschema:"the ID of the server the NIC belongs to"`
+	NicID             string  `json:"nic_id" jsonschema:"the ID of the NIC the rule is on"`
+	FirewallRuleID    string  `json:"firewallrule_id" jsonschema:"the ID of the firewall rule to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the rule plus a one-time token; pass that token on the SECOND call to actually delete it. Traffic the rule was allowing will be blocked, and if this is the NIC's last rule while its firewall is active, ALL incoming traffic is blocked. The token expires after a few minutes."`
+}
+
+// CreateSecurityGroupRuleInput is the input for create_security_group_rule, which
+// adds a rule to a security group so every server and NIC assigned to that group
+// inherits it. Two-phase confirmed.
+type CreateSecurityGroupRuleInput struct {
+	DatacenterID    string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	SecurityGroupID string `json:"security_group_id" jsonschema:"the ID of the security group to add the rule to"`
+	RuleFields
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview (including how many servers and NICs will inherit the rule) plus a one-time token; pass that token on the SECOND call to actually create it. The token expires after a few minutes."`
+}
+
+// UpdateSecurityGroupRuleInput is the input for update_security_group_rule.
+// Partial update; the change applies to every member of the group at once.
+type UpdateSecurityGroupRuleInput struct {
+	DatacenterID    string `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	SecurityGroupID string `json:"security_group_id" jsonschema:"the ID of the security group the rule belongs to"`
+	RuleID          string `json:"rule_id" jsonschema:"the ID of the rule to update"`
+	RuleFields
+}
+
+// DeleteSecurityGroupRuleInput is the input for delete_security_group_rule.
+// Two-phase confirmed: the rule is removed for every member of the group.
+type DeleteSecurityGroupRuleInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	SecurityGroupID   string  `json:"security_group_id" jsonschema:"the ID of the security group the rule belongs to"`
+	RuleID            string  `json:"rule_id" jsonschema:"the ID of the rule to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview (including how many servers and NICs lose the rule) plus a one-time token; pass that token on the SECOND call to actually delete it. Every member of the group stops allowing the traffic this rule permitted. The token expires after a few minutes."`
+}
+
+// CreatePccInput is the input for create_pcc. Two-phase confirmed. A private cross
+// connect is account-level: it links private LANs across data centers.
+type CreatePccInput struct {
+	Name              string  `json:"name" jsonschema:"the name of the new private cross connect"`
+	Description       *string `json:"description,omitempty" jsonschema:"an optional description of what it connects"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same name) to actually create it. The token expires after a few minutes."`
+}
+
+// UpdatePccInput is the input for update_pcc. Partial update; the connected LANs
+// are managed from the LAN side with update_lan's pcc field, not here.
+type UpdatePccInput struct {
+	PccID       string  `json:"pcc_id" jsonschema:"the ID of the private cross connect to update"`
+	Name        *string `json:"name,omitempty" jsonschema:"a new name"`
+	Description *string `json:"description,omitempty" jsonschema:"a new description"`
+}
+
+// DeletePccInput is the input for delete_pcc. Two-phase confirmed; the preview
+// counts the LANs still peered through it, all of which lose that connection.
+type DeletePccInput struct {
+	PccID             string  `json:"pcc_id" jsonschema:"the ID of the private cross connect to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (the LANs peered through it) plus a one-time token; pass that token on the SECOND call to actually delete it. Every peered LAN loses its cross-data-center connection. The token expires after a few minutes."`
+}
+
+// Load-balancing write input types.
+//
+// Every model in this area except the classic load balancer serializes its
+// required fields unconditionally, so each update tool reads the resource first
+// and carries those values forward — see the "PATCH bodies" note in CLAUDE.md.
+// The worst case is a forwarding rule's targets list: a partial update built
+// without it would send an empty targets array and wipe the load balancer's
+// entire backend pool.
+
+// ManagedLoadBalancerFields are the properties shared by network and application
+// load balancers, whose API models are field-for-field identical.
+type ManagedLoadBalancerFields struct {
+	Ips            []string `json:"ips,omitempty" jsonschema:"public IPv4 addresses the load balancer listens on. They must come from a reserved IP block in the same location (see list_ip_blocks and create_ip_block). Omit to have addresses assigned automatically."`
+	LbPrivateIps   []string `json:"lb_private_ips,omitempty" jsonschema:"private IPs the load balancer uses to reach its targets on the target LAN, in CIDR form. Omit to have them assigned automatically."`
+	CentralLogging *bool    `json:"central_logging,omitempty" jsonschema:"send the load balancer's logs to the central logging service"`
+	LoggingFormat  *string  `json:"logging_format,omitempty" jsonschema:"the log line format to use when central_logging is on"`
+}
+
+// CreateManagedLoadBalancerInput is the input for create_network_loadbalancer and
+// create_application_loadbalancer. Two-phase confirmed.
+type CreateManagedLoadBalancerInput struct {
+	DatacenterID string `json:"datacenter_id" jsonschema:"the ID of the data center to create the load balancer in"`
+	Name         string `json:"name" jsonschema:"the name of the new load balancer"`
+	ListenerLan  int32  `json:"listener_lan" jsonschema:"the numeric ID of the LAN the load balancer listens on — usually a PUBLIC LAN, since this is the side clients connect to. Use the lan value from list_lans, not a UUID."`
+	TargetLan    int32  `json:"target_lan" jsonschema:"the numeric ID of the LAN holding the backend servers — usually a PRIVATE LAN. Must be different from listener_lan."`
+	ManagedLoadBalancerFields
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same datacenter_id and name) to actually create it. The token expires after a few minutes."`
+}
+
+// UpdateManagedLoadBalancerInput is the input for update_network_loadbalancer and
+// update_application_loadbalancer. Partial update: omitted fields are read from
+// the current resource and sent back unchanged, because the API always receives
+// name, listener_lan and target_lan.
+type UpdateManagedLoadBalancerInput struct {
+	DatacenterID   string  `json:"datacenter_id" jsonschema:"the ID of the data center the load balancer is in"`
+	LoadBalancerID string  `json:"loadbalancer_id" jsonschema:"the ID of the load balancer to update"`
+	Name           *string `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one — it is read and sent back unchanged."`
+	ListenerLan    *int32  `json:"listener_lan,omitempty" jsonschema:"move the listener to this LAN ID. Omit to keep the current LAN; changing it moves where clients connect."`
+	TargetLan      *int32  `json:"target_lan,omitempty" jsonschema:"move the target side to this LAN ID. Omit to keep the current LAN; changing it repoints the load balancer at a different backend network."`
+	ManagedLoadBalancerFields
+}
+
+// DeleteManagedLoadBalancerInput is the input for delete_network_loadbalancer and
+// delete_application_loadbalancer. Two-phase confirmed.
+type DeleteManagedLoadBalancerInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the load balancer is in"`
+	LoadBalancerID    string  `json:"loadbalancer_id" jsonschema:"the ID of the load balancer to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (its forwarding rules, and the addresses that stop serving traffic) plus a one-time token; pass that token on the SECOND call to actually delete. Clients connecting to its listener IPs will no longer reach the backends. The token expires after a few minutes."`
+}
+
+// CreateLoadBalancerInput is the input for create_loadbalancer, the classic
+// load balancer. Two-phase confirmed. It balances traffic across NICs attached to
+// it rather than across IP targets, so attach NICs with attach_loadbalancer_nic.
+type CreateLoadBalancerInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center to create the load balancer in"`
+	Name              string  `json:"name" jsonschema:"the name of the new load balancer"`
+	Ip                *string `json:"ip,omitempty" jsonschema:"the IPv4 address to listen on, from a reserved IP block. Omit to have one assigned automatically."`
+	Dhcp              *bool   `json:"dhcp,omitempty" jsonschema:"whether the load balancer reserves its IP using DHCP (default true)"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same datacenter_id and name) to actually create it. The token expires after a few minutes."`
+}
+
+// UpdateLoadBalancerInput is the input for update_loadbalancer. All of the classic
+// load balancer's properties are optional in the API model, so this is a genuine
+// partial update with no carry-forward read.
+type UpdateLoadBalancerInput struct {
+	DatacenterID   string  `json:"datacenter_id" jsonschema:"the ID of the data center the load balancer is in"`
+	LoadBalancerID string  `json:"loadbalancer_id" jsonschema:"the ID of the load balancer to update"`
+	Name           *string `json:"name,omitempty" jsonschema:"a new name"`
+	Ip             *string `json:"ip,omitempty" jsonschema:"a new IPv4 address to listen on, from a reserved IP block"`
+	Dhcp           *bool   `json:"dhcp,omitempty" jsonschema:"whether the load balancer reserves its IP using DHCP"`
+}
+
+// DeleteLoadBalancerInput is the input for delete_loadbalancer. Two-phase
+// confirmed; the preview counts the NICs it is balancing across.
+type DeleteLoadBalancerInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the load balancer is in"`
+	LoadBalancerID    string  `json:"loadbalancer_id" jsonschema:"the ID of the load balancer to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (the NICs it balances across) plus a one-time token; pass that token on the SECOND call to actually delete. The NICs themselves are not deleted, but traffic stops being balanced to them. The token expires after a few minutes."`
+}
+
+// NlbTargetInput is one backend behind a network load balancer forwarding rule.
+type NlbTargetInput struct {
+	Ip                  string  `json:"ip" jsonschema:"the IPv4 or IPv6 address of the backend, usually a server's private IP on the load balancer's target LAN"`
+	Port                int32   `json:"port" jsonschema:"the port the backend listens on (1-65535)"`
+	Weight              int32   `json:"weight" jsonschema:"relative share of traffic this backend receives (0-256). A weight of 0 takes it out of rotation without removing it."`
+	ProxyProtocol       *string `json:"proxy_protocol,omitempty" jsonschema:"PROXY protocol version used to pass the client address to the backend: none, v1, v2 or v2ssl"`
+	HealthCheck         *bool   `json:"health_check,omitempty" jsonschema:"whether the load balancer health-checks this backend"`
+	HealthCheckInterval *int32  `json:"health_check_interval,omitempty" jsonschema:"how often to health-check this backend, in milliseconds"`
+	Maintenance         *bool   `json:"maintenance,omitempty" jsonschema:"put this backend into maintenance so it receives no traffic while staying configured"`
+}
+
+// NlbHealthCheckInput is the rule-level health check for a network load balancer
+// forwarding rule. All values are milliseconds except retries.
+type NlbHealthCheckInput struct {
+	ClientTimeout  *int32 `json:"client_timeout,omitempty" jsonschema:"how long an inactive client connection is kept open, in milliseconds"`
+	ConnectTimeout *int32 `json:"connect_timeout,omitempty" jsonschema:"how long to wait when connecting to a backend, in milliseconds"`
+	TargetTimeout  *int32 `json:"target_timeout,omitempty" jsonschema:"how long a backend has to respond before the connection is considered dead, in milliseconds"`
+	Retries        *int32 `json:"retries,omitempty" jsonschema:"how many times to retry a failed connection attempt (0-65535)"`
+}
+
+// CreateNlbForwardingRuleInput is the input for create_nlb_forwarding_rule.
+// Two-phase confirmed. A network load balancer carries no traffic until it has at
+// least one forwarding rule.
+type CreateNlbForwardingRuleInput struct {
+	DatacenterID      string               `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LoadBalancerID    string               `json:"loadbalancer_id" jsonschema:"the ID of the network load balancer to add the rule to"`
+	Name              string               `json:"name" jsonschema:"the name of the new forwarding rule"`
+	Algorithm         string               `json:"algorithm" jsonschema:"how connections are distributed across the targets: ROUND_ROBIN, LEAST_CONNECTION, RANDOM or SOURCE_IP"`
+	Protocol          string               `json:"protocol" jsonschema:"the transport protocol to forward: TCP or UDP"`
+	ListenerIp        string               `json:"listener_ip" jsonschema:"the address clients connect to. Must be one of the load balancer's own listener IPs."`
+	ListenerPort      int32                `json:"listener_port" jsonschema:"the port clients connect to (1-65535)"`
+	Targets           []NlbTargetInput     `json:"targets" jsonschema:"the backends to forward to. At least one is required — a rule with no targets accepts connections and has nowhere to send them."`
+	HealthCheck       *NlbHealthCheckInput `json:"health_check,omitempty" jsonschema:"rule-level timeouts and retry behaviour"`
+	ConfirmationToken *string              `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same parent IDs and name) to actually create the rule. The token expires after a few minutes."`
+}
+
+// UpdateNlbForwardingRuleInput is the input for update_nlb_forwarding_rule.
+//
+// Partial update, but with an important caveat: the API always receives name,
+// algorithm, protocol, listener_ip, listener_port AND targets, so all of them are
+// read from the current rule and carried forward when omitted. Without that, a
+// rename would send an empty targets list and remove every backend from the load
+// balancer.
+type UpdateNlbForwardingRuleInput struct {
+	DatacenterID   string               `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LoadBalancerID string               `json:"loadbalancer_id" jsonschema:"the ID of the network load balancer"`
+	RuleID         string               `json:"rule_id" jsonschema:"the ID of the forwarding rule to update"`
+	Name           *string              `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`
+	Algorithm      *string              `json:"algorithm,omitempty" jsonschema:"a new distribution algorithm. Omit to keep the current one."`
+	Protocol       *string              `json:"protocol,omitempty" jsonschema:"a new transport protocol: TCP or UDP. Omit to keep the current one."`
+	ListenerIp     *string              `json:"listener_ip,omitempty" jsonschema:"a new listener address. Omit to keep the current one; changing it moves where clients connect."`
+	ListenerPort   *int32               `json:"listener_port,omitempty" jsonschema:"a new listener port. Omit to keep the current one."`
+	Targets        []NlbTargetInput     `json:"targets,omitempty" jsonschema:"REPLACE the rule's backends with this list. Include every backend the rule should keep — any you omit stops receiving traffic. Omit the field entirely to leave the current backends untouched."`
+	HealthCheck    *NlbHealthCheckInput `json:"health_check,omitempty" jsonschema:"replace the rule-level timeouts and retry behaviour"`
+}
+
+// DeleteNlbForwardingRuleInput is the input for delete_nlb_forwarding_rule.
+type DeleteNlbForwardingRuleInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LoadBalancerID    string  `json:"loadbalancer_id" jsonschema:"the ID of the network load balancer"`
+	RuleID            string  `json:"rule_id" jsonschema:"the ID of the forwarding rule to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the listener and its backends plus a one-time token; pass that token on the SECOND call to actually delete. Clients connecting to that listener address and port stop being served. The token expires after a few minutes."`
+}
+
+// AlbHttpRuleConditionInput is one condition that decides whether an ALB HTTP rule
+// applies to a request.
+type AlbHttpRuleConditionInput struct {
+	Type      string  `json:"type" jsonschema:"what to match on: HEADER, PATH, QUERY, METHOD, HOST, COOKIE or SOURCE_IP"`
+	Condition string  `json:"condition" jsonschema:"how to match: EQUALS, LESS_THAN, GREATER_THAN, STARTS_WITH, ENDS_WITH, CONTAINS or MATCHES"`
+	Negate    *bool   `json:"negate,omitempty" jsonschema:"invert the match, so the rule applies when the condition does NOT hold"`
+	Key       *string `json:"key,omitempty" jsonschema:"the name to match against, e.g. the header or cookie name. Not used for PATH, METHOD, HOST or SOURCE_IP."`
+	Value     *string `json:"value,omitempty" jsonschema:"the value to match against"`
+}
+
+// AlbHttpRuleInput is one HTTP routing rule on an application load balancer
+// forwarding rule. Its type decides which of the other fields apply.
+type AlbHttpRuleInput struct {
+	Name            string                      `json:"name" jsonschema:"the name of this HTTP rule"`
+	Type            string                      `json:"type" jsonschema:"what the rule does: FORWARD (send to a target group), REDIRECT (send a redirect response) or STATIC (return a fixed response)"`
+	TargetGroup     *string                     `json:"target_group,omitempty" jsonschema:"for FORWARD: the ID of the target group to send matching requests to. See create_target_group."`
+	DropQuery       *bool                       `json:"drop_query,omitempty" jsonschema:"for REDIRECT: drop the original query string instead of carrying it over"`
+	Location        *string                     `json:"location,omitempty" jsonschema:"for REDIRECT: the URL to redirect to"`
+	StatusCode      *int32                      `json:"status_code,omitempty" jsonschema:"the HTTP status to return: 301, 302, 303, 307 or 308 for REDIRECT; 200, 503 or 599 for STATIC"`
+	ResponseMessage *string                     `json:"response_message,omitempty" jsonschema:"for STATIC: the body to return"`
+	ContentType     *string                     `json:"content_type,omitempty" jsonschema:"for STATIC: the Content-Type of the response body"`
+	Conditions      []AlbHttpRuleConditionInput `json:"conditions,omitempty" jsonschema:"conditions that must all hold for this rule to apply. A rule with no conditions matches every request."`
+}
+
+// CreateAlbForwardingRuleInput is the input for create_alb_forwarding_rule.
+// Two-phase confirmed.
+type CreateAlbForwardingRuleInput struct {
+	DatacenterID       string             `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LoadBalancerID     string             `json:"loadbalancer_id" jsonschema:"the ID of the application load balancer to add the rule to"`
+	Name               string             `json:"name" jsonschema:"the name of the new forwarding rule"`
+	Protocol           string             `json:"protocol" jsonschema:"the protocol to serve: HTTP or HTTPS"`
+	ListenerIp         string             `json:"listener_ip" jsonschema:"the address clients connect to. Must be one of the load balancer's own listener IPs."`
+	ListenerPort       int32              `json:"listener_port" jsonschema:"the port clients connect to (1-65535)"`
+	ClientTimeout      *int32             `json:"client_timeout,omitempty" jsonschema:"how long an inactive client connection is kept open, in milliseconds"`
+	ServerCertificates []string           `json:"server_certificates,omitempty" jsonschema:"certificate IDs to serve for HTTPS. Required in practice when protocol is HTTPS; manage the certificates with the Certificate Manager tools."`
+	HttpRules          []AlbHttpRuleInput `json:"http_rules,omitempty" jsonschema:"the HTTP routing rules applied to matching requests. Without any, the listener accepts connections but routes nothing."`
+	ConfirmationToken  *string            `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same parent IDs and name) to actually create the rule. The token expires after a few minutes."`
+}
+
+// UpdateAlbForwardingRuleInput is the input for update_alb_forwarding_rule. The API
+// always receives name, protocol, listener_ip and listener_port, so those are read
+// and carried forward when omitted.
+type UpdateAlbForwardingRuleInput struct {
+	DatacenterID       string             `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LoadBalancerID     string             `json:"loadbalancer_id" jsonschema:"the ID of the application load balancer"`
+	RuleID             string             `json:"rule_id" jsonschema:"the ID of the forwarding rule to update"`
+	Name               *string            `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`
+	Protocol           *string            `json:"protocol,omitempty" jsonschema:"a new protocol: HTTP or HTTPS. Omit to keep the current one."`
+	ListenerIp         *string            `json:"listener_ip,omitempty" jsonschema:"a new listener address. Omit to keep the current one."`
+	ListenerPort       *int32             `json:"listener_port,omitempty" jsonschema:"a new listener port. Omit to keep the current one."`
+	ClientTimeout      *int32             `json:"client_timeout,omitempty" jsonschema:"a new client timeout in milliseconds"`
+	ServerCertificates []string           `json:"server_certificates,omitempty" jsonschema:"REPLACE the served certificates with this list. Omit the field entirely to leave them untouched."`
+	HttpRules          []AlbHttpRuleInput `json:"http_rules,omitempty" jsonschema:"REPLACE the HTTP routing rules with this list. Include every rule the listener should keep. Omit the field entirely to leave them untouched."`
+}
+
+// DeleteAlbForwardingRuleInput is the input for delete_alb_forwarding_rule.
+type DeleteAlbForwardingRuleInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	LoadBalancerID    string  `json:"loadbalancer_id" jsonschema:"the ID of the application load balancer"`
+	RuleID            string  `json:"rule_id" jsonschema:"the ID of the forwarding rule to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the listener and its HTTP rules plus a one-time token; pass that token on the SECOND call to actually delete. Clients connecting to that listener address and port stop being served. The token expires after a few minutes."`
+}
+
+// TargetGroupTargetInput is one backend behind a target group.
+type TargetGroupTargetInput struct {
+	Ip                 string  `json:"ip" jsonschema:"the IPv4 or IPv6 address of the backend"`
+	Port               int32   `json:"port" jsonschema:"the port the backend listens on (1-65535)"`
+	Weight             int32   `json:"weight" jsonschema:"relative share of traffic this backend receives (0-256). A weight of 0 takes it out of rotation without removing it."`
+	ProxyProtocol      *string `json:"proxy_protocol,omitempty" jsonschema:"PROXY protocol version to announce the client address with: none, v1, v2 or v2ssl"`
+	HealthCheckEnabled *bool   `json:"health_check_enabled,omitempty" jsonschema:"whether the target group health-checks this backend"`
+	MaintenanceEnabled *bool   `json:"maintenance_enabled,omitempty" jsonschema:"put this backend into maintenance so it receives no traffic while staying configured"`
+}
+
+// CreateTargetGroupInput is the input for create_target_group. Two-phase confirmed.
+// A target group is account-level and is referenced by application load balancer
+// HTTP rules, so it takes no datacenter_id.
+type CreateTargetGroupInput struct {
+	Name              string                   `json:"name" jsonschema:"the name of the new target group"`
+	Algorithm         string                   `json:"algorithm" jsonschema:"how traffic is distributed across the targets: ROUND_ROBIN, LEAST_CONNECTION, RANDOM or SOURCE_IP"`
+	Protocol          string                   `json:"protocol" jsonschema:"the protocol the targets speak: HTTP or TCP"`
+	ProtocolVersion   *string                  `json:"protocol_version,omitempty" jsonschema:"for HTTP: HTTP1 or HTTP2"`
+	Targets           []TargetGroupTargetInput `json:"targets,omitempty" jsonschema:"the backends behind this group. A group with no targets accepts no traffic."`
+	ConfirmationToken *string                  `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same name) to actually create it. The token expires after a few minutes."`
+}
+
+// UpdateTargetGroupInput is the input for update_target_group. Partial update:
+// name, algorithm and protocol are read and carried forward when omitted, because
+// the API always receives them.
+//
+// targets REPLACES the whole backend list rather than adding to it, so omit it
+// unless you intend to redefine the set — that is why it is not carried forward
+// silently the way the scalar fields are.
+type UpdateTargetGroupInput struct {
+	TargetGroupID   string                   `json:"target_group_id" jsonschema:"the ID of the target group to update"`
+	Name            *string                  `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`
+	Algorithm       *string                  `json:"algorithm,omitempty" jsonschema:"a new distribution algorithm: ROUND_ROBIN, LEAST_CONNECTION, RANDOM or SOURCE_IP. Omit to keep the current one."`
+	Protocol        *string                  `json:"protocol,omitempty" jsonschema:"a new protocol: HTTP or TCP. Omit to keep the current one."`
+	ProtocolVersion *string                  `json:"protocol_version,omitempty" jsonschema:"for HTTP: HTTP1 or HTTP2"`
+	Targets         []TargetGroupTargetInput `json:"targets,omitempty" jsonschema:"REPLACE the group's backends with this list. Include every backend the group should keep — any you omit is removed. Omit the field entirely to leave the current backends untouched."`
+}
+
+// DeleteTargetGroupInput is the input for delete_target_group. Two-phase confirmed.
+type DeleteTargetGroupInput struct {
+	TargetGroupID     string  `json:"target_group_id" jsonschema:"the ID of the target group to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the group and its backends plus a one-time token; pass that token on the SECOND call to actually delete. Any application load balancer HTTP rule forwarding to this group stops working. The token expires after a few minutes."`
+}
+
+// NatGatewayLanInput is one LAN a NAT gateway serves.
+type NatGatewayLanInput struct {
+	ID         int32    `json:"id" jsonschema:"the numeric LAN ID the gateway serves (the lan value from list_lans)"`
+	GatewayIps []string `json:"gateway_ips,omitempty" jsonschema:"the gateway's addresses on that LAN, in CIDR form. Omit to have them assigned automatically."`
+}
+
+// CreateNatGatewayInput is the input for create_nat_gateway. Two-phase confirmed.
+type CreateNatGatewayInput struct {
+	DatacenterID      string               `json:"datacenter_id" jsonschema:"the ID of the data center to create the NAT gateway in"`
+	Name              string               `json:"name" jsonschema:"the name of the new NAT gateway"`
+	PublicIps         []string             `json:"public_ips" jsonschema:"the public IPv4 addresses the gateway translates to. They must come from a reserved IP block in the same location (see list_ip_blocks). At least one is required."`
+	Lans              []NatGatewayLanInput `json:"lans,omitempty" jsonschema:"the private LANs the gateway serves. Without any, nothing routes through it."`
+	ConfirmationToken *string              `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same datacenter_id and name) to actually create it. The token expires after a few minutes."`
+}
+
+// UpdateNatGatewayInput is the input for update_nat_gateway. Partial update: name
+// and public_ips are read and carried forward when omitted, because the API always
+// receives them.
+type UpdateNatGatewayInput struct {
+	DatacenterID string               `json:"datacenter_id" jsonschema:"the ID of the data center the NAT gateway is in"`
+	NatGatewayID string               `json:"natgateway_id" jsonschema:"the ID of the NAT gateway to update"`
+	Name         *string              `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`
+	PublicIps    []string             `json:"public_ips,omitempty" jsonschema:"REPLACE the gateway's public addresses with this list. Include every address it should keep. Omit the field entirely to leave them untouched."`
+	Lans         []NatGatewayLanInput `json:"lans,omitempty" jsonschema:"REPLACE the LANs the gateway serves with this list. Omit the field entirely to leave them untouched."`
+}
+
+// CreateNatGatewayRuleInput is the input for create_nat_gateway_rule. Two-phase
+// confirmed. A NAT gateway does not translate anything until it has a rule.
+type CreateNatGatewayRuleInput struct {
+	DatacenterID         string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	NatGatewayID         string  `json:"natgateway_id" jsonschema:"the ID of the NAT gateway to add the rule to"`
+	Name                 string  `json:"name" jsonschema:"the name of the new rule"`
+	SourceSubnet         string  `json:"source_subnet" jsonschema:"the private source range whose outbound traffic is translated, in CIDR form, e.g. 10.0.1.0/24. Traffic from outside this range is not translated by this rule."`
+	PublicIp             string  `json:"public_ip" jsonschema:"the public address to translate to. It must be one of the gateway's own public_ips."`
+	Type                 *string `json:"type,omitempty" jsonschema:"the translation type. Only SNAT (source NAT, for outbound traffic) is supported."`
+	Protocol             *string `json:"protocol,omitempty" jsonschema:"restrict the rule to one protocol: TCP, UDP, ICMP or ALL. Omit to match every protocol. A port range may only be set for TCP or UDP."`
+	TargetSubnet         *string `json:"target_subnet,omitempty" jsonschema:"restrict the rule to traffic bound for this destination range, in CIDR form. Omit to match any destination."`
+	TargetPortRangeStart *int32  `json:"target_port_range_start,omitempty" jsonschema:"first destination port the rule applies to (1-65535). Only valid with protocol TCP or UDP, and must be given together with target_port_range_end."`
+	TargetPortRangeEnd   *int32  `json:"target_port_range_end,omitempty" jsonschema:"last destination port the rule applies to (1-65535). Only valid with protocol TCP or UDP, and must be given together with target_port_range_start."`
+	ConfirmationToken    *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same parent IDs and name) to actually create the rule. The token expires after a few minutes."`
+}
+
+// UpdateNatGatewayRuleInput is the input for update_nat_gateway_rule. The API always
+// receives name, source_subnet and public_ip, so those are read and carried forward
+// when omitted.
+type UpdateNatGatewayRuleInput struct {
+	DatacenterID         string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	NatGatewayID         string  `json:"natgateway_id" jsonschema:"the ID of the NAT gateway"`
+	RuleID               string  `json:"rule_id" jsonschema:"the ID of the rule to update"`
+	Name                 *string `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`
+	SourceSubnet         *string `json:"source_subnet,omitempty" jsonschema:"a new private source range in CIDR form. Omit to keep the current one; changing it changes which traffic is translated."`
+	PublicIp             *string `json:"public_ip,omitempty" jsonschema:"a new public address to translate to; must be one of the gateway's public_ips. Omit to keep the current one."`
+	Type                 *string `json:"type,omitempty" jsonschema:"the translation type. Only SNAT is supported."`
+	Protocol             *string `json:"protocol,omitempty" jsonschema:"restrict the rule to TCP, UDP, ICMP or ALL"`
+	TargetSubnet         *string `json:"target_subnet,omitempty" jsonschema:"restrict the rule to this destination range, in CIDR form"`
+	TargetPortRangeStart *int32  `json:"target_port_range_start,omitempty" jsonschema:"first destination port (1-65535). TCP or UDP only, given together with the end."`
+	TargetPortRangeEnd   *int32  `json:"target_port_range_end,omitempty" jsonschema:"last destination port (1-65535). TCP or UDP only, given together with the start."`
+}
+
+// DeleteNatGatewayRuleInput is the input for delete_nat_gateway_rule.
+type DeleteNatGatewayRuleInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center"`
+	NatGatewayID      string  `json:"natgateway_id" jsonschema:"the ID of the NAT gateway"`
+	RuleID            string  `json:"rule_id" jsonschema:"the ID of the rule to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of what the rule translates plus a one-time token; pass that token on the SECOND call to actually delete. Servers in the rule's source range lose the outbound translation it provided, which usually means losing internet access. The token expires after a few minutes."`
+}
+
+// DeleteNatGatewayInput is the input for delete_nat_gateway. Two-phase confirmed.
+type DeleteNatGatewayInput struct {
+	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the NAT gateway is in"`
+	NatGatewayID      string  `json:"natgateway_id" jsonschema:"the ID of the NAT gateway to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (its rules and the LANs it serves) plus a one-time token; pass that token on the SECOND call to actually delete. Servers on those LANs lose their outbound internet access. The token expires after a few minutes."`
 }
 
 type PccIDInput struct {
