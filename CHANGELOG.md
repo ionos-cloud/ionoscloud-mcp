@@ -47,6 +47,20 @@
 
 - **Gate support for non-CRUD action verbs**, in preparation for server power control, volume snapshot actions and attach/detach: `tools.RegisterActionTool` registers tools named with a domain verb (`start_`, `stop_`, `reboot_`, `suspend_`, `resume_`, `upgrade_`, `restore_`, `attach_`, `detach_`, `assign_`) rather than `create_`/`update_`/`delete_`. The mutation class comes from the verb, not the HTTP method, because the two disagree in both directions: `stop_server` is a POST that is destructive, `detach_server_volume` is a DELETE that is not a resource deletion. One `actionVerbs` table is the single source of truth, read by both the registration gate and the dynamic dispatcher's classifier, so a destructive action can never be misclassified as a read.
 
+### Changed
+
+- **One file per resource across the compute write tools.** Four files broke the layout the read-only tools already follow, where each resource has exactly one file matching its docs page. `managed_loadbalancer_write.go` held both the network and the application load balancer, and `forwarding_rule_write.go` held both flavours of forwarding rule; those are four distinct resources with four distinct doc pages. `snapshot_image_write.go` held two unrelated resources, and `pcc_write.go` did not match its read counterpart `private_cross_connect.go`.
+
+  The writes now mirror the reads exactly, including the grouping: `network_loadbalancer.go` holds the balancer's reads *and* its forwarding rules' reads, so `network_loadbalancer_write.go` holds both sets of writes. Result: every compute resource has a `<resource>.go` / `<resource>_write.go` pair, 16 for 16, with no shared or catch-all file between them.
+
+  Making that true meant retiring the runtime adapter the two managed load balancers shared. `managedLbAPI` carried four function fields plus `kind`/`toolName`/`label` strings, and one parameterized implementation registered both flavours' create, update and delete — which is why the tools could not live in their own files. Each flavour now registers its own three tools directly against its own SDK client, so the files read like `nat_gateway_write.go` and every other write file. Two knock-on improvements: the tool descriptions are plain string literals instead of `fmt.Sprintf` over `api.label`, so a reviewer sees the exact text the model receives rather than assembling it mentally — worth something given how many defects in this work were prose; and the properties bodies are now keyed literals rather than `NewNetworkLoadBalancerProperties(...)`, satisfying the generated-constructor rule in CLAUDE.md by construction (both constructors were verified to inject nothing today, but a literal cannot start to on an SDK bump).
+
+  The cost is roughly 165 duplicated lines of registration shape across the two files. That is the same duplication every other pair of sibling resources in this package already carries, and it is what the one-file-per-resource layout buys.
+
+  The two validators used by both flavours — `validateListenerAndTargetLan` and `validateListener` — live in `network_loadbalancer_write.go` and are called from the application file, following `ipSummary`, which lives in `nic_write.go` and is called from three others. Everything is one Go package, so a genuinely shared helper has exactly one home; duplicating a validation *message* would risk the two drifting.
+
+  No behaviour changed. Verified by dumping every tool's name, description, input schema and annotations at all three scopes before the first split and after the last one — byte-identical at 118 read / 162 write / 188 destructive.
+
 ### Fixed
 
 - **CUBE and GPU servers can now be created.** `create_server` gained a `boot_volume` object that creates the server's disk in the *same* API request. This is required for both template-sized types: the API accepts their storage only as part of a composite server-creation call, so such a server created without it was rejected and attaching a volume afterwards did not work. There was no recovery path, which made CUBE and GPU servers uncreatable through the toolset.

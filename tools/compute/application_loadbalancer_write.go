@@ -12,234 +12,242 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Forwarding rules are what make a load balancer carry traffic: the balancer itself
-// only defines which LANs it sits between.
+// Write tools for the application load balancer and its forwarding rules.
 //
-// Both rule models serialize their required fields unconditionally, and the network
-// flavour includes `targets` among them. That makes the carry-forward read here more
-// than tidiness: a partial update built without it would send an empty targets list
-// and remove every backend from the load balancer — an outage caused by renaming a
-// rule. Each update therefore reads the current rule and overrides only the fields
-// the caller supplied.
+// Forwarding rules are what make a load balancer carry traffic: the balancer itself
+// only defines which LANs it sits between. Both rule models serialize their required
+// fields unconditionally, so each update reads the current rule and overrides only
+// the fields the caller supplied.
+//
+// validateListenerAndTargetLan and validateListener are shared with the network load
+// balancer and live in network_loadbalancer_write.go.
 
-// RegisterForwardingRuleWriteTools registers create/update/delete for the network
-// and application load balancer forwarding rules.
-func RegisterForwardingRuleWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
-	registerNlbForwardingRuleTools(server, client, scope, confirm)
+// RegisterApplicationLoadBalancerWriteTools registers create/update/delete for the
+// application load balancer and for its forwarding rules.
+func RegisterApplicationLoadBalancerWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
+	registerAlbCreate(server, client, scope, confirm)
+	registerAlbUpdate(server, client, scope)
+	registerAlbDelete(server, client, scope, confirm)
 	registerAlbForwardingRuleTools(server, client, scope, confirm)
 }
 
-// ---------- network load balancer forwarding rules ----------
+// albState is the subset of the load balancer's state the write tools need:
+// enough for update to carry values forward and for delete to size its blast radius.
+type albState struct {
+	Name        string
+	ListenerLan int32
+	TargetLan   int32
+	Ips         []string
+	RuleCount   int
+}
 
-func registerNlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
-	api := client.NetworkLoadBalancersApi
+// readAlb fetches the current state at depth 2, which is what makes the forwarding
+// rule count available without a second call.
+func readAlb(ctx context.Context, client *ionos.APIClient, dcID, id string) (albState, error) {
+	lb, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersFindByApplicationLoadBalancerId(ctx, dcID, id).Depth(2).Execute()
+	if err != nil {
+		return albState{}, err
+	}
+	p := lb.GetProperties()
+	st := albState{
+		Name: p.GetName(), ListenerLan: p.GetListenerLan(), TargetLan: p.GetTargetLan(),
+		Ips: p.GetIps(),
+	}
+	if e := lb.Entities; e != nil && e.Forwardingrules != nil {
+		st.RuleCount = len(e.Forwardingrules.Items)
+	}
+	return st, nil
+}
 
+// buildAlbProperties builds the properties body. It uses a keyed literal rather than
+// NewApplicationLoadBalancerProperties, per the generated-constructor rule in CLAUDE.md: the
+// constructor injects nothing today, but a literal cannot start doing so on an SDK bump.
+//
+// name, listenerLan and targetLan are non-pointer fields the SDK serializes
+// unconditionally, so every caller must pass the values it wants kept — an update that
+// omitted them would send an empty name and LAN 0, moving the load balancer off both
+// of its networks as a side effect of an unrelated change.
+func buildAlbProperties(name string, listenerLan, targetLan int32, f tools.ManagedLoadBalancerFields) *ionos.ApplicationLoadBalancerProperties {
+	props := &ionos.ApplicationLoadBalancerProperties{Name: name, ListenerLan: listenerLan, TargetLan: targetLan}
+	if len(f.Ips) > 0 {
+		props.SetIps(f.Ips)
+	}
+	if len(f.LbPrivateIps) > 0 {
+		props.SetLbPrivateIps(f.LbPrivateIps)
+	}
+	if f.CentralLogging != nil {
+		props.SetCentralLogging(*f.CentralLogging)
+	}
+	if f.LoggingFormat != nil {
+		props.SetLoggingFormat(*f.LoggingFormat)
+	}
+	return props
+}
+
+func registerAlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
-		Name: "create_nlb_forwarding_rule",
-		Description: "Add one forwarding rule to a network load balancer, which is what makes it actually carry traffic. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same parent IDs and name) to create it. " +
-			"The rule listens on one of the load balancer's own addresses and forwards TCP or UDP connections to the targets you list; at least one target is required. " +
-			"Targets are usually the private IPs of backend servers on the load balancer's target LAN. Creates exactly one rule per call.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateNlbForwardingRuleInput) (*mcp.CallToolResult, any, error) {
+		Name: "create_application_loadbalancer",
+		Description: "Create one application load balancer. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same datacenter_id and name) to create it. It forwards traffic at the HTTP layer, and its rules route to target groups (see create_target_group) rather than to raw IP targets. " +
+			"listener_lan is the LAN clients connect on (usually public) and target_lan the LAN holding the backends (usually private); they must differ. " +
+			"The new load balancer carries no traffic until you add a forwarding rule to it. Creates exactly one per call.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
-		lbID := strings.TrimSpace(input.LoadBalancerID)
 		name := strings.TrimSpace(input.Name)
-		if dcID == "" || lbID == "" {
-			return tools.ErrorText("datacenter_id and loadbalancer_id are both required"), nil, nil
+		if dcID == "" {
+			return tools.ErrorText("datacenter_id is required"), nil, nil
 		}
 		if name == "" {
 			return tools.ErrorText("name is required"), nil, nil
 		}
-		if msg := validateListener(input.ListenerIp, input.ListenerPort); msg != "" {
+		if msg := validateListenerAndTargetLan(input.ListenerLan, input.TargetLan); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		if strings.TrimSpace(input.Algorithm) == "" {
-			return tools.ErrorText("algorithm is required: ROUND_ROBIN, LEAST_CONNECTION, RANDOM or SOURCE_IP"), nil, nil
-		}
-		if strings.TrimSpace(input.Protocol) == "" {
-			return tools.ErrorText("protocol is required: TCP or UDP"), nil, nil
-		}
-		if len(input.Targets) == 0 {
-			return tools.ErrorText("targets is required and must contain at least one backend: a rule with no targets accepts connections and has nowhere to send them"), nil, nil
-		}
-		if msg := validateNlbTargets(input.Targets); msg != "" {
-			return tools.ErrorText(msg), nil, nil
-		}
-		target := tools.Target(dcID, lbID, name)
+		target := tools.Target(dcID, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
-			if err := confirm.Consume(*input.ConfirmationToken, "create_nlb_forwarding_rule", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_nlb_forwarding_rule", "datacenter_id, loadbalancer_id and name", err)), nil, nil
+			if err := confirm.Consume(*input.ConfirmationToken, "create_application_loadbalancer", target); err != nil {
+				return tools.ErrorText(tools.ConfirmErrorText("create_application_loadbalancer", "datacenter_id and name", err)), nil, nil
 			}
-			props := ionos.NewNetworkLoadBalancerForwardingRuleProperties(
-				name, strings.ToUpper(input.Algorithm), strings.ToUpper(input.Protocol),
-				input.ListenerIp, input.ListenerPort, buildNlbTargets(input.Targets))
-			if hc := buildNlbHealthCheck(input.HealthCheck); hc != nil {
-				props.SetHealthCheck(*hc)
-			}
-			body := ionos.NewNetworkLoadBalancerForwardingRule(*props)
-			created, _, err := api.DatacentersNetworkloadbalancersForwardingrulesPost(ctx, dcID, lbID).NetworkLoadBalancerForwardingRule(*body).Execute()
+			props := buildAlbProperties(name, input.ListenerLan, input.TargetLan, input.ManagedLoadBalancerFields)
+			body := ionos.NewApplicationLoadBalancer(*props)
+			created, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersPost(ctx, dcID).ApplicationLoadBalancer(*body).Execute()
 			return tools.ToResult(created, err)
 		}
 
-		token, err := confirm.Mint("create_nlb_forwarding_rule", target)
+		token, err := confirm.Mint("create_application_loadbalancer", target)
 		if err != nil {
 			return nil, nil, err
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to CREATE one forwarding rule on a network load balancer:",
-			Fields: append(tools.Fields(
+			Headline: "About to CREATE one application load balancer:",
+			Fields: tools.Fields(
 				"datacenter_id", dcID,
-				"loadbalancer_id", lbID,
 				"name", name,
-				"listener", fmt.Sprintf("%s:%d", input.ListenerIp, input.ListenerPort),
-				"protocol", strings.ToUpper(input.Protocol),
-				"algorithm", strings.ToUpper(input.Algorithm),
-			), nlbTargetPreview(input.Targets)...),
-			Tool:      "create_nlb_forwarding_rule",
-			Replay:    tools.Fields("datacenter_id", dcID, "loadbalancer_id", lbID, "name", name),
-			TokenNote: "Clients reaching the listener above start being forwarded to these backends. The token authorizes creating only this rule on this load balancer",
+				"listener_lan (client side)", strconv.FormatInt(int64(input.ListenerLan), 10),
+				"target_lan (backend side)", strconv.FormatInt(int64(input.TargetLan), 10),
+				"ips", ipSummary(input.Ips),
+				"lb_private_ips", ipSummary(input.LbPrivateIps),
+				"central_logging", tools.OptBool(input.CentralLogging),
+				"logging_format", tools.OptStr(input.LoggingFormat),
+			),
+			Tool:      "create_application_loadbalancer",
+			Replay:    tools.Fields("datacenter_id", dcID, "name", name),
+			TokenNote: "It carries no traffic until a forwarding rule is added. The token authorizes creating only this load balancer in this data center",
 		}.Render(token)), nil, nil
 	})
+}
 
+func registerAlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
-		Name: "update_nlb_forwarding_rule",
-		Description: "Update a network load balancer forwarding rule. Applies a partial update (only the fields you provide). " +
-			"Omit any of name, algorithm, protocol, listener_ip, listener_port or targets to keep the current value — each is read and sent back unchanged, because the API always receives all of them. " +
-			"Supplying targets REPLACES the backend list, so include every backend the rule should keep: any you leave out stops receiving traffic.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateNlbForwardingRuleInput) (*mcp.CallToolResult, any, error) {
+		Name: "update_application_loadbalancer",
+		Description: "Update a application load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide). " +
+			"Omit name, listener_lan or target_lan to keep the current value — each is read and sent back unchanged, because the API always receives all three and empty values would move the load balancer off both of its networks. " +
+			"Changing listener_lan moves where clients connect; changing target_lan repoints it at a different backend network. Its forwarding rules are managed separately.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
-		lbID := strings.TrimSpace(input.LoadBalancerID)
-		id := strings.TrimSpace(input.RuleID)
-		if dcID == "" || lbID == "" || id == "" {
-			return tools.ErrorText("datacenter_id, loadbalancer_id and rule_id are all required"), nil, nil
+		id := strings.TrimSpace(input.LoadBalancerID)
+		if dcID == "" {
+			return tools.ErrorText("datacenter_id is required"), nil, nil
 		}
-		if input.Name == nil && input.Algorithm == nil && input.Protocol == nil &&
-			input.ListenerIp == nil && input.ListenerPort == nil &&
-			input.Targets == nil && input.HealthCheck == nil {
-			return tools.ErrorText("nothing to update: provide at least one of name, algorithm, protocol, listener_ip, listener_port, targets, health_check"), nil, nil
+		if id == "" {
+			return tools.ErrorText("loadbalancer_id is required"), nil, nil
 		}
-		if input.Targets != nil {
-			if len(input.Targets) == 0 {
-				return tools.ErrorText("targets must contain at least one backend; omit the field entirely to leave the current backends untouched"), nil, nil
-			}
-			if msg := validateNlbTargets(input.Targets); msg != "" {
-				return tools.ErrorText(msg), nil, nil
-			}
+		if input.Name == nil && input.ListenerLan == nil && input.TargetLan == nil &&
+			len(input.Ips) == 0 && len(input.LbPrivateIps) == 0 &&
+			input.CentralLogging == nil && input.LoggingFormat == nil {
+			return tools.ErrorText("nothing to update: provide at least one of name, listener_lan, target_lan, ips, lb_private_ips, central_logging, logging_format"), nil, nil
 		}
 
-		// Every required field — including targets — is serialized unconditionally,
-		// so read the rule and override only what the caller supplied. Skipping this
-		// would send an empty targets list and drop every backend.
-		current, _, err := api.DatacentersNetworkloadbalancersForwardingrulesFindByForwardingRuleId(ctx, dcID, lbID, id).Depth(1).Execute()
+		// name, listenerLan and targetLan are serialized unconditionally, so read
+		// the current values and let the caller's input override only what it set.
+		current, err := readAlb(ctx, client, dcID, id)
 		if err != nil {
 			if tools.IsNotFound(err) {
-				return tools.ErrorText(fmt.Sprintf("forwarding rule %s does not exist on network load balancer %s; nothing to update", id, lbID)), nil, nil
+				return tools.ErrorText(fmt.Sprintf("application load balancer %s does not exist in data center %s; nothing to update", id, dcID)), nil, nil
 			}
 			return tools.ToResult(nil, err)
 		}
-		cp := current.GetProperties()
-
-		name, algorithm, protocol := cp.GetName(), cp.GetAlgorithm(), cp.GetProtocol()
-		listenerIP, listenerPort := cp.GetListenerIp(), cp.GetListenerPort()
-		targets := cp.GetTargets()
-
+		name, listenerLan, targetLan := current.Name, current.ListenerLan, current.TargetLan
 		if input.Name != nil {
 			if strings.TrimSpace(*input.Name) == "" {
 				return tools.ErrorText("name must not be empty; omit it entirely to keep the current name"), nil, nil
 			}
 			name = *input.Name
 		}
-		if input.Algorithm != nil {
-			algorithm = strings.ToUpper(*input.Algorithm)
+		if input.ListenerLan != nil {
+			listenerLan = *input.ListenerLan
 		}
-		if input.Protocol != nil {
-			protocol = strings.ToUpper(*input.Protocol)
+		if input.TargetLan != nil {
+			targetLan = *input.TargetLan
 		}
-		if input.ListenerIp != nil {
-			listenerIP = *input.ListenerIp
-		}
-		if input.ListenerPort != nil {
-			listenerPort = *input.ListenerPort
-		}
-		if input.Targets != nil {
-			targets = buildNlbTargets(input.Targets)
-		}
-		if msg := validateListener(listenerIP, listenerPort); msg != "" {
+		if msg := validateListenerAndTargetLan(listenerLan, targetLan); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
 
-		props := ionos.NewNetworkLoadBalancerForwardingRuleProperties(name, algorithm, protocol, listenerIP, listenerPort, targets)
-		if hc := buildNlbHealthCheck(input.HealthCheck); hc != nil {
-			props.SetHealthCheck(*hc)
-		} else if cp.HasHealthCheck() {
-			// The health check is optional and guarded, but carrying it forward keeps
-			// an unrelated update from silently resetting the rule's timeouts.
-			props.SetHealthCheck(cp.GetHealthCheck())
-		}
-		updated, _, err := api.DatacentersNetworkloadbalancersForwardingrulesPatch(ctx, dcID, lbID, id).NetworkLoadBalancerForwardingRuleProperties(*props).Execute()
+		props := buildAlbProperties(name, listenerLan, targetLan, input.ManagedLoadBalancerFields)
+		updated, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersPatch(ctx, dcID, id).ApplicationLoadBalancerProperties(*props).Execute()
 		return tools.ToResult(updated, err)
 	})
+}
 
+func registerAlbDelete(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodDelete, &mcp.Tool{
-		Name: "delete_nlb_forwarding_rule",
-		Description: "Delete a forwarding rule from a network load balancer. Two-phase: call first WITHOUT confirmation_token to get a preview of the listener and its backends plus a one-time token, then call again WITH the token to delete. " +
-			"Clients connecting to that listener address and port stop being served. If it is the load balancer's only rule, the load balancer stops carrying traffic entirely. This is irreversible.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteNlbForwardingRuleInput) (*mcp.CallToolResult, any, error) {
+		Name: "delete_application_loadbalancer",
+		Description: "Delete a application load balancer and all of its forwarding rules. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview and a one-time token, then call again WITH the token to delete. " +
+			"Clients connecting to its listener addresses stop reaching the backends, so this takes the service behind it offline. The backend servers themselves are not deleted. This is irreversible.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
-		lbID := strings.TrimSpace(input.LoadBalancerID)
-		id := strings.TrimSpace(input.RuleID)
-		if dcID == "" || lbID == "" || id == "" {
-			return tools.ErrorText("datacenter_id, loadbalancer_id and rule_id are all required"), nil, nil
+		id := strings.TrimSpace(input.LoadBalancerID)
+		if dcID == "" {
+			return tools.ErrorText("datacenter_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, lbID, id)
+		if id == "" {
+			return tools.ErrorText("loadbalancer_id is required"), nil, nil
+		}
+		target := tools.Target(dcID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
-			if err := confirm.Consume(*input.ConfirmationToken, "delete_nlb_forwarding_rule", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("delete_nlb_forwarding_rule", "datacenter_id, loadbalancer_id and rule_id", err)), nil, nil
+			if err := confirm.Consume(*input.ConfirmationToken, "delete_application_loadbalancer", target); err != nil {
+				return tools.ErrorText(tools.ConfirmErrorText("delete_application_loadbalancer", "datacenter_id and loadbalancer_id", err)), nil, nil
 			}
-			_, err := api.DatacentersNetworkloadbalancersForwardingrulesDelete(ctx, dcID, lbID, id).Execute()
-			if err != nil {
+			if _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersDelete(ctx, dcID, id).Execute(); err != nil {
 				return tools.ToResult(nil, err)
 			}
-			return tools.TextResult(tools.DeletedAsync("forwarding rule", id)), nil, nil
+			return tools.TextResult(tools.DeletedAsync("application load balancer", id)), nil, nil
 		}
 
-		rule, _, err := api.DatacentersNetworkloadbalancersForwardingrulesFindByForwardingRuleId(ctx, dcID, lbID, id).Depth(1).Execute()
+		current, err := readAlb(ctx, client, dcID, id)
 		if err != nil {
 			if tools.IsNotFound(err) {
-				return tools.ErrorText(fmt.Sprintf("forwarding rule %s does not exist on network load balancer %s; nothing to delete", id, lbID)), nil, nil
+				return tools.ErrorText(fmt.Sprintf("application load balancer %s does not exist in data center %s; nothing to delete", id, dcID)), nil, nil
 			}
 			return tools.ToResult(nil, err)
 		}
-		cp := rule.GetProperties()
-		radius := tools.AffectedRadius()
-		radius.Add("backends that stop receiving traffic through this rule", len(cp.GetTargets()))
-		token, mErr := confirm.Mint("delete_nlb_forwarding_rule", target)
+		radius := tools.DestroyedRadius()
+		radius.Add("forwarding rules deleted with it", current.RuleCount)
+		token, mErr := confirm.Mint("delete_application_loadbalancer", target)
 		if mErr != nil {
 			return nil, nil, mErr
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to DELETE a forwarding rule from a network load balancer. This is IRREVERSIBLE.\n" +
-				"Clients connecting to the listener below stop being served. If this is the load balancer's only rule, it stops carrying traffic entirely.",
+			Headline: "About to DELETE a application load balancer. This is IRREVERSIBLE.\n" +
+				"Clients connecting to the listener addresses below stop reaching the backends, so the service behind it goes offline. The backend servers themselves are not deleted.",
 			Fields: tools.Fields(
 				"datacenter_id", dcID,
-				"loadbalancer_id", lbID,
-				"rule_id", id,
-				"name", cp.GetName(),
-				"listener", fmt.Sprintf("%s:%d", cp.GetListenerIp(), cp.GetListenerPort()),
-				"protocol", cp.GetProtocol(),
-				"algorithm", cp.GetAlgorithm(),
+				"loadbalancer_id", id,
+				"name", current.Name,
+				"listener_lan", strconv.FormatInt(int64(current.ListenerLan), 10),
+				"target_lan", strconv.FormatInt(int64(current.TargetLan), 10),
+				"listener addresses", ipSummary(current.Ips),
 			),
 			Radius:    radius,
-			EmptyNote: "This rule has no backends, so it is not currently serving anything.",
-			Tool:      "delete_nlb_forwarding_rule",
-			Replay:    tools.Fields("datacenter_id", dcID, "loadbalancer_id", lbID, "rule_id", id),
-			TokenNote: "This token authorizes deleting ONLY this rule from ONLY this load balancer",
+			EmptyNote: "It has no forwarding rules, so it is not currently carrying traffic.",
+			Tool:      "delete_application_loadbalancer",
+			Replay:    tools.Fields("datacenter_id", dcID, "loadbalancer_id", id),
+			TokenNote: "This token authorizes deleting ONLY this application load balancer",
 		}.Render(token)), nil, nil
 	})
 }
-
-// ---------- application load balancer forwarding rules ----------
 
 func registerAlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	api := client.ApplicationLoadBalancersApi
@@ -452,37 +460,6 @@ func registerAlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient,
 	})
 }
 
-// ---------- shared helpers ----------
-
-// validateListener catches an unusable listener before the request. The API rejects
-// both cases but without naming the field.
-func validateListener(ip string, port int32) string {
-	if strings.TrimSpace(ip) == "" {
-		return "listener_ip is required: it must be one of the load balancer's own listener addresses (see get_network_loadbalancer or get_application_loadbalancer)"
-	}
-	if port < 1 || port > 65535 {
-		return fmt.Sprintf("listener_port must be between 1 and 65535, got %d", port)
-	}
-	return ""
-}
-
-// validateNlbTargets checks each backend, since a malformed one is rejected by the
-// API as a whole-request failure that does not say which entry was wrong.
-func validateNlbTargets(targets []tools.NlbTargetInput) string {
-	for i, t := range targets {
-		if strings.TrimSpace(t.Ip) == "" {
-			return fmt.Sprintf("targets[%d].ip is required", i)
-		}
-		if t.Port < 1 || t.Port > 65535 {
-			return fmt.Sprintf("targets[%d].port must be between 1 and 65535, got %d", i, t.Port)
-		}
-		if t.Weight < 0 || t.Weight > 256 {
-			return fmt.Sprintf("targets[%d].weight must be between 0 and 256, got %d", i, t.Weight)
-		}
-	}
-	return ""
-}
-
 // validateAlbHttpRules checks the field combinations each rule type needs. The type
 // decides which fields apply, and the API's rejection does not name the rule.
 func validateAlbHttpRules(rules []tools.AlbHttpRuleInput) string {
@@ -515,51 +492,6 @@ func validateAlbHttpRules(rules []tools.AlbHttpRuleInput) string {
 		}
 	}
 	return ""
-}
-
-func buildNlbTargets(in []tools.NlbTargetInput) []ionos.NetworkLoadBalancerForwardingRuleTarget {
-	out := make([]ionos.NetworkLoadBalancerForwardingRuleTarget, 0, len(in))
-	for _, t := range in {
-		target := ionos.NewNetworkLoadBalancerForwardingRuleTarget(t.Ip, t.Port, t.Weight)
-		if t.ProxyProtocol != nil {
-			target.SetProxyProtocol(*t.ProxyProtocol)
-		}
-		if t.HealthCheck != nil || t.HealthCheckInterval != nil || t.Maintenance != nil {
-			hc := ionos.NewNetworkLoadBalancerForwardingRuleTargetHealthCheckWithDefaults()
-			if t.HealthCheck != nil {
-				hc.SetCheck(*t.HealthCheck)
-			}
-			if t.HealthCheckInterval != nil {
-				hc.SetCheckInterval(*t.HealthCheckInterval)
-			}
-			if t.Maintenance != nil {
-				hc.SetMaintenance(*t.Maintenance)
-			}
-			target.SetHealthCheck(*hc)
-		}
-		out = append(out, *target)
-	}
-	return out
-}
-
-func buildNlbHealthCheck(in *tools.NlbHealthCheckInput) *ionos.NetworkLoadBalancerForwardingRuleHealthCheck {
-	if in == nil {
-		return nil
-	}
-	hc := ionos.NewNetworkLoadBalancerForwardingRuleHealthCheckWithDefaults()
-	if in.ClientTimeout != nil {
-		hc.SetClientTimeout(*in.ClientTimeout)
-	}
-	if in.ConnectTimeout != nil {
-		hc.SetConnectTimeout(*in.ConnectTimeout)
-	}
-	if in.TargetTimeout != nil {
-		hc.SetTargetTimeout(*in.TargetTimeout)
-	}
-	if in.Retries != nil {
-		hc.SetRetries(*in.Retries)
-	}
-	return hc
 }
 
 func buildAlbHttpRules(in []tools.AlbHttpRuleInput) []ionos.ApplicationLoadBalancerHttpRule {
@@ -617,20 +549,6 @@ func applyAlbOptionalFields(props *ionos.ApplicationLoadBalancerForwardingRulePr
 	if len(rules) > 0 {
 		props.SetHttpRules(buildAlbHttpRules(rules))
 	}
-}
-
-// nlbTargetPreview lists the backends a rule will forward to, one line each, so the
-// caller can see the actual destinations rather than a count.
-func nlbTargetPreview(targets []tools.NlbTargetInput) []tools.KV {
-	out := make([]tools.KV, 0, len(targets))
-	for i, t := range targets {
-		desc := fmt.Sprintf("%s:%d weight %d", t.Ip, t.Port, t.Weight)
-		if t.Maintenance != nil && *t.Maintenance {
-			desc += " (in maintenance, receives no traffic)"
-		}
-		out = append(out, tools.Fields(fmt.Sprintf("target[%d]", i), desc)...)
-	}
-	return out
 }
 
 // albHttpRuleSummary describes the HTTP rules compactly, since their full form is

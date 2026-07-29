@@ -11,13 +11,13 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterPccWriteTools registers the create/update/delete private cross connect
+// RegisterPrivateCrossConnectWriteTools registers the create/update/delete private cross connect
 // tools. A cross connect is account-level, so these take no datacenter_id.
 //
 // Which LANs are peered through a cross connect is controlled from the LAN side —
 // update_lan's pcc field — not from here, so these tools only manage the cross
 // connect's own name and description.
-func RegisterPccWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
+func RegisterPrivateCrossConnectWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreatePcc(server, client, scope, confirm)
 	registerUpdatePcc(server, client, scope)
 	registerDeletePcc(server, client, scope, confirm)
