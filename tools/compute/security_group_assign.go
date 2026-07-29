@@ -11,13 +11,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Security group assignment. Both endpoints are PUTs that REPLACE the whole
-// assignment set rather than adding to it, which is the trap these tools exist
-// to signpost: a caller that passes one group ID meaning "also add this" would
-// unassign every other group. The verb is assign_ rather than update_ because
-// the tool takes a complete set, and the class is write rather than destructive —
-// no resource is destroyed, only the mapping changes, and it is reversible by
-// assigning the previous set back.
+// Security group assignment. Both endpoints REPLACE the whole assignment set
+// rather than adding to it, so passing one group ID meaning "also add this"
+// unassigns every other group. Hence assign_ rather than update_.
 
 // RegisterSecurityGroupAssignTools registers the server and NIC security-group
 // assignment tools.
@@ -86,12 +82,8 @@ func registerAssignNicSecurityGroups(server *mcp.Server, client *ionos.APIClient
 		})
 }
 
-// cleanIDs trims the supplied IDs and rejects blank entries. A blank ID in a
-// full-set replacement is almost certainly a mistake, and letting it through
-// would either error opaquely at the API or unassign more than intended. A nil or
-// empty list is allowed — that is the documented way to unassign everything —
-// but is normalised to a non-nil slice so the body serialises as [] rather than
-// null.
+// cleanIDs trims the IDs and rejects blank entries. An empty list is allowed —
+// that unassigns everything — and is normalised so the body sends [] not null.
 func cleanIDs(ids []string) ([]string, error) {
 	out := make([]string, 0, len(ids))
 	for i, id := range ids {

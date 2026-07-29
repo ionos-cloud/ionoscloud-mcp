@@ -12,18 +12,8 @@ import (
 )
 
 // The classic load balancer balances traffic across NICs attached directly to it,
-// rather than across IP targets defined in forwarding rules. It is the one resource
-// in this area whose properties are all optional in the API model, so its update is
-// a genuine partial PATCH with no carry-forward read.
-//
-// Not registered here, deliberately: balanced-NIC attach and detach. Attaching an
-// existing NIC uses the same id-only body shape that Nic.Properties makes
-// impossible to express — the smallest body the SDK can produce is
-// {"id":"...","properties":{"lan":0}}, which asks the API to move the NIC to LAN 0.
-// That is the same defect that keeps attach_lan_nic and attach_server_cdrom out, and
-// it needs the same upstream fix in the SDK templates. Until then, use
-// update_loadbalancer's read tools to inspect balanced NICs and manage the
-// membership from the LAN side.
+// rather than through forwarding rules. Unlike the managed balancers, all of its
+// properties are optional, so update_loadbalancer is a plain partial PATCH.
 
 // RegisterLoadBalancerWriteTools registers the create/update/delete classic load
 // balancer tools.

@@ -11,12 +11,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterPrivateCrossConnectWriteTools registers the create/update/delete private cross connect
-// tools. A cross connect is account-level, so these take no datacenter_id.
-//
-// Which LANs are peered through a cross connect is controlled from the LAN side —
-// update_lan's pcc field — not from here, so these tools only manage the cross
-// connect's own name and description.
+// RegisterPrivateCrossConnectWriteTools registers the create/update/delete cross
+// connect tools. A cross connect peers LANs across data centers on the same
+// contract; LANs join it through update_lan's pcc field.
 func RegisterPrivateCrossConnectWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreatePcc(server, client, scope, confirm)
 	registerUpdatePcc(server, client, scope)
@@ -129,18 +126,12 @@ func registerDeletePcc(server *mcp.Server, client *ionos.APIClient, scope tools.
 		}
 		props := pcc.GetProperties()
 
-		// The API refuses this outright: "Cross connect can be deleted only if it is
-		// not connected to any LANs" (PccsDelete). Since the peers are already loaded
-		// for the preview, say so here rather than minting a token for a call that
-		// cannot succeed — and name the escape, because there is no detach. Neither
-		// this server, the Terraform provider nor ionosctl can clear a LAN's pcc
-		// field: it is an optional string with no null setter, and the provider's
-		// update only assigns it when non-empty. Removing the LAN from the cross
-		// connect therefore means deleting or recreating the LAN itself.
+		// The API allows deleting a cross connect only when no LANs are connected, so
+		// refuse here rather than minting a token for a call that cannot succeed.
 		if peers := props.GetPeers(); len(peers) > 0 {
 			return tools.ErrorText(fmt.Sprintf(
 				"cross connect %s still connects %d LAN(s), and the API allows deleting one only when no LANs are connected, so this call would be rejected:\n%s\n\n"+
-					"This server does not expose a detach: the API models a LAN's pcc field as a plain string with no null form, so update_lan can set it but not clear it. Clearing it may be possible by sending an empty string, but the API's response to that has not been confirmed — until it is, the route here is to delete the LANs (delete_lan) before the cross connect. Check what each LAN carries first: delete_lan disconnects every NIC on it.",
+					"The API DOES support detaching a LAN from a cross connect — the DCD web console does it, leaving both the LAN and the emptied cross connect intact — but this server does not expose it yet, because the exact request the API expects has not been established. Until it does, either detach the LANs in the DCD (https://dcd.ionos.com/) and retry this, or delete the LANs with delete_lan. Prefer the DCD: delete_lan disconnects every NIC on the LAN, which the detach does not.",
 				id, len(peers), pccPeerSummary(peers))), nil, nil
 		}
 

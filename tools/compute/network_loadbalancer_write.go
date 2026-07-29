@@ -12,16 +12,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Write tools for the network load balancer and its forwarding rules.
-//
-// Forwarding rules are what make a load balancer carry traffic: the balancer itself
-// only defines which LANs it sits between. Both rule models serialize their required
-// fields unconditionally, and this flavour includes `targets` among them, so each
-// update reads the current rule and overrides only the fields the caller supplied —
-// otherwise renaming a rule would remove every backend from it.
-//
-// validateListenerAndTargetLan and validateListener are shared with the application
-// load balancer and live here, the way ipSummary lives in nic_write.go.
+// Write tools for the network load balancer and its forwarding rules. A rule is what
+// makes the balancer carry traffic. validateListenerAndTargetLan and validateListener
+// are shared with the application load balancer and live here.
 
 // RegisterNetworkLoadBalancerWriteTools registers create/update/delete for the
 // network load balancer and for its forwarding rules.
@@ -60,14 +53,9 @@ func readNlb(ctx context.Context, client *ionos.APIClient, dcID, id string) (nlb
 	return st, nil
 }
 
-// buildNlbProperties builds the properties body. It uses a keyed literal rather than
-// NewNetworkLoadBalancerProperties, per the generated-constructor rule in CLAUDE.md: the
-// constructor injects nothing today, but a literal cannot start doing so on an SDK bump.
-//
-// name, listenerLan and targetLan are non-pointer fields the SDK serializes
-// unconditionally, so every caller must pass the values it wants kept — an update that
-// omitted them would send an empty name and LAN 0, moving the load balancer off both
-// of its networks as a side effect of an unrelated change.
+// buildNlbProperties builds the properties body. name, listenerLan and targetLan are
+// serialized unconditionally, so every caller must pass the values it wants kept —
+// an update that omitted them would move the balancer off both its networks.
 func buildNlbProperties(name string, listenerLan, targetLan int32, f tools.ManagedLoadBalancerFields) *ionos.NetworkLoadBalancerProperties {
 	props := &ionos.NetworkLoadBalancerProperties{Name: name, ListenerLan: listenerLan, TargetLan: targetLan}
 	if len(f.Ips) > 0 {
@@ -346,9 +334,8 @@ func registerNlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient,
 			}
 		}
 
-		// Every required field — including targets — is serialized unconditionally,
-		// so read the rule and override only what the caller supplied. Skipping this
-		// would send an empty targets list and drop every backend.
+		// targets is serialized unconditionally, so a rename without this read would
+		// empty the backend pool. Read the rule and override only what was supplied.
 		current, _, err := api.DatacentersNetworkloadbalancersForwardingrulesFindByForwardingRuleId(ctx, dcID, lbID, id).Depth(1).Execute()
 		if err != nil {
 			if tools.IsNotFound(err) {
@@ -534,9 +521,8 @@ func nlbTargetPreview(targets []tools.NlbTargetInput) []tools.KV {
 	return out
 }
 
-// validateListenerAndTargetLan catches the configuration that cannot work: a load
-// balancer whose client side and backend side are the same LAN, or a non-positive
-// LAN ID. The API rejects both, but not in terms that name the field.
+// validateListenerAndTargetLan rejects a non-positive LAN ID, or a balancer whose
+// client and backend sides are the same LAN. The API refuses both, vaguely.
 func validateListenerAndTargetLan(listenerLan, targetLan int32) string {
 	if listenerLan <= 0 {
 		return "listener_lan is required and must be a positive LAN ID — the numeric lan value from list_lans, not a UUID"

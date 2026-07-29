@@ -7,12 +7,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterAll registers all compute engine tools with the MCP server. Every
-// resource threads scope so all tools register through tools.RegisterTool (or
-// tools.RegisterActionTool): reads are always allowed but still get read-only
-// annotations, while write, destructive and action tools register only if
-// IONOS_MCP_TOOL_SCOPE opts their class in. confirm is the shared two-phase
-// confirmation store used by create/delete and destructive actions.
+// RegisterAll registers every compute engine tool. Write tools appear only when
+// scope allows; confirm backs the two-phase create and delete flows.
 func RegisterAll(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	RegisterDatacenterTools(server, client, scope)
 	RegisterDatacenterWriteTools(server, client, scope, confirm)

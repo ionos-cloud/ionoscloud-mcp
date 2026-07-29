@@ -11,14 +11,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// An image has no create tool because the API exposes no way to create one: public
-// images come from IONOS and private ones are uploaded out of band.
-//
-// ImageProperties is doubly hazardous. NewImageProperties(licenceType) takes a
-// required argument and *still* injects exposeSerial=false and
-// requireLegacyBios=true, and it serializes licenceType unconditionally. So
-// update_image builds a zero-valued literal and carries the current licence type
-// forward — see the "generated constructors" rule in CLAUDE.md.
+// An image has no create tool: the API exposes no way to create one. Public images
+// come from IONOS, private ones are uploaded out of band.
 
 // RegisterImageWriteTools registers the image update and delete tools.
 func RegisterImageWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
@@ -44,9 +38,7 @@ func registerUpdateImage(server *mcp.Server, client *ionos.APIClient, scope tool
 			return tools.ErrorText("nothing to update: provide at least one of name, description, licence_type, cloud_init, expose_serial, require_legacy_bios, or one of the hot-plug flags"), nil, nil
 		}
 
-		// ImageProperties.LicenceType is a non-pointer field the SDK ALWAYS
-		// serializes, so a PATCH built without it would send an empty licence type.
-		// Read the current value and let the caller override only if they asked to.
+		// The SDK always serializes licenceType, so read the current value forward.
 		licenceType := ""
 		if input.LicenceType != nil {
 			licenceType = strings.TrimSpace(*input.LicenceType)
@@ -65,12 +57,8 @@ func registerUpdateImage(server *mcp.Server, client *ionos.APIClient, scope tool
 			licenceType = currentProps.GetLicenceType()
 		}
 
-		// A keyed literal, NOT NewImageProperties(licenceType): even that
-		// required-argument constructor injects exposeSerial=false and
-		// requireLegacyBios=true, so a PATCH built from it would force the legacy
-		// BIOS on and stop exposing the serial on every volume made from this image.
-		// It is not only the WithDefaults constructors that do this — see the "PATCH
-		// bodies" note in CLAUDE.md.
+		// A literal, not NewImageProperties: that constructor takes a required argument
+		// and still injects exposeSerial and requireLegacyBios.
 		props := &ionos.ImageProperties{LicenceType: licenceType}
 		if input.Name != nil {
 			props.SetName(*input.Name)
@@ -157,9 +145,7 @@ func registerDeleteImage(server *mcp.Server, client *ionos.APIClient, scope tool
 	})
 }
 
-// applyImageHotPlugFlags is applySnapshotHotPlugFlags for images. The two generated
-// types have identical setters but no shared interface, so the bodies cannot be
-// merged without reflection.
+// applyImageHotPlugFlags sets the capability flags an image supports.
 func applyImageHotPlugFlags(props *ionos.ImageProperties, f tools.HotPlugFlags, x tools.ExtraHotPlugFlags) {
 	if f.CpuHotPlug != nil {
 		props.SetCpuHotPlug(*f.CpuHotPlug)

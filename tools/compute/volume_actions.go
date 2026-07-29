@@ -11,10 +11,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Volume snapshot actions. create_volume_snapshot is a POST that genuinely
-// creates a resource, so it uses the create_ prefix and the normal
-// tools.RegisterTool gate. restore_volume_snapshot is a POST that destroys data —
-// it overwrites the volume — so it registers as a destructive action verb.
+// Volume snapshot actions. create_volume_snapshot creates a resource; restoring
+// overwrites a volume, so it registers as a destructive action verb instead.
 
 // RegisterVolumeActionTools registers the volume snapshot create/restore actions.
 func RegisterVolumeActionTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
@@ -66,9 +64,7 @@ func registerCreateVolumeSnapshot(server *mcp.Server, client *ionos.APIClient, s
 			return tools.ToResult(created, err)
 		}
 
-		// Phase 1: no token -> preview and mint a one-time token. Reading the
-		// volume first means the preview names what is being captured rather than
-		// just echoing an opaque ID back.
+		// Phase 1: no token -> read the volume so the preview can name it.
 		vol, _, err := client.VolumesApi.DatacentersVolumesFindById(ctx, dcID, volumeID).Depth(1).Execute()
 		if err != nil {
 			if tools.IsNotFound(err) {
@@ -101,10 +97,8 @@ func registerCreateVolumeSnapshot(server *mcp.Server, client *ionos.APIClient, s
 }
 
 func registerRestoreVolumeSnapshot(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
-	// restore_ is a destructive verb: the POST overwrites the target volume, so
-	// it needs "destructive" scope even though it creates nothing. It is not
-	// idempotent in any useful sense — a second restore re-overwrites whatever
-	// the guest has written since the first.
+	// Destructive despite creating nothing: it overwrites the target volume, and a
+	// second restore discards whatever the guest wrote after the first.
 	tools.RegisterActionTool(server, scope,
 		tools.Action{Verb: "restore_", Method: tools.MethodPost, Idempotent: false},
 		&mcp.Tool{
@@ -126,9 +120,8 @@ func registerRestoreVolumeSnapshot(server *mcp.Server, client *ionos.APIClient, 
 			if snapshotID == "" {
 				return tools.ErrorText("snapshot_id is required; list available snapshots with list_snapshots"), nil, nil
 			}
-			// Both the volume and the snapshot are part of the target: a token
-			// must not be replayable to restore a different snapshot, which would
-			// overwrite the volume with contents the preview never described.
+			// Volume and snapshot are both in the target, so a token cannot be
+			// replayed to restore a different snapshot.
 			target := tools.Target(dcID, volumeID, snapshotID)
 
 			// Phase 2: token present -> validate and execute.

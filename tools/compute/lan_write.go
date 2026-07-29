@@ -29,9 +29,7 @@ func registerCreateLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if dcID == "" {
 			return tools.ErrorText("datacenter_id is required to create a LAN"), nil, nil
 		}
-		// A LAN's name is optional in the API, but an unnamed LAN is hard to tell
-		// apart later, so the confirmation target falls back to a fixed marker
-		// rather than an empty string.
+		// The API allows an unnamed LAN, but one is hard to identify later.
 		name := ""
 		if input.Name != nil {
 			name = strings.TrimSpace(*input.Name)

@@ -324,7 +324,7 @@ type UpdateLanInput struct {
 	LanID         string  `json:"lan_id" jsonschema:"the ID of the LAN to update"`
 	Name          *string `json:"name,omitempty" jsonschema:"a new name for the LAN"`
 	Public        *bool   `json:"public,omitempty" jsonschema:"make the LAN public (internet-connected) or private. Making a public LAN private removes internet access for every server on it."`
-	Pcc           *string `json:"pcc,omitempty" jsonschema:"attach the LAN to this private cross connect ID. This can only SET the connection, not clear it: the API models the field as a plain string with no null form, so omitting it leaves the current value alone. Detaching a LAN from a cross connect is not exposed by this server."`
+	Pcc           *string `json:"pcc,omitempty" jsonschema:"attach the LAN to this private cross connect ID. This can only SET the connection, not clear it — omitting the field leaves the current value alone. Detaching is supported by the API (the DCD web console does it, keeping both the LAN and the cross connect) but is not yet exposed here; use the DCD for that."`
 	Ipv6CidrBlock *string `json:"ipv6_cidr_block,omitempty" jsonschema:"set the LAN's /64 IPv6 block, or AUTO to have one assigned. Changing it reassigns the /80 blocks and addresses of every connected NIC."`
 }
 

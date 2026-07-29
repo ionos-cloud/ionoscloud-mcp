@@ -6,16 +6,11 @@ import (
 	"strings"
 )
 
-// This file is the presentation half of the two-phase confirmation flow whose
-// state half is ConfirmationStore (confirm.go): it renders the preview a write
-// tool returns on its first call, and the remediation text it returns when a
-// token is rejected. It is deliberately product-agnostic — nothing here imports
-// a product SDK — so every product's write tools produce previews in the same
-// shape and a model only has to learn one format.
+// Preview rendering for the two-phase confirmation flow; ConfirmationStore
+// (confirm.go) holds its state. Product-agnostic, so every product's write tools
+// produce previews in one shape.
 
-// KV is one "key: value" line in a preview block. A slice of these keeps the
-// order stable, which a map would not. Build them with Fields rather than by
-// literal — see that function for why.
+// KV is one "key: value" line in a preview block.
 type KV struct {
 	K string
 	V string
@@ -25,17 +20,8 @@ type KV struct {
 //
 //	tools.Fields("name", name, "cores", tools.OptInt32(in.Cores))
 //
-// It exists for two reasons. Unkeyed cross-package struct literals are rejected
-// by vet's composites check, and the keyed alternative
-// (tools.KV{K: "name", V: name}) repeated per field would bury the field names
-// that are the point of the list. Values that are empty are dropped at render
-// time, so callers can list every optional field unconditionally.
-//
-// Panics on an odd number of arguments: that is a coding error, caught the first
-// time the tool is registered or exercised, in the same spirit as RegisterTool's
-// name/method assertion. In practice it rarely gets that far — staticcheck's
-// SA5012 check recognises the even-pairs contract and flags a bad literal call
-// at lint time.
+// Empty values are dropped at render time, so callers can list every optional
+// field unconditionally. Panics on an odd number of arguments.
 func Fields(pairs ...string) []KV {
 	if len(pairs)%2 != 0 {
 		panic(fmt.Sprintf("tools.Fields: got %d arguments, want an even number of key, value pairs", len(pairs)))
@@ -54,26 +40,14 @@ type LabeledCount struct {
 }
 
 // BlastRadius accumulates the resources an operation touches. Callers Add each
-// collection they fetched; zero counts are dropped so a preview lists only what
-// actually exists.
+// collection they fetched; zero counts are dropped.
 //
-// Two very different things end up here — resources destroyed along with their
-// parent, and resources that survive but are affected (a NIC losing its LAN, every
-// member of a security group gaining a rule) — so the renderer has to be told
-// which. Labelling the second kind "will be destroyed" is not a cosmetic error: it
-// is a false claim in the one place a caller looks before authorizing a change, and
-// a preview that overstates once teaches the reader to discount the section
-// entirely, including when it is right.
-//
-// This is a flag rather than a caller-supplied heading because free text invited
-// exactly the overreach it was meant to prevent — every per-site heading written
-// for it either restated its own labels or repeated the headline, and two made
-// claims about the API that turned out to be wrong. What each entry loses belongs
-// in its label, and what the operation does belongs in the headline.
+// Whether entries are destroyed or merely affected is a flag rather than free text,
+// because labelling a survivor "will be destroyed" is a false claim in the one place
+// a caller looks before authorizing a change.
 type BlastRadius struct {
-	// Destroys marks entries that cease to exist with their parent. The zero value
-	// is the safe one, so a radius built without thinking reads as merely affected
-	// rather than announcing a destruction that is not happening.
+	// Destroys marks entries that cease to exist with their parent. The zero value is
+	// the safe one: an unset radius reads as merely affected.
 	Destroys bool
 	Counts   []LabeledCount
 	Total    int
@@ -82,9 +56,7 @@ type BlastRadius struct {
 // DestroyedRadius is for entries that cease to exist with their parent.
 func DestroyedRadius() *BlastRadius { return &BlastRadius{Destroys: true} }
 
-// AffectedRadius is for entries that survive the operation. Say what each one
-// loses in its Add label; the section heading only has to establish that they are
-// not being deleted.
+// AffectedRadius is for entries that survive. Say what each one loses in its label.
 func AffectedRadius() *BlastRadius { return &BlastRadius{} }
 
 // Add records a non-zero count under label. Zero counts are ignored.
@@ -100,27 +72,22 @@ func (b *BlastRadius) Add(label string, n int) {
 type Preview struct {
 	// Headline is the first line, e.g. "About to CREATE one server:".
 	Headline string
-	// Fields echoes the identity and properties the operation will use, so the
-	// caller can see exactly what it asked for before committing.
+	// Fields echoes what the operation will act on.
 	Fields []KV
-	// Radius is the set of resources a delete would destroy. Leave nil for
-	// create and for leaf resources that contain nothing.
+	// Radius is what the operation touches. Nil for creates and leaf resources.
 	Radius *BlastRadius
-	// EmptyNote is shown instead of a count list when Radius is present but
-	// empty, e.g. "This server has no attached volumes or NICs."
+	// EmptyNote replaces the count list when Radius is present but empty.
 	EmptyNote string
-	// Tool is the tool name to call again, and Replay the arguments that call
-	// must repeat so the token's target still matches.
+	// Tool is the tool to call again; Replay the arguments it must repeat.
 	Tool   string
 	Replay []KV
-	// TokenNote explains precisely what the token authorizes. Keep it narrow —
-	// it is the model's only signal that a token is not blanket permission.
+	// TokenNote says what the token authorizes. Keep it narrow — it is the only
+	// signal that a token is not blanket permission.
 	TokenNote string
 }
 
-// Render produces the preview text, ending with the token footer. The result is
-// returned as a NON-error result: the first call of a two-phase flow succeeded,
-// it just did not mutate anything yet.
+// Render produces the preview text with the token footer. Returned as a NON-error
+// result: the first call of a two-phase flow succeeded, it just changed nothing.
 func (p Preview) Render(token string) string {
 	var b strings.Builder
 	b.WriteString(p.Headline)
@@ -143,8 +110,7 @@ func (p Preview) Render(token string) string {
 			for _, c := range p.Radius.Counts {
 				fmt.Fprintf(&b, "  - %d %s\n", c.Count, c.Label)
 			}
-			// A total is worth stating for a destroy, where the entries are alike and
-			// the number is the warning. Summing unlike affected categories is not.
+			// A total means something for a destroy; summing unlike survivors does not.
 			if p.Radius.Destroys {
 				fmt.Fprintf(&b, "Total resources that will be destroyed: %d\n", p.Radius.Total)
 			}
@@ -152,16 +118,13 @@ func (p Preview) Render(token string) string {
 	}
 
 	fmt.Fprintf(&b, "\nTo proceed, call %s again with:\n", p.Tool)
-	// The token is rendered as part of the replay list so it aligns with the
-	// other arguments the caller has to repeat.
+	// Rendered inside the replay list so it aligns with the other arguments.
 	writeFields(&b, append(append([]KV{}, p.Replay...), KV{K: "confirmation_token", V: token}))
 	fmt.Fprintf(&b, "%s and expires in %s.", p.TokenNote, ConfirmationTTL)
 	return b.String()
 }
 
-// writeFields renders "  key: value" lines, aligned on the longest key so a
-// multi-field preview stays readable. Fields with an empty value are skipped,
-// which is what lets callers pass every optional field unconditionally.
+// writeFields renders aligned "key: value" lines, skipping empty values.
 func writeFields(b *strings.Builder, fields []KV) {
 	width := 0
 	for _, f := range fields {
@@ -177,9 +140,8 @@ func writeFields(b *strings.Builder, fields []KV) {
 	}
 }
 
-// ConfirmErrorText maps a ConfirmationStore failure to remediation a model can
-// act on. replayArgs names the arguments to re-send for a fresh preview —
-// naming them explicitly is what stops a model retrying the same dead token.
+// ConfirmErrorText turns a ConfirmationStore failure into remediation, naming the
+// arguments to re-send so a caller does not retry a dead token.
 func ConfirmErrorText(tool, replayArgs string, err error) string {
 	switch {
 	case errors.Is(err, ErrTokenMismatch):
@@ -191,9 +153,8 @@ func ConfirmErrorText(tool, replayArgs string, err error) string {
 	}
 }
 
-// Target joins the parts of a confirmation target. Every part of the parent
-// chain must be included so a token minted under one parent can never be
-// replayed against a same-named resource under a different parent.
+// Target joins the parts of a confirmation target. Include every identifier that
+// makes the operation unique, so a token cannot be replayed elsewhere.
 func Target(parts ...string) string {
 	return strings.Join(parts, "|")
 }
@@ -204,17 +165,13 @@ func HasToken(token *string) bool {
 	return token != nil && strings.TrimSpace(*token) != ""
 }
 
-// DeletedAsync is the standard success message for a DELETE, which returns no
-// body. Provisioning is asynchronous, so the handler reports that the request
-// was accepted rather than that the resource is gone.
+// DeletedAsync is the success message for a DELETE, which returns no body.
 func DeletedAsync(what, id string) string {
 	return fmt.Sprintf("Deleted %s %s. Deletion is asynchronous; the API has accepted the request.", what, id)
 }
 
-// The Opt* helpers render an optional value as a preview field, returning ""
-// when the pointer is nil so writeFields skips the line. They exist so a
-// handler can list every optional field unconditionally instead of guarding
-// each one.
+// The Opt* helpers render an optional value for a preview field, returning "" when
+// unset so writeFields drops the line.
 
 // OptStr dereferences an optional string.
 func OptStr(v *string) string {

@@ -11,9 +11,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterSecurityGroupWriteTools registers the create/update/delete security
-// group tools. The rules inside a group are managed by the tools in
-// firewall_rule_write.go, and group assignment by security_group_assign.go.
+// RegisterSecurityGroupWriteTools registers the create/update/delete security group
+// tools. Rules and assignment are handled elsewhere.
 func RegisterSecurityGroupWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateSecurityGroup(server, client, scope, confirm)
 	registerUpdateSecurityGroup(server, client, scope)
@@ -46,9 +45,7 @@ func registerCreateSecurityGroup(server *mcp.Server, client *ionos.APIClient, sc
 			if input.Description != nil {
 				props.SetDescription(*input.Description)
 			}
-			// The POST body is SecurityGroupRequest, not SecurityGroup: it carries an
-			// optional entities block for creating rules inline, which this tool does
-			// not use — rules are added separately with create_security_group_rule.
+			// The POST body is SecurityGroupRequest, which carries only properties.
 			body := ionos.NewSecurityGroupRequest(*props)
 			created, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsPost(ctx, dcID).SecurityGroup(*body).Execute()
 			return tools.ToResult(created, err)
@@ -92,11 +89,8 @@ func registerUpdateSecurityGroup(server *mcp.Server, client *ionos.APIClient, sc
 			return tools.ErrorText("nothing to update: provide at least one of name, description"), nil, nil
 		}
 
-		// SecurityGroupProperties.Name is a non-pointer field the SDK ALWAYS
-		// serializes, so a PATCH that changed only the description would send an
-		// empty name and wipe it. When the caller did not supply a name we read the
-		// current one and send it back unchanged — the same approach update_nic
-		// takes for its lan field.
+		// The SDK always serializes name, so read the current value forward — otherwise
+		// changing only the description would wipe it.
 		name := ""
 		if input.Name != nil {
 			name = strings.TrimSpace(*input.Name)

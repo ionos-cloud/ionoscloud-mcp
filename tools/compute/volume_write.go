@@ -55,11 +55,8 @@ func registerCreateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			if err := confirm.Consume(*input.ConfirmationToken, "create_volume", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("create_volume", "datacenter_id and name", err)), nil, nil
 			}
-			// Zero-valued literal rather than NewVolumePropertiesWithDefaults()
-			// here too: the API applies its own defaults for anything omitted, so
-			// there is no reason to send exposeSerial/requireLegacyBios/bootOrder
-			// values the caller never asked for. Same rule as update — see the
-			// "PATCH bodies" note in CLAUDE.md.
+			// A literal, not a generated constructor: those inject bootOrder, exposeSerial
+			// and requireLegacyBios, which would change a server's boot behaviour.
 			props := &ionos.VolumeProperties{}
 			props.SetName(name)
 			props.SetType(volType)
@@ -154,11 +151,8 @@ func registerUpdateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			input.ExposeSerial == nil && input.BootOrder == nil && !anyHotPlugFlagSet(input.HotPlugFlags) {
 			return tools.ErrorText("nothing to update: provide at least one of name, size, bus, expose_serial, boot_order, cpu_hot_plug, ram_hot_plug, nic_hot_plug, nic_hot_unplug, disc_virtio_hot_plug, disc_virtio_hot_unplug"), nil, nil
 		}
-		// A zero-valued literal, NOT NewVolumePropertiesWithDefaults(): that
-		// constructor pre-sets exposeSerial=false, requireLegacyBios=true and
-		// bootOrder="AUTO", which a PATCH would then apply as if the caller had
-		// asked for them — resetting bootOrder alone can stop a server booting.
-		// See the "PATCH bodies" note in CLAUDE.md.
+		// A literal, not a generated constructor: a PATCH must carry only the fields
+		// the caller supplied, or a rename would also force legacy BIOS on.
 		props := &ionos.VolumeProperties{}
 		if input.Name != nil {
 			props.SetName(*input.Name)
@@ -215,9 +209,7 @@ func registerDeleteVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			return tools.TextResult(tools.DeletedAsync("volume", id)), nil, nil
 		}
 
-		// Phase 1: no token -> preview and mint a one-time token. A volume has no
-		// child resources, so the preview reports its identity and, crucially,
-		// whether a server is still using it.
+		// Phase 1: no token -> read the volume so the preview can name it.
 		vol, _, err := client.VolumesApi.DatacentersVolumesFindById(ctx, dcID, id).Depth(1).Execute()
 		if err != nil {
 			if tools.IsNotFound(err) {
@@ -251,9 +243,7 @@ func registerDeleteVolume(server *mcp.Server, client *ionos.APIClient, scope too
 	})
 }
 
-// applyHotPlugFlags copies the supplied capability flags onto volume properties,
-// setting only the ones the caller provided. Shared by create_volume,
-// update_volume and create_server's inline boot volume so the three cannot drift.
+// applyHotPlugFlags copies the supplied capability flags onto volume properties.
 func applyHotPlugFlags(props *ionos.VolumeProperties, f tools.HotPlugFlags) {
 	if f.CpuHotPlug != nil {
 		props.SetCpuHotPlug(*f.CpuHotPlug)
@@ -282,9 +272,7 @@ func anyHotPlugFlagSet(f tools.HotPlugFlags) bool {
 		f.NicHotUnplug != nil || f.DiscVirtioHotPlug != nil || f.DiscVirtioHotUnplug != nil
 }
 
-// hotPlugPreviewFields renders the capability flags for a preview. Unset flags
-// render as "" and are dropped by tools.Fields, so this can be appended
-// unconditionally.
+// hotPlugPreviewFields renders the capability flags for a preview, omitting unset ones.
 func hotPlugPreviewFields(prefix string, f tools.HotPlugFlags) []tools.KV {
 	return tools.Fields(
 		prefix+"cpu_hot_plug", tools.OptBool(f.CpuHotPlug),
@@ -296,9 +284,7 @@ func hotPlugPreviewFields(prefix string, f tools.HotPlugFlags) []tools.KV {
 	)
 }
 
-// redacted reports that a secret-bearing field was supplied without echoing it
-// back into the transcript. Previews are shown to the model and logged by
-// clients, so an image password or cloud-init blob must not appear verbatim.
+// redacted acknowledges a secret without echoing it — clients log previews.
 func redacted(v *string) string {
 	if v == nil || *v == "" {
 		return ""

@@ -11,40 +11,15 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Server power control. These are POSTs that are not creates, so they register
-// through tools.RegisterActionTool with a domain verb: the mutation class comes
-// from the verb, not the HTTP method, because stop_server is a POST that is
-// destructive while create_server is a POST that is not.
+// Server power control and volume attach/detach. The mutation class comes from the
+// verb, not the HTTP method: stop_server is a destructive POST, detach_server_volume
+// a non-destructive DELETE.
 //
-// start_ and resume_ bring a server up and are single-call. stop_, reboot_,
-// suspend_ and upgrade_ interrupt a running workload, so they are classified
-// destructive and use the same two-phase preview flow as delete_*: the preview
-// names the server and reports its current state, which is what lets a caller
-// catch "wrong server" before the action lands.
+// There is no attach_server_cdrom or attach_lan_nic: the API wants a body of only
+// {"id":"..."}, but the SDK always serializes Image.Properties and Nic.Properties.
 
-// Not registered here, deliberately: CD-ROM attach/detach and LAN-NIC attach.
-//
-// Attaching an existing resource is expressed as a body carrying only its id.
-// That works for volumes — Volume.Properties is a pointer and Volume.ToMap
-// guards it, so the body marshals to {"id":"..."}. It does NOT work for images
-// or NICs: Image.Properties and Nic.Properties are non-pointer fields whose
-// ToMap serializes unconditionally, so the smallest body the SDK can produce is
-//
-//	attach CD-ROM: {"id":"...","properties":{"licenceType":""}}
-//	attach LAN NIC: {"id":"...","properties":{"lan":0}}
-//
-// Both send property values the caller never asked for, and "lan":0 is exactly
-// the corruption update_nic goes out of its way to avoid. The request builders
-// accept only the typed struct, so there is no way to send a correct body
-// without hand-rolling the HTTP call and duplicating auth.
-//
-// attach_lan_nic is redundant regardless: update_nic with an explicit lan moves a
-// NIC onto a LAN using a body we control. CD-ROM attach has no substitute and is
-// deferred pending an upstream fix in the SDK templates (attach-by-reference
-// should model the body as an id-only object).
-
-// RegisterServerActionTools registers server power control plus the volume
-// attach/detach relations.
+// RegisterServerActionTools registers server power control and volume
+// attach/detach.
 func RegisterServerActionTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerServerPowerUpActions(server, client, scope)
 	registerServerDisruptiveActions(server, client, scope, confirm)
@@ -111,17 +86,14 @@ func registerServerPowerUpActions(server *mcp.Server, client *ionos.APIClient, s
 type disruptiveAction struct {
 	tool string
 	verb string
-	// idempotent is false for the verbs where repeating changes the outcome
-	// (a second reboot is a second reboot).
+	// False where repeating changes the outcome: a second reboot is a second reboot.
 	idempotent  bool
 	description string
 	// headline and consequence drive the two-phase preview.
 	headline    string
 	consequence string
-	// wantCube constrains which server types the API accepts for this action:
-	// false rejects CUBE, true accepts only CUBE, nil accepts any. The preview
-	// already fetches the server, so this is checked for free before a token is
-	// minted rather than left to a late, generic API rejection.
+	// Which server types the endpoint accepts: false rejects CUBE, true accepts
+	// only CUBE, nil accepts any.
 	wantCube *bool
 	call     func(ctx context.Context, client *ionos.APIClient, dcID, serverID string) error
 }
@@ -130,9 +102,8 @@ type disruptiveAction struct {
 func cubeOnly() *bool { b := true; return &b }
 func notCube() *bool  { b := false; return &b }
 
-// checkServerType reports an error message when the server's type is one the
-// action's endpoint refuses, naming the tool to use instead. CUBE servers are
-// suspended and resumed; every other type is stopped and started.
+// checkServerType reports an error naming the tool to use instead. CUBE servers
+// are suspended and resumed; every other type is stopped and started.
 func checkServerType(wantCube *bool, serverType, tool string) string {
 	if wantCube == nil {
 		return ""
@@ -238,9 +209,7 @@ func registerServerDisruptiveActions(server *mcp.Server, client *ionos.APIClient
 					return tools.TextResult(fmt.Sprintf("Requested %s for server %s. The action is asynchronous; the API has accepted the request. Check progress with get_server (see vmState).", strings.TrimSuffix(a.verb, "_"), id)), nil, nil
 				}
 
-				// Phase 1: no token -> show which server and its state, mint a token.
-				// The state matters: stopping an already-stopped server is a no-op,
-				// while stopping the wrong running server is an outage.
+				// Phase 1: no token -> show the server and its state, mint a token.
 				srv, _, err := client.ServersApi.DatacentersServersFindById(ctx, dcID, id).Depth(1).Execute()
 				if err != nil {
 					if tools.IsNotFound(err) {
@@ -249,8 +218,7 @@ func registerServerDisruptiveActions(server *mcp.Server, client *ionos.APIClient
 					return tools.ToResult(nil, err)
 				}
 				props := srv.GetProperties()
-				// Catch a type mismatch here, before minting a token: the API's
-				// own rejection comes late and does not say which tool to use.
+				// Before minting a token: the API's own rejection comes late.
 				if msg := checkServerType(a.wantCube, props.GetType(), a.tool); msg != "" {
 					return tools.ErrorText(msg), nil, nil
 				}
@@ -292,8 +260,7 @@ func registerServerVolumeRelations(server *mcp.Server, client *ionos.APIClient, 
 			if dcID == "" || serverID == "" || volumeID == "" {
 				return tools.ErrorText("datacenter_id, server_id and volume_id are all required"), nil, nil
 			}
-			// Attaching an existing resource is expressed as a body carrying only
-			// its id — no properties, or the API would try to create a new volume.
+			// A bare id reference: any properties and the API creates a new volume.
 			body := ionos.NewVolume()
 			body.SetId(volumeID)
 			attached, _, err := client.ServersApi.DatacentersServersVolumesPost(ctx, dcID, serverID).Volume(*body).Execute()

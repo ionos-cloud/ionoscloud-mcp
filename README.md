@@ -59,11 +59,11 @@ This server is published across multiple MCP registries and IDE marketplaces:
 
 ## Supported products
 
-All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In the default `eager` mode all tools register at startup; `lazy` mode defers Compute and Object Storage behind loader tools; `dynamic` mode exposes only three search/describe/call meta-tools for clients with hard tool caps. See [Tool loading mode](#tool-loading-mode).
+Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are `create_*`, `update_*`, `delete_*` plus domain verbs such as `start_*` and `attach_*`. In the default `eager` mode all tools register at startup; `lazy` mode defers Compute and Object Storage behind loader tools; `dynamic` mode exposes only three search/describe/call meta-tools for clients with hard tool caps. See [Tool loading mode](#tool-loading-mode).
 
 | Product | Tools | Capabilities |
 |---|---|---|
-| [Compute Engine](docs/compute/) | 50 | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
+| [Compute Engine](docs/compute/) | 50 + 69 write | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
 | [Kubernetes](docs/k8s/) | 8 | Clusters, node pools, nodes, available versions |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
 | [DNS](docs/dns/) | 14 | Zones, zone files, records, reverse records, secondary zones, DNSSEC, quota |
@@ -71,7 +71,7 @@ All tools follow the `list_*`, `get_*`, and `head_*` naming convention. In the d
 | [Certificate Manager](docs/cert/) | 6 | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**120 tools total** (118 product + 2 loader). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**120 read-only tools** (118 product + 2 loader), plus **69 opt-in write tools** on Compute Engine — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 
@@ -205,9 +205,9 @@ Scope is a comma-separated, hierarchical set of capabilities (`read` is always o
 
 | `IONOS_MCP_TOOL_SCOPE`   | Enables                                        |
 |--------------------------|------------------------------------------------|
-| unset / `read` (default) | read-only (`list_*`, `get_*`, `head_*`)        |
-| `write`                  | the above **+** `create_*`, `update_*`         |
-| `destructive`            | the above **+** `delete_*` (implies `write`)   |
+| unset / `read` (default) | read-only (`list_*`, `get_*`, `head_*`)                                  |
+| `write`                  | the above **+** `create_*`, `update_*`, and the non-disruptive actions `start_`, `resume_`, `attach_`, `assign_` |
+| `destructive`            | the above **+** `delete_*` and the disruptive actions `stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_` (implies `write`) |
 
 Unrecognised values fall back to read-only, and the effective scope is logged to stderr at startup. Because the levels are hierarchical, a single value is enough — `destructive` alone already grants `write` and `read`; you don't need to list them all (though a comma-separated list like `read,write` is also accepted).
 
@@ -216,11 +216,13 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Area | Resources |
 |------|-----------|
 | Compute | data centers, servers (+ start/stop/reboot/suspend/resume/upgrade), volumes (+ snapshot & restore, attach/detach), NICs, LANs |
-| Networking | IP blocks, security groups + rules, firewall rules, private cross connects |
+| Networking | IP blocks (reserve and release only), security groups + rules, firewall rules, private cross connects |
 | Load balancing | classic, network and application load balancers + forwarding rules, target groups, NAT gateways + rules |
 | Images | snapshot and image update/delete |
 
-70 tools in total: 118 at the default read-only scope, 162 with `write`, 188 with `destructive`. Reads remain read-only and always available; nothing below changes that.
+Not available, because the Go SDK cannot build the request the API accepts: renaming an IP block, attaching a CD-ROM to a server, attaching a NIC to a classic load balancer, and detaching a LAN from a cross connect. Use `ionosctl`, the Terraform provider or the [DCD](https://dcd.ionos.com/) for those.
+
+69 tools in total. The server exposes 118 at the default read-only scope, 161 with `write`, and 187 with `destructive`. Reads are unaffected and always available.
 
 **Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`), is confirmation-gated. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
 

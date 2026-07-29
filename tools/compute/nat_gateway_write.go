@@ -12,10 +12,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// A NAT gateway gives servers on private LANs outbound internet access by
-// translating their private addresses to public ones. Both its own model and its
-// rules' model serialize their required fields unconditionally, so each update
-// reads the current resource and carries those values forward.
+// A NAT gateway gives servers on private LANs outbound internet access. The gateway
+// itself translates nothing until a rule is added.
 
 // RegisterNatGatewayWriteTools registers create/update/delete for NAT gateways and
 // their rules.

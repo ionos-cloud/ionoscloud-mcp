@@ -11,12 +11,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// A snapshot has no create tool: it is produced from a volume by
-// create_volume_snapshot, so a create here would be a second, wrong way to do it.
-//
-// SnapshotProperties injects defaults through its WithDefaults constructor
-// (exposeSerial=false, requireLegacyBios=true), so update_snapshot builds a
-// zero-valued literal instead — see the "generated constructors" rule in CLAUDE.md.
+// A snapshot has no create tool: one is produced from a volume by
+// create_volume_snapshot.
 
 // RegisterSnapshotWriteTools registers the snapshot update and delete tools.
 func RegisterSnapshotWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
@@ -41,11 +37,8 @@ func registerUpdateSnapshot(server *mcp.Server, client *ionos.APIClient, scope t
 			return tools.ErrorText("nothing to update: provide at least one of name, description, licence_type, sec_auth_protection, expose_serial, require_legacy_bios, or one of the hot-plug flags"), nil, nil
 		}
 
-		// A zero-valued literal, NOT NewSnapshotPropertiesWithDefaults(): that
-		// constructor pre-sets exposeSerial=false and requireLegacyBios=true, which a
-		// PATCH would apply as though the caller had asked. See the "PATCH bodies"
-		// note in CLAUDE.md. SnapshotProperties has no unconditionally serialized
-		// fields, so nothing needs carrying forward.
+		// A literal, not a generated constructor: those inject exposeSerial and
+		// requireLegacyBios, which a rename must not change.
 		props := &ionos.SnapshotProperties{}
 		if input.Name != nil {
 			props.SetName(*input.Name)
@@ -129,9 +122,7 @@ func registerDeleteSnapshot(server *mcp.Server, client *ionos.APIClient, scope t
 	})
 }
 
-// applySnapshotHotPlugFlags sets the capability flags a snapshot supports. Snapshots
-// and images accept a wider set than volumes, so the shared HotPlugFlags cover the
-// common six and ExtraHotPlugFlags the remaining four.
+// applySnapshotHotPlugFlags sets the capability flags a snapshot supports.
 func applySnapshotHotPlugFlags(props *ionos.SnapshotProperties, f tools.HotPlugFlags, x tools.ExtraHotPlugFlags) {
 	if f.CpuHotPlug != nil {
 		props.SetCpuHotPlug(*f.CpuHotPlug)

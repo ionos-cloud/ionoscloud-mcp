@@ -25,11 +25,8 @@ type pendingOp struct {
 	expiry    time.Time
 }
 
-// ConfirmationStore backs the two-phase confirmation flow for create and delete
-// operations. The first call mints a single-use, target-bound token with a short
-// TTL; the second call consumes it to authorize exactly one execution. It is
-// safe for concurrent use. State is per-process and resets on restart — the safe
-// direction, since after a restart a destructive op must be re-previewed.
+// ConfirmationStore backs the two-phase confirmation flow. Tokens are single-use,
+// bound to one operation and target, and expire.
 type ConfirmationStore struct {
 	mu    sync.Mutex
 	items map[string]pendingOp
@@ -46,9 +43,7 @@ func NewConfirmationStore() *ConfirmationStore {
 	}
 }
 
-// Mint issues a fresh single-use token authorizing operation on target. The
-// token is bound to that exact (operation, target) pair and expires after the
-// store's TTL. The only error path is a crypto/rand failure.
+// Mint issues a single-use token authorizing operation on target.
 func (s *ConfirmationStore) Mint(operation, target string) (string, error) {
 	var buf [16]byte
 	if _, err := rand.Read(buf[:]); err != nil {
@@ -63,11 +58,8 @@ func (s *ConfirmationStore) Mint(operation, target string) (string, error) {
 	return token, nil
 }
 
-// Consume validates that token was minted for exactly this operation and target
-// and has not expired, then deletes it (single-use). It returns a sentinel error
-// (ErrTokenUnknown / ErrTokenExpired / ErrTokenMismatch) otherwise. A mismatch
-// leaves the token in place so a legitimate retry with the correct target still
-// works within the TTL.
+// Consume validates the token was minted for exactly this operation and target,
+// and spends it. A mismatch or replay is an error, never a silent pass.
 func (s *ConfirmationStore) Consume(token, operation, target string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

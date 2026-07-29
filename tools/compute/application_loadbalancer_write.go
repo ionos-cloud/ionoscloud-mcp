@@ -12,15 +12,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Write tools for the application load balancer and its forwarding rules.
-//
-// Forwarding rules are what make a load balancer carry traffic: the balancer itself
-// only defines which LANs it sits between. Both rule models serialize their required
-// fields unconditionally, so each update reads the current rule and overrides only
-// the fields the caller supplied.
-//
-// validateListenerAndTargetLan and validateListener are shared with the network load
-// balancer and live in network_loadbalancer_write.go.
+// Write tools for the application load balancer and its forwarding rules. A rule is
+// what makes the balancer carry traffic. Shared LAN and listener validation lives in
+// network_loadbalancer_write.go.
 
 // RegisterApplicationLoadBalancerWriteTools registers create/update/delete for the
 // application load balancer and for its forwarding rules.
@@ -59,14 +53,9 @@ func readAlb(ctx context.Context, client *ionos.APIClient, dcID, id string) (alb
 	return st, nil
 }
 
-// buildAlbProperties builds the properties body. It uses a keyed literal rather than
-// NewApplicationLoadBalancerProperties, per the generated-constructor rule in CLAUDE.md: the
-// constructor injects nothing today, but a literal cannot start doing so on an SDK bump.
-//
-// name, listenerLan and targetLan are non-pointer fields the SDK serializes
-// unconditionally, so every caller must pass the values it wants kept — an update that
-// omitted them would send an empty name and LAN 0, moving the load balancer off both
-// of its networks as a side effect of an unrelated change.
+// buildAlbProperties builds the properties body. name, listenerLan and targetLan are
+// serialized unconditionally, so every caller must pass the values it wants kept —
+// an update that omitted them would move the balancer off both its networks.
 func buildAlbProperties(name string, listenerLan, targetLan int32, f tools.ManagedLoadBalancerFields) *ionos.ApplicationLoadBalancerProperties {
 	props := &ionos.ApplicationLoadBalancerProperties{Name: name, ListenerLan: listenerLan, TargetLan: targetLan}
 	if len(f.Ips) > 0 {

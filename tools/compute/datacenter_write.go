@@ -11,11 +11,7 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterDatacenterWriteTools registers the create/update/delete data center
-// tools. Each is gated by scope inside tools.RegisterTool (create/update need
-// write, delete needs destructive), so they never appear in tools/list unless
-// IONOS_MCP_TOOL_SCOPE opts in. create and delete share one confirmation store
-// so their two-phase preview->execute flow is consistent across load modes.
+// RegisterDatacenterWriteTools registers the create/update/delete data center tools.
 func RegisterDatacenterWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateDatacenter(server, client, scope, confirm)
 	registerUpdateDatacenter(server, client, scope)

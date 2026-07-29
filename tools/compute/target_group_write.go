@@ -12,10 +12,7 @@ import (
 )
 
 // A target group is a named pool of backends that application load balancer HTTP
-// rules forward to. It is account-level, so these tools take no datacenter_id.
-//
-// TargetGroupProperties serializes name, algorithm and protocol unconditionally, so
-// update reads the current group and carries those forward.
+// rules forward to. It is account-level, not tied to a data center.
 
 // RegisterTargetGroupWriteTools registers the create/update/delete target group
 // tools.

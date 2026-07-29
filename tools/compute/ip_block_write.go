@@ -12,24 +12,11 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterIpBlockWriteTools registers the create and delete IP block tools.
-// IP blocks are account-level rather than data-center-scoped, so these take no
-// datacenter_id.
+// RegisterIpBlockWriteTools registers the create and delete IP block tools. IP
+// blocks are account-level, so these take no datacenter_id.
 //
-// There is deliberately no update_ip_block, even though renaming a block is a real API
-// operation. The API documents location as "disallowed in update requests" — that
-// wording is in the SDK's own comment on the field — but IpBlockProperties models
-// Location and Size as non-pointer fields whose ToMap serializes both unconditionally.
-// The smallest body the typed model can produce is therefore
-// {"name":...,"location":...,"size":...}, which the API rejects for carrying the
-// immutable fields at all, whatever their values. IpblocksPut is no escape: IpBlock
-// embeds Properties as a non-pointer field and serializes it unconditionally too.
-//
-// The older sdk-go/v6 line models both as pointers and guards them when marshalling,
-// which is how the Terraform provider renames a block. Compute bundle v2.0.5 and
-// v2.0.7 both have the defect, so there is no version to bump to, and hand-building the
-// request outside the SDK is not an option here. Restore this tool when the models are
-// fixed upstream.
+// There is no update_ip_block: the API forbids location in update requests, but the
+// SDK always serializes it, so no typed call can produce an acceptable body.
 func RegisterIpBlockWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateIpBlock(server, client, scope, confirm)
 	registerDeleteIpBlock(server, client, scope, confirm)
@@ -144,10 +131,8 @@ func registerDeleteIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 	})
 }
 
-// ipBlockBlastRadius reports which resources are consuming the block's addresses,
-// from the ipConsumers the API returns alongside the block. It groups by kind so
-// the preview names what breaks rather than just counting addresses, and returns
-// the total number of addresses in use.
+// ipBlockBlastRadius reports which resources are using the block's addresses, and
+// how many addresses are assigned.
 func ipBlockBlastRadius(props ionos.IpBlockProperties) (*tools.BlastRadius, int) {
 	r := tools.AffectedRadius()
 	consumers := props.GetIpConsumers()
@@ -155,9 +140,8 @@ func ipBlockBlastRadius(props ionos.IpBlockProperties) (*tools.BlastRadius, int)
 		return r, 0
 	}
 
-	// A consumer may name a NIC, a server, a data center or a Kubernetes node
-	// pool; count each distinct kind so the preview says what kind of thing is
-	// affected, not merely how many addresses are taken.
+	// One consumer entry may name a NIC, a server and a node pool at once, so
+	// count distinct IDs per kind.
 	servers, nics, k8s := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, c := range consumers {
 		if id := c.GetServerId(); id != "" {

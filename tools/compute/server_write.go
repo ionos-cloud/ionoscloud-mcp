@@ -12,10 +12,7 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterServerWriteTools registers the create/update/delete server tools. Each
-// is gated by scope inside tools.RegisterTool (create/update need write, delete
-// needs destructive); create and delete share the confirmation store so their
-// two-phase preview->execute flow works identically across load modes.
+// RegisterServerWriteTools registers the create/update/delete server tools.
 func RegisterServerWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateServer(server, client, scope, confirm)
 	registerUpdateServer(server, client, scope)
@@ -39,8 +36,7 @@ func registerCreateServer(server *mcp.Server, client *ionos.APIClient, scope too
 		if name == "" {
 			return tools.ErrorText("name is required to create a server"), nil, nil
 		}
-		// Catch the mistakes the API can only report after a round trip, with
-		// messages that name the field to fix.
+		// The API reports these only after a round trip, without naming the field.
 		sized := input.Cores != nil && input.Ram != nil
 		templated := input.TemplateUuid != nil && *input.TemplateUuid != ""
 		serverType := strings.ToUpper(strings.TrimSpace(tools.OptStr(input.Type)))
@@ -50,19 +46,15 @@ func registerCreateServer(server *mcp.Server, client *ionos.APIClient, scope too
 		if sized && templated {
 			return tools.ErrorText("provide either cores and ram, or template_uuid, but not both: CUBE and GPU servers take their size from the template, ENTERPRISE and VCPU servers from cores and ram"), nil, nil
 		}
-		// type is what distinguishes a CUBE template from a GPU one. Both then
-		// require an inline boot volume, but with different storage-type rules, so
-		// it cannot be left to be inferred.
+		// type tells a CUBE template from a GPU one; their storage rules differ.
 		if templated && serverType == "" {
 			return tools.ErrorText("type is required when template_uuid is set: pass CUBE or GPU so the request can be validated (both need an inline boot_volume, with type DAS for CUBE)"), nil, nil
 		}
 		if msg := validateBootVolume(serverType, input.BootVolume); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		// The boot volume's storage type is part of the target so a token previewed
-		// "with a disk" cannot execute as "with no disk at all", which would
-		// silently produce an unbootable server — and for CUBE and GPU, one the API
-		// rejects outright.
+		// The storage type is in the target, so a token previewed with a disk
+		// cannot execute without one.
 		target := tools.Target(dcID, name, bootVolumeTargetPart(input.BootVolume))
 
 		// Phase 2: token present -> validate and execute.
@@ -97,9 +89,8 @@ func registerCreateServer(server *mcp.Server, client *ionos.APIClient, scope too
 				props.SetNicMultiQueue(*input.NicMultiQueue)
 			}
 			body := ionos.NewServer(*props)
-			// The boot volume rides along in entities.volumes, which is what makes
-			// this a composite create. Server.Entities is nil-guarded, so a server
-			// without a boot volume sends no entities key at all.
+			// The boot volume rides in entities.volumes, making this a composite
+			// create. Omitted entirely when there is no boot volume.
 			if bv := buildBootVolume(input.BootVolume); bv != nil {
 				body.SetEntities(ionos.ServerEntities{
 					Volumes: &ionos.AttachedVolumes{Items: []ionos.Volume{*bv}},
@@ -131,9 +122,7 @@ func registerCreateServer(server *mcp.Server, client *ionos.APIClient, scope too
 		if bv := input.BootVolume; bv != nil {
 			fields = append(fields, bootVolumePreviewFields(serverType, bv)...)
 			note += "The boot volume listed above is created in the same request. "
-			// Advisory only — see bootVolumeWarnings for why these do not block.
-			// Putting them in the headline means they are read before the fields,
-			// while there is still a decision to make.
+			// Advisory only. In the headline so they are read before the fields.
 			for _, w := range bootVolumeWarnings(serverType, bv) {
 				headline += "\nNOTE: " + w
 			}
@@ -171,10 +160,8 @@ func registerUpdateServer(server *mcp.Server, client *ionos.APIClient, scope too
 			input.BootVolumeID == nil {
 			return tools.ErrorText("nothing to update: provide at least one of name, cores, ram, cpu_family, hostname, nic_multi_queue, boot_volume_id"), nil, nil
 		}
-		// A zero-valued literal rather than NewServerPropertiesWithDefaults():
-		// that constructor injects nothing today, but a PATCH must send only what
-		// the caller asked for, and this cannot silently start applying defaults
-		// if a future SDK bump adds one. See the "PATCH bodies" note in CLAUDE.md.
+		// A literal, not a generated constructor: a PATCH must carry only the
+		// fields the caller supplied.
 		props := &ionos.ServerProperties{}
 		if input.Name != nil {
 			props.SetName(*input.Name)
@@ -199,10 +186,8 @@ func registerUpdateServer(server *mcp.Server, client *ionos.APIClient, scope too
 			if bootVolID == "" {
 				return tools.ErrorText("boot_volume_id must be a volume ID; omit the field entirely to leave the boot device unchanged"), nil, nil
 			}
-			// The boot device is a reference to an already-attached volume, which is
-			// the API's only way to point a server at a different disk. Attaching a
-			// volume does not make it bootable, and detaching the previous boot
-			// volume clears this outright.
+			// The only way to change a server's boot disk. The volume must already
+			// be attached; attaching alone does not make it bootable.
 			props.SetBootVolume(*ionos.NewResourceReference(bootVolID))
 		}
 		updated, _, err := client.ServersApi.DatacentersServersPatch(ctx, dcID, id).Server(*props).Execute()
@@ -226,8 +211,8 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 			return tools.ErrorText("server_id is required"), nil, nil
 		}
 		deleteVolumes := input.DeleteVolumes != nil && *input.DeleteVolumes
-		// The delete_volumes choice is part of the target so a token previewed
-		// as "keep the volumes" can never be replayed as "destroy them".
+		// delete_volumes is in the target, so a token previewed as "keep" cannot
+		// execute as "destroy".
 		target := tools.Target(dcID, id, strconv.FormatBool(deleteVolumes))
 
 		// Phase 2: token present -> validate and execute.
@@ -281,30 +266,20 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 	})
 }
 
-// dasVolumeType is the storage type of a CUBE server's Direct Attached Storage.
-// The API accepts it only inside a composite server-creation request.
+// dasVolumeType is a CUBE server's Direct Attached Storage. Accepted only inside
+// a composite server-creation request.
 const dasVolumeType = "DAS"
 
-// templateSizedTypes are the server types whose size comes from template_uuid.
-// Both must be created with their boot volume in the same request, and neither
-// accepts a boot_volume.size — the template fixes it.
-//
-// This mirrors what the team's other tools do against the real API: the Terraform
-// provider marks the inline volume Required for both resource_cube_server and
-// resource_gpu_server (and Optional for the ENTERPRISE/VCPU resource), and neither
-// of those two exposes a volume size field at all. ionosctl likewise builds the
-// volume into entities for CUBE and GPU, and sets an explicit DAS type only for
-// CUBE — for GPU it sends no storage type and lets the API choose, which is why
-// boot_volume.type is optional for GPU here.
+// templateSizedTypes take their size from template_uuid. Both must be created with
+// their boot volume in the same request and neither accepts a boot_volume.size.
+// GPU leaves the storage type to the API; CUBE requires DAS.
 func isTemplateSized(serverType string) bool {
 	return serverType == "CUBE" || serverType == "GPU"
 }
 
-// validateBootVolume returns an error message, or "" when the combination is
-// valid. It exists because these rules are only reported by the API after a round
-// trip, as a generic rejection that does not say which field to fix — and for CUBE
-// and GPU the caller cannot recover by attaching a volume afterwards, so a clear
-// up-front message is the difference between a fixable mistake and a dead end.
+// validateBootVolume returns an error message, or "" if the combination is valid.
+// A CUBE or GPU server created without its inline volume cannot be repaired by
+// attaching one afterwards, so these are caught before the request.
 func validateBootVolume(serverType string, bv *tools.BootVolumeInput) string {
 	isCube := serverType == "CUBE"
 	templateSized := isTemplateSized(serverType)
@@ -325,10 +300,7 @@ func validateBootVolume(serverType string, bv *tools.BootVolumeInput) string {
 	volType := strings.TrimSpace(tools.OptStr(bv.Type))
 	isDAS := strings.EqualFold(volType, dasVolumeType)
 
-	// CUBE's storage type is pinned by documentation: "If you want to create a
-	// CUBE server, the type of the inline volume must be set to DAS. In this case,
-	// you can not set the size argument since it is taken from the template_uuid"
-	// (Terraform provider docs/resources/volume.md).
+	// Documented: a CUBE server's inline volume must be DAS, with no size.
 	switch {
 	case isCube && volType == "":
 		return "a CUBE server's boot_volume.type must be set to DAS: CUBE storage is Direct Attached Storage"
@@ -338,9 +310,7 @@ func validateBootVolume(serverType string, bv *tools.BootVolumeInput) string {
 		return fmt.Sprintf("boot_volume.size must be omitted for a %s server: its storage size is fixed by template_uuid", serverType)
 	}
 
-	// Without an image or a licence type the volume has no operating system, so the
-	// server cannot boot from it. Both of the team's other tools always send one of
-	// the three.
+	// Without an image or licence type the volume has no OS to boot.
 	hasImage := (bv.Image != nil && *bv.Image != "") || (bv.ImageAlias != nil && *bv.ImageAlias != "")
 	hasLicence := bv.LicenceType != nil && *bv.LicenceType != ""
 	if !hasImage && !hasLicence {
@@ -349,31 +319,9 @@ func validateBootVolume(serverType string, bv *tools.BootVolumeInput) string {
 	return ""
 }
 
-// bootVolumeWarnings returns advisory notes for combinations that look wrong but
-// are NOT rejected here.
-//
-// The distinction from validateBootVolume is deliberate. A hard error is right
-// when the rule is documented AND blocking replaces an opaque API rejection with
-// a precise instruction — CUBE's DAS type, and the missing inline volume that
-// makes a CUBE or GPU server uncreatable. It is wrong when the rule is inferred
-// rather than documented, because a mistaken block breaks a valid request with no
-// way around it, whereas an unwanted storage type is trivially recoverable: the
-// API rejects it and the caller retries with a different value.
-//
-// These three are inferred, so they warn:
-//   - DAS on a non-template-sized server. Every DAS example in the IONOS docs is a
-//     CUBE server and the spec says DAS "could be used only in a composite call
-//     with a Cube server", which implies but does not state that ENTERPRISE
-//     refuses it.
-//   - A missing size on a non-template-sized server. The Terraform provider marks
-//     the inline volume's size Optional+Computed, so it evidently does not always
-//     have to be supplied.
-//   - A missing storage type on a non-template-sized server. The Terraform
-//     provider marks disk_type Required, but that may be its own UX choice rather
-//     than an API constraint.
-//
-// The warnings surface in the two-phase preview, so the model sees them before
-// committing — which is what the preview is for.
+// bootVolumeWarnings returns advisory notes for combinations that look wrong but are
+// not rejected. These rules are inferred rather than documented, and a wrong storage
+// type is recoverable by retrying, so they warn instead of blocking.
 func bootVolumeWarnings(serverType string, bv *tools.BootVolumeInput) []string {
 	if bv == nil || isTemplateSized(serverType) {
 		return nil
@@ -394,27 +342,22 @@ func bootVolumeWarnings(serverType string, bv *tools.BootVolumeInput) []string {
 	return out
 }
 
-// bootVolumeTargetPart renders the boot volume's contribution to the confirmation
-// target. Only the storage type is included: enough to stop a token previewed
-// with a disk from executing without one (which would silently produce an
-// unbootable server), without making the token brittle to cosmetic changes.
+// bootVolumeTargetPart renders the boot volume's part of the confirmation target.
+// Only the storage type, so the token is not brittle to cosmetic changes.
 func bootVolumeTargetPart(bv *tools.BootVolumeInput) string {
 	if bv == nil {
 		return "no-boot-volume"
 	}
 	volType := strings.ToUpper(strings.TrimSpace(tools.OptStr(bv.Type)))
 	if volType == "" {
-		// A template-sized server may leave the type to the API; the marker still
-		// records that a boot volume was previewed.
+		// The type may be left to the API; the marker still records a disk.
 		volType = "api-default"
 	}
 	return "boot-volume:" + volType
 }
 
-// buildBootVolume converts the input into an SDK Volume for the composite create,
-// or nil when no boot volume was requested. Only the fields the caller supplied
-// are set, for the same reason update handlers avoid the WithDefaults
-// constructors — see the "PATCH bodies" note in CLAUDE.md.
+// buildBootVolume converts the input into a Volume for the composite create, or
+// nil when none was requested. Sets only the fields the caller supplied.
 func buildBootVolume(bv *tools.BootVolumeInput) *ionos.Volume {
 	if bv == nil {
 		return nil
@@ -456,14 +399,12 @@ func buildBootVolume(bv *tools.BootVolumeInput) *ionos.Volume {
 	return vol
 }
 
-// bootVolumePreviewFields renders the boot volume for the create preview. Secrets
-// are acknowledged rather than echoed, since previews are shown to the model and
-// logged by clients.
+// bootVolumePreviewFields renders the boot volume for the create preview.
+// Secrets are acknowledged, never echoed — clients log previews.
 func bootVolumePreviewFields(serverType string, bv *tools.BootVolumeInput) []tools.KV {
 	size := tools.OptFloat32(bv.Size)
 	if size == "" {
-		// Only a template-sized server takes its size from the template; saying so
-		// for an ENTERPRISE server would be plainly wrong.
+		// Only template-sized servers take their size from the template.
 		if isTemplateSized(serverType) {
 			size = "fixed by the template"
 		} else {
@@ -493,8 +434,7 @@ func bootVolumePreviewFields(serverType string, bv *tools.BootVolumeInput) []too
 	return append(out, hotPlugPreviewFields("boot_volume.", bv.HotPlugFlags)...)
 }
 
-// firstNonEmpty returns the first non-empty string, used to keep error messages
-// readable when an optional field was not supplied.
+// firstNonEmpty returns the first non-empty string.
 func firstNonEmpty(a, b string) string {
 	if strings.TrimSpace(a) != "" {
 		return a
@@ -502,10 +442,9 @@ func firstNonEmpty(a, b string) string {
 	return b
 }
 
-// serverBlastRadius counts what a server delete affects, from a server fetched at
-// depth 2. Volumes are only listed as destroyed when delete_volumes is set —
-// otherwise they survive the delete, which volumeFateNote spells out instead. It
-// also returns the attached volume count so the caller can describe their fate.
+// serverBlastRadius counts what a delete affects, from a server fetched at depth 2.
+// Volumes count as destroyed only when delete_volumes is set. Also returns the
+// attached volume count.
 func serverBlastRadius(srv ionos.Server, deleteVolumes bool) (*tools.BlastRadius, int) {
 	r := tools.DestroyedRadius()
 	e := srv.Entities
@@ -528,8 +467,8 @@ func serverBlastRadius(srv ionos.Server, deleteVolumes bool) (*tools.BlastRadius
 	return r, volumeCount
 }
 
-// volumeFateNote states what happens to the attached volumes, because the
-// default (keep them, keep billing) is the surprising one.
+// volumeFateNote states what happens to the attached volumes. The default —
+// keep them, keep billing — is the surprising one.
 func volumeFateNote(deleteVolumes bool, volumeCount int) string {
 	switch {
 	case volumeCount == 0:

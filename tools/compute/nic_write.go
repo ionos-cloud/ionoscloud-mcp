@@ -12,9 +12,7 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterNicWriteTools registers the create/update/delete NIC tools. create and
-// delete are two-phase confirmed; update is a single PATCH which, unusually, has
-// to read before it writes — see registerUpdateNic.
+// RegisterNicWriteTools registers the create/update/delete NIC tools.
 func RegisterNicWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateNic(server, client, scope, confirm)
 	registerUpdateNic(server, client, scope)
@@ -114,11 +112,8 @@ func registerUpdateNic(server *mcp.Server, client *ionos.APIClient, scope tools.
 			return tools.ErrorText("nothing to update: provide at least one of name, lan, ips, dhcp, firewall_active, firewall_type"), nil, nil
 		}
 
-		// NicProperties.Lan is a non-pointer field that the SDK ALWAYS serializes,
-		// so a PATCH built without it would send "lan": 0 and move the NIC off its
-		// LAN as a side effect of, say, a rename. When the caller did not ask to
-		// move the NIC we read its current LAN and send that back unchanged. This
-		// read is the reason update_nic is not a pure single-call update.
+		// The SDK always serializes lan, so an update that omits it would send 0 and
+		// move the NIC off its LAN. Read the current value and carry it forward.
 		lan := int32(0)
 		if input.Lan != nil {
 			lan = *input.Lan
@@ -134,10 +129,7 @@ func registerUpdateNic(server *mcp.Server, client *ionos.APIClient, scope tools.
 			lan = currentProps.GetLan()
 		}
 
-		// A zero-valued literal carrying only the LAN, NOT NewNicProperties(lan):
-		// that constructor pre-sets dhcp=true, which a PATCH would then apply as
-		// if the caller had asked for it, re-enabling DHCP on a NIC where it was
-		// deliberately off. See the "PATCH bodies" note in CLAUDE.md.
+		// A literal, not a generated constructor: NewNicProperties injects dhcp=true.
 		props := &ionos.NicProperties{Lan: lan}
 		if input.Name != nil {
 			props.SetName(*input.Name)
@@ -224,9 +216,7 @@ func registerDeleteNic(server *mcp.Server, client *ionos.APIClient, scope tools.
 	})
 }
 
-// nicBlastRadius counts what a NIC delete takes with it, from a NIC fetched at
-// depth 2. Security groups are listed but not destroyed — the NIC is only
-// unassigned from them.
+// nicBlastRadius counts what a NIC delete takes with it, from a NIC at depth 2.
 func nicBlastRadius(nic ionos.Nic) *tools.BlastRadius {
 	r := tools.DestroyedRadius()
 	e := nic.Entities

@@ -11,11 +11,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Firewall rules exist in two places with identical semantics: attached to a
-// single NIC, or held in a security group so every server and NIC assigned to
-// that group inherits them. The API models both with one FirewallruleProperties
-// body, so the validation, body building and preview rendering are shared here and
-// only the parent chain and client calls differ per tool.
+// Firewall rules live either on a single NIC or in a security group, whose members
+// all inherit them. The API models both with one body, so validation, body building
+// and previews are shared here and only the parent chain differs.
 
 // RegisterFirewallRuleWriteTools registers the NIC-scoped firewall rule tools and
 // the security-group rule tools.
@@ -31,15 +29,9 @@ var clearableRuleFields = map[string]bool{
 	"ip_version": true, "icmp_type": true, "icmp_code": true,
 }
 
-// validateRuleAddress rejects an all-addresses CIDR on source_ip or target_ip.
-//
-// This looks pedantic and is not: the API accepts "0.0.0.0/0", echoes it back
-// unchanged in the immediate response, and then — once the asynchronous request
-// finishes — stores it as the bare host address "0.0.0.0". That address is
-// non-routable, so the rule ends up matching no traffic at all. Anyone who wrote
-// "0.0.0.0/0" meaning "open to the world" gets the exact opposite, with a stored
-// value that looks deliberate. The documented way to mean "any" is a null field:
-// omit it on create, or list it in `clear` on update.
+// validateRuleAddress rejects an all-addresses CIDR. The API stores "0.0.0.0/0" as
+// the bare "0.0.0.0", which matches nothing, so a rule meant to open a port closes
+// it. "Any" is a null field: omit on create, list in clear on update.
 func validateRuleAddress(field string, v *string, onUpdate bool) string {
 	if v == nil {
 		return ""
@@ -79,9 +71,8 @@ func validateRuleClear(clear []string, f tools.RuleFields) string {
 	return ""
 }
 
-// validateRuleFields rejects the field combinations the API refuses, naming the
-// field to fix. requireProtocol is set for creates, where the API needs one; an
-// update may legitimately change a single unrelated field.
+// validateRuleFields rejects the combinations the API refuses without naming the
+// offending field. requireProtocol is set for creates, which need one.
 func validateRuleFields(f tools.RuleFields, requireProtocol bool) string {
 	protocol := strings.ToUpper(strings.TrimSpace(tools.OptStr(f.Protocol)))
 	if requireProtocol && protocol == "" {
@@ -142,16 +133,12 @@ func validateRuleFields(f tools.RuleFields, requireProtocol bool) string {
 	return ""
 }
 
-// buildRuleProperties converts the shared rule fields into SDK properties, setting
-// only what the caller supplied. FirewallruleProperties is all-pointer and its
-// ToMap guards every field, so a zero literal sends nothing extra — the "PATCH
-// bodies" rule in CLAUDE.md is satisfied without special handling here.
+// buildRuleProperties sets only what the caller supplied. FirewallruleProperties is
+// all-pointer with a fully guarded ToMap, so a zero literal sends nothing extra.
 func buildRuleProperties(f tools.RuleFields, clear []string) *ionos.FirewallruleProperties {
 	props := &ionos.FirewallruleProperties{}
-	// Clearing sends an explicit JSON null, which is how the API expresses "do not
-	// match on this field". Without it these fields are set-only: once a rule had a
-	// source_ip there was no way to widen it again short of deleting and recreating
-	// the rule, which loses its ID.
+	// An explicit null is how the API expresses "do not match on this field".
+	// Without it these fields are set-only and a rule can never be widened again.
 	for _, name := range clear {
 		switch strings.ToLower(strings.TrimSpace(name)) {
 		case "source_ip":
@@ -495,10 +482,8 @@ func anyRuleFieldSet(f tools.RuleFields) bool {
 		f.PortRangeStart != nil || f.PortRangeEnd != nil || f.IcmpType != nil || f.IcmpCode != nil
 }
 
-// securityGroupMemberCounts reports how many servers and NICs a group is assigned
-// to, so a rule preview can state how far the change reaches. A failure here is
-// not fatal: the rule operation is still valid, so the preview degrades to showing
-// no counts rather than blocking on a read that is only informational.
+// securityGroupMemberCounts reports how far a group rule reaches. A failed read is
+// not fatal: the preview just shows no counts.
 func securityGroupMemberCounts(ctx context.Context, client *ionos.APIClient, dcID, groupID string) *tools.BlastRadius {
 	r := tools.AffectedRadius()
 	group, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsFindById(ctx, dcID, groupID).Depth(2).Execute()

@@ -9,9 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// Class is the mutation class of a tool, derived from its HTTP method. It is the
-// unit the scope gate reasons about: reads are always allowed; writes and
-// destructive operations must be explicitly enabled via IONOS_MCP_TOOL_SCOPE.
+// Class is a tool's mutation class, which decides the scope it needs.
 type Class int
 
 const (
@@ -34,9 +32,7 @@ func (c Class) String() string {
 	}
 }
 
-// Scope is the set of mutation classes an operator has enabled through
-// IONOS_MCP_TOOL_SCOPE. Reads are always permitted; Write and Destructive are
-// opt-in. The tokens are hierarchical: "destructive" implies "write".
+// Scope is the set of mutation classes enabled via IONOS_MCP_TOOL_SCOPE.
 type Scope struct {
 	Write       bool
 	Destructive bool
@@ -66,12 +62,8 @@ func (s Scope) String() string {
 	}
 }
 
-// ParseScope reads the comma-separated IONOS_MCP_TOOL_SCOPE value into a Scope.
-// Tokens are case-insensitive and hierarchical: "destructive" enables both
-// destructive and write; "write" enables write; "read" (and the empty/default
-// value) leave the server read-only. Unrecognised tokens are ignored with a
-// warning so a typo can never silently widen access. It is a pure function so
-// the precedence rules are unit-testable (mirrors resolveLoadMode).
+// ParseScope reads IONOS_MCP_TOOL_SCOPE into a Scope. Hierarchical: destructive
+// implies write. Unrecognised values leave the server read-only.
 func ParseScope(raw string) Scope {
 	var s Scope
 	for _, tok := range strings.Split(raw, ",") {
@@ -115,9 +107,7 @@ func (m Method) Class() Class {
 	}
 }
 
-// annotations returns the MCP tool annotations implied by the method. These are
-// advisory hints for clients (so they can build their own confirmation UX);
-// enforcement stays server-side in the scope gate and the confirmation store.
+// annotations returns the MCP annotations implied by the HTTP method.
 func (m Method) annotations() *mcp.ToolAnnotations {
 	switch m {
 	case MethodPost: // create: mutating, not destructive, not idempotent
@@ -131,27 +121,18 @@ func (m Method) annotations() *mcp.ToolAnnotations {
 	}
 }
 
-// actionVerbs maps the name prefix of a non-CRUD operation to its mutation
-// class. Server power control, snapshot restore and attach/detach read far
-// better to a model as domain verbs than as create_/delete_, so they get an
-// explicit table instead of being forced into the CRUD prefixes.
+// actionVerbs maps a non-CRUD tool's name prefix to its mutation class. Power
+// control, snapshot restore and attach/detach read better as domain verbs than as
+// create_/delete_.
 //
-// This table is the single source of truth for action classification, with two
-// readers: RegisterActionTool (the registration gate) and ClassFromName (the
-// dynamic dispatcher's gate). Adding a verb here without a matching handler is
-// harmless; registering an action whose verb is absent panics at boot.
-//
-// Invariant: no verb may be a prefix of another, so at most one can match a
-// given tool name and map iteration order cannot affect the result.
-// TestActionVerbsAreNotPrefixesOfEachOther enforces it.
+// Single source of truth for action classification, read by both RegisterActionTool
+// and ClassFromName. No verb may be a prefix of another, so at most one can match.
 var actionVerbs = map[string]Class{
 	// Mutating but recoverable: they add or resume, never discard.
-	"start_":  ClassWrite,
-	"resume_": ClassWrite,
-	"attach_": ClassWrite,
-	"assign_": ClassWrite,
-	// Destructive despite not being delete_: these interrupt a running
-	// workload, discard data, or detach a resource in use.
+	"start_":   ClassWrite,
+	"resume_":  ClassWrite,
+	"attach_":  ClassWrite,
+	"assign_":  ClassWrite,
 	"stop_":    ClassDestructive,
 	"reboot_":  ClassDestructive,
 	"suspend_": ClassDestructive,
@@ -160,13 +141,9 @@ var actionVerbs = map[string]Class{
 	"detach_":  ClassDestructive,
 }
 
-// Action describes a non-CRUD operation whose tool name uses a domain verb
-// instead of create_/update_/delete_. Method is the underlying HTTP method,
-// used only to issue the request — POST for power control and attach, DELETE
-// for detach, PUT for set-replacing assignment. The mutation class comes from
-// the verb, never from the method, because the two disagree in both directions:
-// stop_server is a POST that is destructive, detach_server_volume is a DELETE
-// that is not a resource deletion.
+// Action describes a non-CRUD operation named with a domain verb. Method is used
+// only to issue the request; the mutation class comes from the verb, because the two
+// disagree in both directions.
 type Action struct {
 	Verb       string // name prefix; must be a key of actionVerbs
 	Method     Method // HTTP method used for the request
@@ -176,9 +153,7 @@ type Action struct {
 // Class returns the mutation class the verb implies.
 func (a Action) Class() Class { return actionVerbs[a.Verb] }
 
-// annotations returns the MCP tool annotations implied by the action. Unlike
-// Method.annotations, DestructiveHint follows the verb's class and
-// IdempotentHint is declared per action rather than inferred.
+// annotations returns the MCP annotations implied by the action's verb.
 func (a Action) annotations() *mcp.ToolAnnotations {
 	return &mcp.ToolAnnotations{
 		ReadOnlyHint:    false,
@@ -187,15 +162,10 @@ func (a Action) annotations() *mcp.ToolAnnotations {
 	}
 }
 
-// ClassFromName derives a tool's class from its name prefix. The dynamic
-// dispatcher only has tool names to work with, so it classifies by the strict
-// naming convention (create_/update_ => write, delete_ => destructive, an
-// actionVerbs prefix => that verb's class, else read). RegisterTool and
-// RegisterActionTool guarantee mutating tools carry a matching prefix.
+// ClassFromName derives a class from a tool name alone, for the dynamic dispatcher
+// which sees names rather than registrations.
 func ClassFromName(name string) Class {
-	// Action verbs first: they are the classes a prefix-only heuristic would
-	// otherwise miss, and missing one would silently classify a destructive
-	// tool as read.
+	// Action verbs first: a CRUD-prefix heuristic would misread them as reads.
 	for verb, class := range actionVerbs {
 		if strings.HasPrefix(name, verb) {
 			return class
@@ -228,13 +198,9 @@ func nameMatchesMethod(name string, m Method) bool {
 	}
 }
 
-// RegisterTool is the single choke point for registering a tool behind the scope
-// gate. It (1) asserts the name matches the method — panicking on mismatch, a
-// boot-time coding error caught by tests before the server serves; (2) sets
-// method-derived annotations; and (3) registers the tool only if the scope
-// permits its class, otherwise skipping it entirely so it never appears in
-// tools/list. Generic over In/Out exactly like mcp.AddTool, so the handler's
-// typed input struct still drives JSON-schema inference.
+// RegisterTool is the single choke point for scope gating. Skips registration
+// entirely when the scope disallows the class, so a gated tool never appears in
+// tools/list. Panics if the name prefix and HTTP method disagree.
 func RegisterTool[In, Out any](s *mcp.Server, sc Scope, m Method, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
 	if !nameMatchesMethod(t.Name, m) {
 		panic(fmt.Sprintf("RegisterTool: tool %q name prefix does not match HTTP method %s", t.Name, m))
@@ -246,13 +212,8 @@ func RegisterTool[In, Out any](s *mcp.Server, sc Scope, m Method, t *mcp.Tool, h
 	mcp.AddTool(s, t, h)
 }
 
-// RegisterActionTool is RegisterTool for non-CRUD operations named with a domain
-// verb (start_, stop_, attach_, detach_, ...). It applies the same gate: assert
-// the name carries the declared verb — panicking on mismatch, a boot-time coding
-// error caught by tests; set verb-derived annotations; and register only if the
-// scope permits the verb's class, otherwise skipping it entirely so it never
-// appears in tools/list. The class comes from actionVerbs, not from a.Method, so
-// a destructive POST like stop_server needs "destructive" and not merely "write".
+// RegisterActionTool is RegisterTool for domain-verb operations, classifying by
+// verb instead of by method. Panics if the verb is absent from actionVerbs.
 func RegisterActionTool[In, Out any](s *mcp.Server, sc Scope, a Action, t *mcp.Tool, h mcp.ToolHandlerFor[In, Out]) {
 	if _, ok := actionVerbs[a.Verb]; !ok {
 		panic(fmt.Sprintf("RegisterActionTool: tool %q declares unknown action verb %q; add it to actionVerbs with its class", t.Name, a.Verb))

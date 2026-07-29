@@ -432,7 +432,7 @@ func TestDeletePccRefusesWhileLansAreConnected(t *testing.T) {
 	out := resultText(res)
 	// The blocking LANs are named, not just counted, since the caller has to go and
 	// deal with each one.
-	for _, want := range []string{"still connects 2 LAN", "prod-lan", "fra-dc", "dr-lan", "txl-dc", "does not expose a detach", "delete_lan"} {
+	for _, want := range []string{"still connects 2 LAN", "prod-lan", "fra-dc", "dr-lan", "txl-dc", "does not expose it yet", "dcd.ionos.com", "delete_lan"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("refusal should explain the constraint and the escape (%q):\n%s", want, out)
 		}
