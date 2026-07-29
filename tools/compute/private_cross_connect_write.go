@@ -140,7 +140,7 @@ func registerDeletePcc(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if peers := props.GetPeers(); len(peers) > 0 {
 			return tools.ErrorText(fmt.Sprintf(
 				"cross connect %s still connects %d LAN(s), and the API allows deleting one only when no LANs are connected, so this call would be rejected:\n%s\n\n"+
-					"There is no way to detach a LAN from a cross connect — not in this server, the Terraform provider or ionosctl. The LANs must be deleted (delete_lan) before the cross connect can be. Check what each LAN carries first: delete_lan disconnects every NIC on it.",
+					"This server does not expose a detach: the API models a LAN's pcc field as a plain string with no null form, so update_lan can set it but not clear it. Clearing it may be possible by sending an empty string, but the API's response to that has not been confirmed — until it is, the route here is to delete the LANs (delete_lan) before the cross connect. Check what each LAN carries first: delete_lan disconnects every NIC on it.",
 				id, len(peers), pccPeerSummary(peers))), nil, nil
 		}
 
