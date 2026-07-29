@@ -79,96 +79,28 @@ func TestCreateIpBlockValidation(t *testing.T) {
 	}
 }
 
-// TestUpdateIpBlockPreservesLocationAndSize is the critical test for this resource.
-// IpBlockProperties.Location and .Size are non-pointer fields the SDK serializes
-// unconditionally, so a PATCH built without them would send "location":"" and
-// "size":0 — asking the API to relocate and resize the block as a side effect of a
-// rename. update_ip_block therefore reads the current values and sends them back.
-func TestUpdateIpBlockPreservesLocationAndSize(t *testing.T) {
-	h := destructiveSetup(t)
-	h.resp.serve(ipBlocksAPI+"/ipb-1", `{"id":"ipb-1","properties":{"name":"old","location":"de/txl","size":8}}`)
-
-	res := callTool(t, h, "update_ip_block", map[string]any{
-		"ipblock_id": "ipb-1", "name": "renamed",
-	})
-	if res.IsError {
-		t.Fatalf("update failed: %s", resultText(res))
+// TestUpdateIpBlockIsNotRegistered replaces a test that pinned the wrong behaviour.
+//
+// It used to assert that update_ip_block carried location and size forward, on the
+// reading that IpBlockProperties serializes them unconditionally so the PATCH must at
+// least send the *correct* values rather than "" and 0. That was the wrong remedy: the
+// SDK's own comment on the field says location is "disallowed in update requests", so
+// the API rejects a PATCH that carries it at all, correct value or not. The tool
+// therefore failed every time against the real API, and the test passed because the
+// mock did not enforce the constraint.
+//
+// The tool is gone until the SDK models Location and Size as pointers, the way
+// sdk-go/v6 does — see the note in ip_block_write.go.
+func TestUpdateIpBlockIsNotRegistered(t *testing.T) {
+	names := toolNames(t, context.Background(), setupWithScope(t, tools.Scope{Write: true, Destructive: true}))
+	if names["update_ip_block"] {
+		t.Error("update_ip_block is registered, but the smallest PATCH the SDK can build carries location and size, which the API rejects as immutable — see ip_block_write.go")
 	}
-
-	reqs := h.log.allRequests()
-	if len(reqs) != 2 {
-		t.Fatalf("expected a GET then a PATCH, got %d: %+v", len(reqs), reqs)
-	}
-	if reqs[0].Method != http.MethodGet {
-		t.Errorf("first request should read the block's current location and size, got %s", reqs[0].Method)
-	}
-	patch := reqs[1]
-	if patch.Method != http.MethodPatch {
-		t.Fatalf("second request should be the PATCH, got %s", patch.Method)
-	}
-	for _, want := range []string{`"name":"renamed"`, `"location":"de/txl"`, `"size":8`} {
-		if !strings.Contains(patch.Body, want) {
-			t.Errorf("PATCH must carry %s forward:\n%s", want, patch.Body)
+	// The reserve/release pair must survive: only the update is impossible.
+	for _, want := range []string{"create_ip_block", "delete_ip_block"} {
+		if !names[want] {
+			t.Errorf("%q should still be registered", want)
 		}
-	}
-	// The corruption this guards against.
-	if strings.Contains(patch.Body, `"size":0`) || strings.Contains(patch.Body, `"location":""`) {
-		t.Errorf("PATCH must never send an empty location or zero size:\n%s", patch.Body)
-	}
-}
-
-func TestUpdateIpBlockNotFound(t *testing.T) {
-	h := destructiveSetup(t)
-	h.resp.serveStatus(ipBlocksAPI+"/ipb-1", http.StatusNotFound, `{"messages":[{"message":"not found"}]}`)
-	res := callTool(t, h, "update_ip_block", map[string]any{"ipblock_id": "ipb-1", "name": "x"})
-	if !res.IsError || !strings.Contains(resultText(res), "does not exist") {
-		t.Errorf("want a friendly does-not-exist message, got: %s", resultText(res))
-	}
-	for _, r := range h.log.allRequests() {
-		if r.Method == http.MethodPatch {
-			t.Fatal("a 404 on the carry-forward read must not issue a PATCH")
-		}
-	}
-}
-
-// TestDeleteIpBlockListsConsumers checks the preview names what breaks. The API
-// reports ipConsumers alongside a block, which is far more useful than a count of
-// addresses: it says which servers and NICs lose connectivity.
-func TestDeleteIpBlockListsConsumers(t *testing.T) {
-	h := destructiveSetup(t)
-	h.resp.serve(ipBlocksAPI+"/ipb-1", `{"id":"ipb-1","properties":{
-		"name":"web-ips","location":"de/fra","size":2,"ips":["1.2.3.4","1.2.3.5"],
-		"ipConsumers":[
-			{"ip":"1.2.3.4","serverId":"srv-a","nicId":"nic-a","serverName":"web-1"},
-			{"ip":"1.2.3.5","serverId":"srv-b","nicId":"nic-b","serverName":"web-2"}
-		]}}`)
-
-	preview, res := previewThenExecute(t, h, "delete_ip_block", map[string]any{"ipblock_id": "ipb-1"})
-
-	for _, want := range []string{"1.2.3.4", "2 addresses currently assigned", "2 servers", "WARNING"} {
-		if !strings.Contains(preview, want) {
-			t.Errorf("preview missing %q:\n%s", want, preview)
-		}
-	}
-	if res.IsError {
-		t.Fatalf("execute failed: %s", resultText(res))
-	}
-	req := singleRequest(t, h, http.MethodDelete)
-	if req.Path != ipBlocksAPI+"/ipb-1" {
-		t.Errorf("DELETE path = %s, want %s", req.Path, ipBlocksAPI+"/ipb-1")
-	}
-}
-
-func TestDeleteIpBlockUnusedHasNoWarning(t *testing.T) {
-	h := destructiveSetup(t)
-	h.resp.serve(ipBlocksAPI+"/ipb-1", `{"id":"ipb-1","properties":{"name":"spare","location":"de/fra","size":1}}`)
-	res := callTool(t, h, "delete_ip_block", map[string]any{"ipblock_id": "ipb-1"})
-	preview := resultText(res)
-	if strings.Contains(preview, "WARNING") {
-		t.Errorf("an unused block should not carry an in-use warning:\n%s", preview)
-	}
-	if !strings.Contains(preview, "None of these addresses") {
-		t.Errorf("preview should say the addresses are unassigned:\n%s", preview)
 	}
 }
 
@@ -684,7 +616,7 @@ func TestUpdatePcc(t *testing.T) {
 func TestNetworkingWriteToolsScopeGating(t *testing.T) {
 	ctx := context.Background()
 	writeClass := []string{
-		"create_ip_block", "update_ip_block",
+		"create_ip_block",
 		"create_security_group", "update_security_group",
 		"create_firewall_rule", "update_firewall_rule",
 		"create_security_group_rule", "update_security_group_rule",

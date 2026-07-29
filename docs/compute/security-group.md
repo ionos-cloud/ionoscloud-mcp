@@ -176,7 +176,7 @@ The new group has **no rules**, so it permits nothing until you add some with `c
 
 Updates a group's `name` or `description`. Requires `write`. Partial update.
 
-**Omit `name` to keep the current one.** The IONOS SDK always serializes this field, so a partial update that changed only the description would send an empty name and wipe it — the tool reads the current name and sends it back unchanged, which is why it issues a `GET` before its `PATCH`. A blank `name` is rejected rather than applied.
+**Omit `name` to keep the current one.** A blank `name` is rejected rather than applied, so a group cannot lose its name by accident.
 
 This changes only the group's own properties; its rules are managed with the `*_security_group_rule` tools, and its assignment with `assign_server_security_groups` / `assign_nic_security_groups`.
 

@@ -474,13 +474,6 @@ type CreateIpBlockInput struct {
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same location and size) to actually reserve the block. The token expires after a few minutes."`
 }
 
-// UpdateIpBlockInput is the input for update_ip_block. Only the name can change:
-// location and size are fixed at creation.
-type UpdateIpBlockInput struct {
-	IpBlockID string `json:"ipblock_id" jsonschema:"the ID of the IP block to update"`
-	Name      string `json:"name" jsonschema:"a new name for the IP block. This is the only mutable property — an IP block's location and size are fixed when it is reserved."`
-}
-
 // DeleteIpBlockInput is the input for delete_ip_block. Two-phase confirmed; the
 // preview lists which resources are still using the addresses.
 type DeleteIpBlockInput struct {

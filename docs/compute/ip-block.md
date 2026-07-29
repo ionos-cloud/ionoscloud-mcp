@@ -78,20 +78,15 @@ An IP block belongs to the **account**, not to a data center — but its `locati
 
 ---
 
-## update_ip_block
+## Renaming an IP block
 
-Renames an IP block. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Single call.
+`update_ip_block` is not available. An IP block's `location` and `size` are fixed when it is
+reserved, and the API does not accept those properties in an update request — a constraint
+this server cannot currently meet, so the rename is not offered rather than failing when you
+call it.
 
-`name` is the **only** mutable property. The tool issues a `GET` before its `PATCH`: the IONOS SDK always serializes a block's `location` and `size`, so a partial update built without them would send `"location": ""` and `"size": 0` and ask the API to relocate and resize the block as a side effect of a rename. The current values are read and sent back unchanged.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `ipblock_id` | string | Yes | The ID of the block to rename. |
-| `name` | string | Yes | The new name. |
-
-**API Reference:** [ipblocksPatch](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksPatch)
+Set the name when you reserve the block: `create_ip_block` takes `name`. To rename a block
+you already have, use `ionosctl`, the Terraform provider, or the [DCD](https://dcd.ionos.com/).
 
 ---
 

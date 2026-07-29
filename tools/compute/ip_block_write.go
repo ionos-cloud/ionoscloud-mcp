@@ -12,12 +12,26 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterIpBlockWriteTools registers the create/update/delete IP block tools.
+// RegisterIpBlockWriteTools registers the create and delete IP block tools.
 // IP blocks are account-level rather than data-center-scoped, so these take no
 // datacenter_id.
+//
+// There is deliberately no update_ip_block, even though renaming a block is a real API
+// operation. The API documents location as "disallowed in update requests" — that
+// wording is in the SDK's own comment on the field — but IpBlockProperties models
+// Location and Size as non-pointer fields whose ToMap serializes both unconditionally.
+// The smallest body the typed model can produce is therefore
+// {"name":...,"location":...,"size":...}, which the API rejects for carrying the
+// immutable fields at all, whatever their values. IpblocksPut is no escape: IpBlock
+// embeds Properties as a non-pointer field and serializes it unconditionally too.
+//
+// The older sdk-go/v6 line models both as pointers and guards them when marshalling,
+// which is how the Terraform provider renames a block. Compute bundle v2.0.5 and
+// v2.0.7 both have the defect, so there is no version to bump to, and hand-building the
+// request outside the SDK is not an option here. Restore this tool when the models are
+// fixed upstream.
 func RegisterIpBlockWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateIpBlock(server, client, scope, confirm)
-	registerUpdateIpBlock(server, client, scope)
 	registerDeleteIpBlock(server, client, scope, confirm)
 }
 
@@ -67,42 +81,6 @@ func registerCreateIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 			Replay:    tools.Fields("location", location, "size", strconv.FormatInt(int64(input.Size), 10)),
 			TokenNote: "The block is billed from creation even while its addresses are unused, and neither location nor size can be changed afterwards. The token authorizes reserving only this location+size",
 		}.Render(token)), nil, nil
-	})
-}
-
-func registerUpdateIpBlock(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
-	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
-		Name: "update_ip_block",
-		Description: "Rename an IP block. Requires IONOS_MCP_TOOL_SCOPE to include write. Single call. " +
-			"The name is the only thing that can change: an IP block's location and size are fixed when it is reserved, so to change either you reserve a new block and release this one.",
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateIpBlockInput) (*mcp.CallToolResult, any, error) {
-		id := strings.TrimSpace(input.IpBlockID)
-		name := strings.TrimSpace(input.Name)
-		if id == "" {
-			return tools.ErrorText("ipblock_id is required"), nil, nil
-		}
-		if name == "" {
-			return tools.ErrorText("name is required and must not be empty; it is the only property of an IP block that can be changed"), nil, nil
-		}
-
-		// IpBlockProperties.Location and .Size are non-pointer fields that the SDK
-		// ALWAYS serializes, so a PATCH built without them would send
-		// "location": "" and "size": 0 — asking the API to move and resize the
-		// block as a side effect of a rename. Read the current values and send them
-		// back unchanged, the same approach update_nic takes for its lan field.
-		current, _, err := client.IPBlocksApi.IpblocksFindById(ctx, id).Depth(1).Execute()
-		if err != nil {
-			if tools.IsNotFound(err) {
-				return tools.ErrorText(fmt.Sprintf("IP block %s does not exist; nothing to update", id)), nil, nil
-			}
-			return tools.ToResult(nil, err)
-		}
-		currentProps := current.GetProperties()
-
-		props := ionos.NewIpBlockProperties(currentProps.GetLocation(), currentProps.GetSize())
-		props.SetName(name)
-		updated, _, err := client.IPBlocksApi.IpblocksPatch(ctx, id).Ipblock(*props).Execute()
-		return tools.ToResult(updated, err)
 	})
 }
 

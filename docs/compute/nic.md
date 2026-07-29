@@ -107,7 +107,7 @@ Setting `firewall_active` to `true` on a brand-new NIC blocks **all** incoming t
 
 Updates a NIC's name, LAN, IP addresses or firewall settings. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Applies a partial update (only the fields you provide).
 
-**Omit `lan` to leave the NIC where it is.** The IONOS SDK always serializes a NIC's `lan` field, so this tool reads the NIC's current LAN and sends it back unchanged when you do not pass one — that read is why `update_nic` issues a `GET` before its `PATCH`. Pass `lan` explicitly only when you actually want to move the NIC.
+**Omit `lan` to leave the NIC where it is.** Pass `lan` only when you actually want to move the NIC to a different LAN.
 
 Setting `ips` **replaces** the whole address list, so include every address the NIC should keep.
 

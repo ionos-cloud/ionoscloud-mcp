@@ -69,7 +69,7 @@ A snapshot's `size` and `location` are fixed by the volume it came from and cann
 
 ## update_snapshot
 
-Updates a snapshot's name, description, licence type, protection flag or capability flags. Requires `write`. Partial update — one request, no carry-forward read needed.
+Updates a snapshot's name, description, licence type, protection flag or capability flags. Requires `write`. Partial update: send only what you want to change.
 
 The hot-plug and BIOS flags describe what a volume **restored from** this snapshot will support, so changing them affects future restores rather than the snapshot's stored data.
 

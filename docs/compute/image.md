@@ -43,7 +43,7 @@ The API exposes no operation to create an image: public images come from IONOS, 
 
 Updates a private image's name, description, licence type, cloud-init compatibility or capability flags. Requires `write`. Partial update.
 
-**Omit `licence_type` to keep the current value.** The IONOS SDK always sends this field, so the tool reads the image and sends the existing value back unchanged — which is why you see a `GET` before the `PATCH`. A blank `licence_type` is rejected rather than applied.
+**Omit `licence_type` to keep the current value.** A blank `licence_type` is rejected rather than applied.
 
 | Name | Type | Description |
 |------|------|-------------|

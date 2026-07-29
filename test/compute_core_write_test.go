@@ -1459,16 +1459,6 @@ func TestUpdateBodiesContainOnlyRequestedFields(t *testing.T) {
 			wantKeys: []string{"name"},
 		},
 		{
-			// update_ip_block legitimately also sends location and size, because the
-			// SDK serializes both unconditionally and omitting them would relocate
-			// and resize the block.
-			tool:      "update_ip_block",
-			args:      map[string]any{"ipblock_id": "ipb-1", "name": "renamed"},
-			wantKeys:  []string{"name", "location", "size"},
-			primePath: "/cloudapi/v6/ipblocks/ipb-1",
-			primeBody: `{"id":"ipb-1","properties":{"name":"old","location":"de/txl","size":8}}`,
-		},
-		{
 			// update_security_group also carries name, for the same reason.
 			tool:      "update_security_group",
 			args:      map[string]any{"datacenter_id": dcID, "security_group_id": "sg-1", "description": "new"},

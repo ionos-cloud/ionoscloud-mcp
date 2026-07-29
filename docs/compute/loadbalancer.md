@@ -103,12 +103,12 @@ The **classic** load balancer balances traffic across NICs attached directly to 
 | `update_loadbalancer` | `write` | none | `datacenter_id`, `loadbalancer_id` (required), `name`, `ip`, `dhcp` |
 | `delete_loadbalancer` | `destructive` | two-phase | `datacenter_id`, `loadbalancer_id` (required), `confirmation_token` |
 
-This is the **only** load balancer whose properties are all optional in the API, so `update_loadbalancer` is a genuine partial `PATCH` with no carry-forward read — one request, not two.
+`update_loadbalancer` is a straight partial update: send only the fields you want to change.
 
 `delete_loadbalancer`'s preview counts the NICs it balances across. They are not deleted, but traffic stops being balanced to them.
 
 ### Not available: balanced-NIC attach/detach
 
-`attach_loadbalancer_nic` is deliberately not exposed. Attaching an existing NIC is expressed as a body carrying only its id, but `Nic.Properties` is a non-pointer field in the Go SDK whose serializer runs unconditionally, so the smallest body the SDK can produce is `{"id":"…","properties":{"lan":0}}` — which asks the API to move the NIC to LAN 0. That is the same defect that keeps `attach_lan_nic` and `attach_server_cdrom` out, and it needs the same fix in the SDK templates (attach-by-reference should model the body as an id-only object).
+`attach_loadbalancer_nic` and `detach_loadbalancer_nic` are not offered. To place a NIC behind a classic load balancer, use `ionosctl`, the Terraform provider, or the [DCD](https://dcd.ionos.com/).
 
 **API Reference:** [datacentersLoadbalancersPost](https://api.ionos.com/docs/cloud/v6/#tag/Load-Balancers/operation/datacentersLoadbalancersPost), [datacentersLoadbalancersPatch](https://api.ionos.com/docs/cloud/v6/#tag/Load-Balancers/operation/datacentersLoadbalancersPatch), [datacentersLoadbalancersDelete](https://api.ionos.com/docs/cloud/v6/#tag/Load-Balancers/operation/datacentersLoadbalancersDelete)

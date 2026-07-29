@@ -322,9 +322,12 @@ The volume is **not** deleted — it survives as an unattached volume and **keep
 
 ## Not currently available: CD-ROM attach/detach
 
-`attach_server_cdrom` is deliberately not exposed. Attaching an existing resource is expressed as a request body carrying only its id, but `Image.Properties` is a non-pointer field in the Go SDK whose serializer runs unconditionally, so the smallest body the SDK can produce is `{"id":"…","properties":{"licenceType":""}}` — property values the caller never supplied. The request builder accepts only the typed struct, so there is no way to send a correct body without hand-rolling the HTTP call. This needs a fix in the SDK templates (attach-by-reference should model the body as an id-only object) before the tool can ship.
+`attach_server_cdrom` and `detach_server_cdrom` are not offered. To boot a server from an
+installer image, attach the CD-ROM with `ionosctl`, the Terraform provider, or the
+[DCD](https://dcd.ionos.com/).
 
-The same applies to `attach_lan_nic`, which would send `{"id":"…","properties":{"lan":0}}`. That one is redundant in any case: use `update_nic` with an explicit `lan` to move a NIC onto a LAN.
+There is no `attach_lan_nic` either, and none is needed: use `update_nic` with an explicit
+`lan` to move a NIC onto a LAN.
 
 ---
 

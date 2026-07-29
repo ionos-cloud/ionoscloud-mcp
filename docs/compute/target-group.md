@@ -59,19 +59,13 @@ Gets detailed information about a specific target group.
 
 ---
 
-## Why the update tools issue a GET first
+## Omitted fields and list fields
 
-Every model in this area except the classic load balancer serializes its **required** fields unconditionally — the IONOS Go SDK sends them whether or not you set them. A partial update built the obvious way would therefore send empty values for fields you never mentioned:
+Every `update_*` tool here applies a **partial update**: send only the properties you want to
+change, and anything you omit keeps its current value. That holds for the properties the API
+marks required too — you do not need to repeat them just to change something else.
 
-| Resource | Fields always sent | What a naive partial update would do |
-|---|---|---|
-| network / application load balancer | `name`, `listenerLan`, `targetLan` | move it off **both** its client and backend LANs |
-| NLB forwarding rule | + `targets` | **remove every backend** from the load balancer |
-| ALB forwarding rule | `name`, `protocol`, `listenerIp`, `listenerPort` | break the listener |
-| target group | `name`, `algorithm`, `protocol` | reset the pool's algorithm and protocol |
-| NAT gateway | `name`, `publicIps` | leave it with no address to translate to |
-| NAT gateway rule | `name`, `sourceSubnet`, `publicIp` | translate nothing |
-
-So each `update_*` reads the current resource and sends those values back unchanged, overriding only what you supplied. That is why you see a `GET` before the `PATCH`, and why omitting a field is always safe.
-
-Lists behave differently from scalars: supplying `targets`, `http_rules`, `server_certificates`, `public_ips` or `lans` **replaces** that list, so include every entry the resource should keep. Omitting the field entirely leaves the current list untouched. An explicit empty list is rejected rather than applied, so you cannot empty a backend pool by accident.
+Lists behave differently from single values. Supplying `targets`, `http_rules`,
+`server_certificates`, `public_ips` or `lans` **replaces** that list, so include every entry
+the resource should keep. Omitting the field leaves the current list untouched. An explicit
+empty list is rejected rather than applied, so a backend pool cannot be emptied by accident.
