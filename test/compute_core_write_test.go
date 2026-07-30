@@ -1622,3 +1622,35 @@ func TestCoreWriteDynamicParity(t *testing.T) {
 	}
 	singleRequest(t, h, http.MethodDelete)
 }
+
+// TestOptionalNameRemediationDoesNotImplyRequired covers a review finding: three creates
+// take an optional name that is nevertheless part of the confirmation target, so the
+// remediation text has to tell you to repeat it *if you gave one*. Saying "re-run with
+// datacenter_id and name" left a caller who created an unnamed resource with no way to
+// read the instruction correctly.
+func TestOptionalNameRemediationDoesNotImplyRequired(t *testing.T) {
+	cases := []struct {
+		tool string
+		args map[string]any
+	}{
+		{"create_lan", map[string]any{"datacenter_id": dcID}},
+		{"create_firewall_rule", map[string]any{
+			"datacenter_id": dcID, "server_id": srvID, "nic_id": "nic-1", "protocol": "TCP"}},
+		{"create_security_group_rule", map[string]any{
+			"datacenter_id": dcID, "security_group_id": "sg-1", "protocol": "TCP"}},
+	}
+	for _, c := range cases {
+		t.Run(c.tool, func(t *testing.T) {
+			h := destructiveSetup(t)
+			// A token minted for a different target, so remediation text is what comes back.
+			args := map[string]any{"confirmation_token": "0000000000000000000000000000000000"}
+			for k, v := range c.args {
+				args[k] = v
+			}
+			out := resultText(callTool(t, h, c.tool, args))
+			if !strings.Contains(out, "if you gave one") && !strings.Contains(out, "if you gave none") {
+				t.Errorf("%s remediation must not imply name is required:\n%s", c.tool, out)
+			}
+		})
+	}
+}

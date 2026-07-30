@@ -2,12 +2,12 @@
 subcategory: "Compute Engine"
 page_title: "IP Block"
 description: |-
-  Tools for listing, inspecting, and (opt-in) reserving, renaming and releasing public IP blocks in IONOS CLOUD.
+  Tools for listing, inspecting, and (opt-in) reserving and releasing public IP blocks in IONOS CLOUD.
 ---
 
 # IP Blocks
 
-The `list_*` and `get_*` tools are always available. The write tools register only when `IONOS_MCP_TOOL_SCOPE` opts in (`write` enables create/update; `destructive` also enables delete). `create_*` and `delete_*` use a two-phase confirmation: call once **without** `confirmation_token` to get a preview plus a one-time token, then call again **with** that token to execute.
+The `list_*` and `get_*` tools are always available. The write tools register only when `IONOS_MCP_TOOL_SCOPE` opts in (`write` enables create; `destructive` also enables delete). `create_*` and `delete_*` use a two-phase confirmation: call once **without** `confirmation_token` to get a preview plus a one-time token, then call again **with** that token to execute.
 
 ## list_ip_blocks
 
@@ -76,17 +76,6 @@ An IP block belongs to the **account**, not to a data center — but its `locati
 
 **API Reference:** [ipblocksPost](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksPost)
 
----
-
-## Renaming an IP block
-
-`update_ip_block` is not available. An IP block's `location` and `size` are fixed when it is
-reserved, and the API does not accept those properties in an update request — a constraint
-this server cannot currently meet, so the rename is not offered rather than failing when you
-call it.
-
-Set the name when you reserve the block: `create_ip_block` takes `name`. To rename a block
-you already have, use `ionosctl`, the Terraform provider, or the [DCD](https://dcd.ionos.com/).
 
 ---
 

@@ -257,7 +257,7 @@ func registerNicFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, s
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_firewall_rule", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_firewall_rule", "the same parent IDs, protocol and name", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_firewall_rule", "the same parent IDs and protocol, plus the same name if you gave one", err)), nil, nil
 			}
 			body := ionos.NewFirewallRule(*buildRuleProperties(input.RuleFields, nil))
 			created, _, err := client.FirewallRulesApi.DatacentersServersNicsFirewallrulesPost(ctx, dcID, serverID, nicID).Firewallrule(*body).Execute()
@@ -372,7 +372,7 @@ func registerSecurityGroupRuleTools(server *mcp.Server, client *ionos.APIClient,
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_security_group_rule", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_security_group_rule", "datacenter_id, security_group_id, protocol and name", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_security_group_rule", "datacenter_id, security_group_id and protocol, plus the same name if you gave one", err)), nil, nil
 			}
 			body := ionos.NewFirewallRule(*buildRuleProperties(input.RuleFields, nil))
 			created, _, err := client.SecurityGroupsApi.DatacentersSecuritygroupsFirewallrulesPost(ctx, dcID, groupID).FirewallRule(*body).Execute()

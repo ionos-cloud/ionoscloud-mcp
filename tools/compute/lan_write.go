@@ -22,7 +22,7 @@ func RegisterLanWriteTools(server *mcp.Server, client *ionos.APIClient, scope to
 func registerCreateLan(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
 		Name: "create_lan",
-		Description: "Create one LAN in a data center. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same datacenter_id and name) to create it. " +
+		Description: "Create one LAN in a data center. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token and the same datacenter_id to create it. name is optional, but if you gave one the second call must repeat it. " +
 			"A public LAN is how servers reach the internet; a private LAN carries internal traffic only. The API assigns the LAN a small numeric ID, which is the value you pass as lan when creating a NIC. Creates exactly one LAN per call.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateLanInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -43,7 +43,7 @@ func registerCreateLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_lan", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_lan", "datacenter_id and name", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_lan", "datacenter_id and the same name, or no name if you gave none", err)), nil, nil
 			}
 			props := ionos.NewLanPropertiesWithDefaults()
 			if name != "" {
