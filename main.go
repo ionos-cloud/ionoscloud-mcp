@@ -33,13 +33,12 @@ import (
 )
 
 func main() {
-	const transport = "stdio"
 	ctx := context.Background()
 
 	// Tolerant manual arg parsing: this binary is spawned by third-party MCP
 	// clients that may pass args we don't recognise, so unknown flags are
 	// ignored rather than fatal (stdlib flag.Parse would exit the process).
-	var loadModeFlag string
+	var loadModeFlag, transportFlag, httpAddrFlag string
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -59,6 +58,24 @@ func main() {
 			}
 		case strings.HasPrefix(arg, "--load-mode="):
 			loadModeFlag = strings.TrimPrefix(arg, "--load-mode=")
+		case arg == "--transport":
+			if i+1 < len(args) {
+				transportFlag = args[i+1]
+				i++
+			} else {
+				log.Println("--transport given without a value; ignoring")
+			}
+		case strings.HasPrefix(arg, "--transport="):
+			transportFlag = strings.TrimPrefix(arg, "--transport=")
+		case arg == "--http-addr":
+			if i+1 < len(args) {
+				httpAddrFlag = args[i+1]
+				i++
+			} else {
+				log.Println("--http-addr given without a value; ignoring")
+			}
+		case strings.HasPrefix(arg, "--http-addr="):
+			httpAddrFlag = strings.TrimPrefix(arg, "--http-addr=")
 		default:
 			// Unknown arg: ignore for resilience.
 		}
@@ -68,6 +85,20 @@ func main() {
 	// mode and its source to stderr, so client-config issues are diagnosable.
 	mode, modeSrc := resolveLoadMode(loadModeFlag, os.Getenv("IONOS_MCP_LOAD_MODE"))
 	log.Printf("load mode: %s (source: %s)", mode, modeSrc)
+
+	// Resolve the wire transport once (flag > env > default stdio).
+	transport, transportSrc := resolveTransport(transportFlag, os.Getenv("IONOS_MCP_TRANSPORT"))
+	log.Printf("transport: %s (source: %s)", transport, transportSrc)
+
+	// Resolve the HTTP listen address (flag > env > default). Only used when
+	// transport is http.
+	httpAddr := httpAddrFlag
+	if httpAddr == "" {
+		httpAddr = os.Getenv("IONOS_MCP_HTTP_ADDR")
+	}
+	if httpAddr == "" {
+		httpAddr = ":8080"
+	}
 
 	// Resolve the tool scope once. Read-only by default; write and destructive
 	// tools register only when IONOS_MCP_TOOL_SCOPE opts in (hierarchical).
@@ -83,7 +114,7 @@ func main() {
 		Product:          serverName,
 		Version:          serverVersion,
 		SDKBundleVersion: sdkBundleVersion(),
-		Transport:        transport,
+		Transport:        string(transport),
 		Mode:             string(mode),
 		GOOS:             runtime.GOOS,
 		GOARCH:           runtime.GOARCH,
@@ -177,8 +208,17 @@ func main() {
 		}
 	}
 
-	if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
-		log.Fatal(err)
+	switch transport {
+	case TransportHTTP:
+		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, nil)
+		log.Printf("listening on %s (streamable HTTP transport)", httpAddr)
+		if err := http.ListenAndServe(httpAddr, handler); err != nil {
+			log.Fatal(err)
+		}
+	default:
+		if err := server.Run(ctx, &mcp.StdioTransport{}); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -201,10 +241,11 @@ func eagerRegister(server *mcp.Server, products []dynamic.Product, names ...stri
 func printHelp() {
 	fmt.Printf(`%s %s
 
-A Model Context Protocol (MCP) server for IONOS Cloud, served over stdio.
+A Model Context Protocol (MCP) server for IONOS Cloud, served over stdio by
+default, or over streamable HTTP with --transport http.
 
 Usage:
-  %s [--load-mode <mode>]   run the MCP server over stdio
+  %s [--load-mode <mode>] [--transport <stdio|http>] [--http-addr <addr>]
   %s --version              print version and exit
   %s --help                 print this help and exit
 
@@ -223,8 +264,21 @@ Flags:
                                    search of their own (e.g. Cursor, Windsurf).
                                    Alias: search.
 
+  --transport <mode>   wire transport (overrides IONOS_MCP_TRANSPORT). One of:
+                         stdio     (default) serve over stdin/stdout. Required
+                                   for clients that spawn the server as a
+                                   subprocess (Claude Desktop, Claude Code,
+                                   Cursor, Windsurf, etc.).
+                         http      serve the Streamable HTTP transport on
+                                   --http-addr, for remote/networked clients.
+
+  --http-addr <addr>   listen address for --transport http (overrides
+                       IONOS_MCP_HTTP_ADDR). Default ":8080".
+
 Environment:
   IONOS_MCP_LOAD_MODE          same values as --load-mode (the flag wins if both set).
+  IONOS_MCP_TRANSPORT          same values as --transport (the flag wins if both set).
+  IONOS_MCP_HTTP_ADDR          same as --http-addr (the flag wins if both set).
   IONOS_MCP_TOOL_SCOPE         write access, off by default. Comma-separated: read (default),
                                write (enables create_/update_ tools), destructive (also enables
                                delete_ tools; implies write). Unrecognised values stay read-only.
