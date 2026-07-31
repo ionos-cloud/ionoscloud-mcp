@@ -124,8 +124,8 @@ func registerUpdateLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 func registerDeleteLan(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodDelete, &mcp.Tool{
 		Name: "delete_lan",
-		Description: "Delete a LAN. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview (how many NICs are still attached) and a one-time token, then call again WITH the token to delete. " +
-			"Every NIC on the LAN loses its network connection, so check the preview count before proceeding. This is irreversible.",
+		Description: "Delete a LAN. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token to delete. " +
+			"The LAN must be EMPTY first: the API refuses to delete a LAN that still has NICs on it. Move each NIC to another LAN with update_nic, or remove it with delete_nic (or delete its server), then retry. This is irreversible.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteLanInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
 		id := strings.TrimSpace(input.LanID)
@@ -158,18 +158,21 @@ func registerDeleteLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 			return tools.ToResult(nil, err)
 		}
 		props := lan.GetProperties()
-		radius := tools.AffectedRadius()
-		if e := lan.Entities; e != nil && e.Nics != nil {
-			// NICs are not deleted with the LAN, but they lose connectivity, so
-			// the count is the number of interfaces about to go dark.
-			radius.Add("NICs that will lose their network connection", len(e.Nics.Items))
+
+		if e := lan.Entities; e != nil && e.Nics != nil && len(e.Nics.Items) > 0 {
+			return tools.ErrorText(fmt.Sprintf(
+				"LAN %s still has %d NIC(s) on it, and the API refuses to delete a LAN that contains NICs, so this call would be rejected:\n%s\n\n"+
+					"Empty the LAN first. Move each NIC to a different LAN with update_nic (set an explicit lan), or remove it with delete_nic, or delete the server it belongs to. Then retry this delete.",
+				id, len(e.Nics.Items), lanNicSummary(e.Nics.Items))), nil, nil
 		}
+
 		token, mErr := confirm.Mint("delete_lan", target)
 		if mErr != nil {
 			return nil, nil, mErr
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to DELETE a LAN. This is IRREVERSIBLE.",
+			Headline: "About to DELETE a LAN. This is IRREVERSIBLE.\n" +
+				"No NICs are on it, so nothing else is affected.",
 			Fields: tools.Fields(
 				"datacenter_id", dcID,
 				"lan_id", id,
@@ -178,11 +181,24 @@ func registerDeleteLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 				"ipv4_cidr_block", props.GetIpv4CidrBlock(),
 				"pcc", props.GetPcc(),
 			),
-			Radius:    radius,
-			EmptyNote: "No NICs are attached to this LAN; deleting it affects nothing else.",
 			Tool:      "delete_lan",
 			Replay:    tools.Fields("datacenter_id", dcID, "lan_id", id),
 			TokenNote: "This token authorizes deleting ONLY this LAN",
 		}.Render(token)), nil, nil
 	})
+}
+
+// lanNicSummary names the NICs blocking a LAN delete, and the servers they belong to,
+// so the caller knows which ones to move or remove.
+func lanNicSummary(nics []ionos.Nic) string {
+	parts := make([]string, 0, len(nics))
+	for _, n := range nics {
+		desc := n.GetId()
+		props := n.GetProperties()
+		if name := props.GetName(); name != "" {
+			desc = fmt.Sprintf("%s (%s)", name, desc)
+		}
+		parts = append(parts, "  - "+desc)
+	}
+	return strings.Join(parts, "\n")
 }

@@ -1384,18 +1384,55 @@ func TestUpdateLan(t *testing.T) {
 	}
 }
 
-func TestDeleteLanCountsAttachedNics(t *testing.T) {
+// TestDeleteLanRefusesWhileNicsAttached pins a confirmed API constraint. Deleting a LAN
+// that still has NICs on it returns "422 [nics] Cannot delete lan which contains nics" —
+// verified live, along with the positive control: the same delete succeeded once the NIC
+// was removed.
+//
+// This replaces a test that asserted the opposite. The old preview counted "N NICs that
+// will lose their network connection", which implied the delete proceeds and merely
+// disconnects them. Nothing happens at all until the LAN is empty, so the tool now refuses
+// in phase one and names the NICs to move or remove.
+func TestDeleteLanRefusesWhileNicsAttached(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(lansAPI+"/3", `{"id":"3","properties":{"name":"public-lan","public":true},
-		"entities":{"nics":{"items":[{"id":"n1"},{"id":"n2"},{"id":"n3"}]}}}`)
+		"entities":{"nics":{"items":[
+			{"id":"n1","properties":{"name":"web-1-nic"}},
+			{"id":"n2","properties":{"name":"web-2-nic"}}]}}}`)
+
+	res := callTool(t, h, "delete_lan", map[string]any{"datacenter_id": dcID, "lan_id": "3"})
+	if !res.IsError {
+		t.Fatalf("a LAN with NICs cannot be deleted; want a refusal, got:\n%s", resultText(res))
+	}
+	out := resultText(res)
+	// Name the blockers and the remedy, since the caller has to deal with each NIC.
+	for _, want := range []string{"still has 2 NIC(s)", "web-1-nic", "web-2-nic", "update_nic", "delete_nic"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("refusal should explain the constraint and the escape (%q):\n%s", want, out)
+		}
+	}
+	// No token for a call that cannot succeed, and no DELETE attempted.
+	if strings.Contains(out, "confirmation_token") {
+		t.Errorf("no token should be minted for an impossible delete:\n%s", out)
+	}
+	for _, r := range h.log.allRequests() {
+		if r.Method == http.MethodDelete {
+			t.Error("the delete must not be sent while NICs are attached")
+		}
+	}
+}
+
+// TestDeleteLanProceedsWhenEmpty is the positive control, matching the live retest: once
+// the NICs are gone the delete goes through.
+func TestDeleteLanProceedsWhenEmpty(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(lansAPI+"/3", `{"id":"3","properties":{"name":"public-lan","public":true}}`)
 
 	preview, res := previewThenExecute(t, h, "delete_lan", map[string]any{
 		"datacenter_id": dcID, "lan_id": "3",
 	})
-
-	// The NICs are not deleted, but they go dark — the count is the point.
-	if !strings.Contains(preview, "3 NICs that will lose their network connection") {
-		t.Errorf("preview should count the NICs losing connectivity:\n%s", preview)
+	if !strings.Contains(preview, "No NICs are on it") {
+		t.Errorf("preview should say nothing else is affected:\n%s", preview)
 	}
 	if res.IsError {
 		t.Fatalf("execute failed: %s", resultText(res))

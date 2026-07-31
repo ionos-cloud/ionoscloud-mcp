@@ -159,9 +159,11 @@ Turning a public LAN private **removes internet access for every server connecte
 
 ## delete_lan
 
-Deletes a LAN. Irreversible. Requires `IONOS_MCP_TOOL_SCOPE` to include `destructive`. Two-phase: the first call (no `confirmation_token`) returns a blast-radius preview and a one-time token; a second call with that token performs the deletion.
+Deletes a LAN. Irreversible. Requires `IONOS_MCP_TOOL_SCOPE` to include `destructive`. Two-phase: the first call (no `confirmation_token`) returns a preview and a one-time token; a second call with that token performs the deletion.
 
-The NICs on the LAN are not deleted, but every one of them **loses its network connection** — the preview reports how many, so check that count before proceeding.
+**The LAN must be empty.** The API refuses to delete a LAN that still has NICs on it — it returns `422 [nics] Cannot delete lan which contains nics`, and nothing about the LAN or the NICs changes. The tool checks first and lists the NICs blocking the delete rather than issuing a request that cannot succeed.
+
+To empty a LAN, for each NIC on it either move it to another LAN with [`update_nic`](nic.md) (set an explicit `lan`), remove it with [`delete_nic`](nic.md), or delete the server it belongs to.
 
 **Parameters:**
 
