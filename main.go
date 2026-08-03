@@ -97,7 +97,7 @@ func main() {
 		httpAddr = strings.TrimSpace(os.Getenv("IONOS_MCP_HTTP_ADDR"))
 	}
 	if httpAddr == "" {
-		httpAddr = ":8080"
+		httpAddr = "127.0.0.1:8080"
 	}
 
 	// Resolve the tool scope once. Read-only by default; write and destructive
@@ -283,7 +283,7 @@ Flags:
                                    --http-addr, for remote/networked clients.
 
   --http-addr <addr>   listen address for --transport http (overrides
-                       IONOS_MCP_HTTP_ADDR). Default ":8080".
+                       IONOS_MCP_HTTP_ADDR). Default "127.0.0.1:8080".
 
 Environment:
   IONOS_MCP_LOAD_MODE          same values as --load-mode (the flag wins if both set).

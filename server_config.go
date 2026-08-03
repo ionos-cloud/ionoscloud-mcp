@@ -4,6 +4,14 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
+	"time"
+)
+
+const (
+	// httpSessionTimeout closes sessions that stop sending requests
+	httpSessionTimeout = 30 * time.Minute
+	// httpReadHeaderTimeout bounds how long a client may take to send its headers
+	httpReadHeaderTimeout = 10 * time.Second
 )
 
 const serverName = "ionos-cloud-mcp"
