@@ -210,9 +210,19 @@ func main() {
 
 	switch transport {
 	case TransportHTTP:
-		handler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return server }, nil)
+		handler := mcp.NewStreamableHTTPHandler(
+			func(*http.Request) *mcp.Server { return server },
+			&mcp.StreamableHTTPOptions{SessionTimeout: httpSessionTimeout},
+		)
+		// Reject non-safe cross-origin browser requests (CSRF)
+		protected := http.NewCrossOriginProtection().Handler(handler)
+		srv := &http.Server{
+			Addr:              httpAddr,
+			Handler:           protected,
+			ReadHeaderTimeout: httpReadHeaderTimeout,
+		}
 		log.Printf("listening on %s (streamable HTTP transport)", httpAddr)
-		if err := http.ListenAndServe(httpAddr, handler); err != nil {
+		if err := srv.ListenAndServe(); err != nil {
 			log.Fatal(err)
 		}
 	default:
