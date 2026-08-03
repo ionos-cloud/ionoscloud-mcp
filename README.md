@@ -215,7 +215,7 @@ The server speaks stdio by default — the mode every subprocess-spawning MCP cl
 ```
 
 - `--transport <stdio|http>` (or `IONOS_MCP_TRANSPORT`) — selects the transport. Unrecognised values fall back to `stdio` with a warning.
-- `--http-addr <addr>` (or `IONOS_MCP_HTTP_ADDR`) — listen address for the HTTP transport. Default `:8080`. Ignored for stdio.
+- `--http-addr <addr>` (or `IONOS_MCP_HTTP_ADDR`) — listen address for the HTTP transport. Default `:8080` (all interfaces); use `127.0.0.1:8080` for local-only. Ignored for stdio.
 
 The server logs the effective transport and its source to stderr at startup, e.g. `transport: http (source: --transport flag)`.
 
