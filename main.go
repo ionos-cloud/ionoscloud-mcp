@@ -92,9 +92,9 @@ func main() {
 
 	// Resolve the HTTP listen address (flag > env > default). Only used when
 	// transport is http.
-	httpAddr := httpAddrFlag
+	httpAddr := strings.TrimSpace(httpAddrFlag)
 	if httpAddr == "" {
-		httpAddr = os.Getenv("IONOS_MCP_HTTP_ADDR")
+		httpAddr = strings.TrimSpace(os.Getenv("IONOS_MCP_HTTP_ADDR"))
 	}
 	if httpAddr == "" {
 		httpAddr = ":8080"
