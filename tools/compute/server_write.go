@@ -200,6 +200,7 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 		Name: "delete_server",
 		Description: "Delete a server. Two-phase: call first WITHOUT confirmation_token to get a preview of what is attached and what happens to it, plus a one-time token, then call again WITH the token to delete. " +
 			"By default the attached volumes are NOT deleted — they survive as unattached volumes and keep incurring cost. Set delete_volumes to true to destroy them with the server (their data is then unrecoverable). " +
+			"Leave delete_volumes off for a template-sized server (CUBE or GPU): their storage is destroyed with the server anyway, and setting the flag can be rejected. Confirmed for CUBE, whose DAS storage cannot exist unattached; try GPU with the flag off first. " +
 			"Because that choice changes what is destroyed, the token is bound to it: preview again if you change delete_volumes. This is irreversible.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteServerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -228,7 +229,7 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 			if deleteVolumes {
 				msg += " Its attached volumes were deleted with it."
 			} else {
-				msg += " Its attached volumes were kept and are now unattached; delete them with delete_volume if they are no longer needed."
+				msg += " Volumes that survive were kept and are now unattached; list_volumes shows which, and delete_volume removes any no longer needed. A template-sized server's storage goes with the server, so expect nothing left for it."
 			}
 			return tools.TextResult(msg), nil, nil
 		}
@@ -241,12 +242,13 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 			}
 			return tools.ToResult(nil, err)
 		}
+		props := srv.GetProperties()
+		templateSized := isTemplateSized(strings.ToUpper(strings.TrimSpace(props.GetType())))
 		radius, volumeCount := serverBlastRadius(srv, deleteVolumes)
 		token, mErr := confirm.Mint("delete_server", target)
 		if mErr != nil {
 			return nil, nil, mErr
 		}
-		props := srv.GetProperties()
 		return tools.TextResult(tools.Preview{
 			Headline: "About to DELETE a server. This is IRREVERSIBLE.",
 			Fields: tools.Fields(
@@ -261,7 +263,7 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 			EmptyNote: "This server has nothing attached; deleting removes only the server itself.",
 			Tool:      "delete_server",
 			Replay:    tools.Fields("datacenter_id", dcID, "server_id", id, "delete_volumes", strconv.FormatBool(deleteVolumes)),
-			TokenNote: volumeFateNote(deleteVolumes, volumeCount) + " This token authorizes deleting ONLY this server with this delete_volumes value",
+			TokenNote: volumeFateNote(deleteVolumes, volumeCount, templateSized) + " This token authorizes deleting ONLY this server with this delete_volumes value",
 		}.Render(token)), nil, nil
 	})
 }
@@ -468,13 +470,16 @@ func serverBlastRadius(srv ionos.Server, deleteVolumes bool) (*tools.BlastRadius
 }
 
 // volumeFateNote states what happens to the attached volumes. The default —
-// keep them, keep billing — is the surprising one.
-func volumeFateNote(deleteVolumes bool, volumeCount int) string {
+// keep them, keep billing — is the surprising one, except on a template-sized
+// server, where the storage goes with the server (confirmed for CUBE).
+func volumeFateNote(deleteVolumes bool, volumeCount int, templateSized bool) string {
 	switch {
 	case volumeCount == 0:
 		return "No volumes are attached."
 	case deleteVolumes:
 		return fmt.Sprintf("delete_volumes is TRUE: the %d attached volume(s) will be DESTROYED with the server and their data cannot be recovered.", volumeCount)
+	case templateSized:
+		return fmt.Sprintf("This server is template-sized, so its %d attached volume(s) are expected to be destroyed with it and delete_volumes should be left off (confirmed for CUBE, whose DAS storage cannot exist unattached). Confirm with list_volumes afterwards rather than assuming either way.", volumeCount)
 	default:
 		return fmt.Sprintf("delete_volumes is FALSE: the %d attached volume(s) will SURVIVE as unattached volumes and keep incurring cost until deleted separately.", volumeCount)
 	}

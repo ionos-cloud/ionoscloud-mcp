@@ -833,6 +833,36 @@ func TestDeleteServerTwoPhase(t *testing.T) {
 	}
 }
 
+// TestDeleteServerTemplateSizedVolumeNote covers what misled the agent: on a
+// CUBE the storage goes with the server, so telling it the volumes survive and
+// keep billing sent it off to delete something already gone.
+func TestDeleteServerTemplateSizedVolumeNote(t *testing.T) {
+	for _, srvType := range []string{"CUBE", "GPU"} {
+		t.Run(srvType, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(serversAPI+"/"+srvID, `{
+				"id":"srv-1","properties":{"name":"tpl-1","type":"`+srvType+`","vmState":"RUNNING"},
+				"entities":{"volumes":{"items":[{"id":"v1"}]}}}`)
+
+			preview, res := previewThenExecute(t, h, "delete_server", map[string]any{
+				"datacenter_id": dcID, "server_id": srvID,
+			})
+			for _, want := range []string{"template-sized", "left off", "list_volumes"} {
+				if !strings.Contains(preview, want) {
+					t.Errorf("preview should steer away from delete_volumes (%q):\n%s", want, preview)
+				}
+			}
+			// The claim that caused the wild goose chase.
+			if strings.Contains(preview, "keep incurring cost") {
+				t.Errorf("preview must not claim template-sized storage keeps billing:\n%s", preview)
+			}
+			if res.IsError {
+				t.Fatalf("execute failed: %s", resultText(res))
+			}
+		})
+	}
+}
+
 func TestDeleteServerWithVolumes(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(serversAPI+"/"+srvID, `{

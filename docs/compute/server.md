@@ -220,13 +220,15 @@ Deletes a server. Irreversible. Requires `IONOS_MCP_TOOL_SCOPE` to include `dest
 
 By default the attached volumes are **not** deleted — they survive as unattached volumes and **keep incurring cost** until removed with `delete_volume`. Set `delete_volumes` to `true` to destroy them with the server, which makes their data unrecoverable. Because that choice changes what is destroyed, the token is bound to it: if you change `delete_volumes`, you must preview again.
 
+Leave `delete_volumes` off for a template-sized server (`CUBE` or `GPU`) — their storage is destroyed with the server anyway, and setting the flag can be rejected. This is confirmed for `CUBE`, whose `DAS` storage cannot exist unattached; for `GPU`, delete without the flag and check the result with `list_volumes`.
+
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `datacenter_id` | string | Yes | The ID of the data center the server is in. |
 | `server_id` | string | Yes | The ID of the server to delete. |
-| `delete_volumes` | boolean | No | Also delete the attached volumes (default `false`). `false` leaves them as unattached, still-billed volumes; `true` destroys their data irrecoverably. |
+| `delete_volumes` | boolean | No | Also delete the attached volumes (default `false`). `false` leaves them as unattached, still-billed volumes; `true` destroys their data irrecoverably. Leave it off for `CUBE` and `GPU` servers. |
 | `confirmation_token` | string | No | Omit on the first call to receive the preview + token; pass the token (with the same `delete_volumes` value) on the second call to delete. Expires after a few minutes. |
 
 **Example (step 1 — preview):**
