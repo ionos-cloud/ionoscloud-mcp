@@ -30,7 +30,7 @@ func registerCreatePcc(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if name == "" {
 			return tools.ErrorText("name is required to create a private cross connect"), nil, nil
 		}
-		target := tools.Target(name)
+		target := tools.Target(req, name)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -102,7 +102,7 @@ func registerDeletePcc(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if id == "" {
 			return tools.ErrorText("pcc_id is required"), nil, nil
 		}
-		target := tools.Target(id)
+		target := tools.Target(req, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

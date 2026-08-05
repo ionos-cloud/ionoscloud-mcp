@@ -41,7 +41,7 @@ func registerNatGatewayCRUD(server *mcp.Server, client *ionos.APIClient, scope t
 		if len(input.PublicIps) == 0 {
 			return tools.ErrorText("public_ips is required and must contain at least one address: a NAT gateway has nothing to translate to without one. Reserve addresses with create_ip_block."), nil, nil
 		}
-		target := tools.Target(dcID, name)
+		target := tools.Target(req, dcID, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_nat_gateway", target); err != nil {
@@ -145,7 +145,7 @@ func registerNatGatewayCRUD(server *mcp.Server, client *ionos.APIClient, scope t
 		if id == "" {
 			return tools.ErrorText("natgateway_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, id)
+		target := tools.Target(req, dcID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_nat_gateway", target); err != nil {
@@ -221,7 +221,7 @@ func registerNatGatewayRuleCRUD(server *mcp.Server, client *ionos.APIClient, sco
 		if msg := validateNatRulePorts(input.Protocol, input.TargetPortRangeStart, input.TargetPortRangeEnd); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(dcID, gwID, name)
+		target := tools.Target(req, dcID, gwID, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_nat_gateway_rule", target); err != nil {
@@ -317,7 +317,7 @@ func registerNatGatewayRuleCRUD(server *mcp.Server, client *ionos.APIClient, sco
 		if dcID == "" || gwID == "" || id == "" {
 			return tools.ErrorText("datacenter_id, natgateway_id and rule_id are all required"), nil, nil
 		}
-		target := tools.Target(dcID, gwID, id)
+		target := tools.Target(req, dcID, gwID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_nat_gateway_rule", target); err != nil {

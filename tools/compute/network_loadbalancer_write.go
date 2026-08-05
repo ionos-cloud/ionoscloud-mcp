@@ -91,7 +91,7 @@ func registerNlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if msg := validateListenerAndTargetLan(input.ListenerLan, input.TargetLan); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(dcID, name)
+		target := tools.Target(req, dcID, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_network_loadbalancer", target); err != nil {
@@ -193,7 +193,7 @@ func registerNlbDelete(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if id == "" {
 			return tools.ErrorText("loadbalancer_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, id)
+		target := tools.Target(req, dcID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_network_loadbalancer", target); err != nil {
@@ -271,7 +271,7 @@ func registerNlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient,
 		if msg := validateNlbTargets(input.Targets); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(dcID, lbID, name)
+		target := tools.Target(req, dcID, lbID, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_nlb_forwarding_rule", target); err != nil {
@@ -397,7 +397,7 @@ func registerNlbForwardingRuleTools(server *mcp.Server, client *ionos.APIClient,
 		if dcID == "" || lbID == "" || id == "" {
 			return tools.ErrorText("datacenter_id, loadbalancer_id and rule_id are all required"), nil, nil
 		}
-		target := tools.Target(dcID, lbID, id)
+		target := tools.Target(req, dcID, lbID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_nlb_forwarding_rule", target); err != nil {

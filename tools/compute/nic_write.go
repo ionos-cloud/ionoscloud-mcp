@@ -36,7 +36,7 @@ func registerCreateNic(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if input.Lan <= 0 {
 			return tools.ErrorText("lan is required and must be a positive LAN ID; list the data center's LANs with list_lans to find it"), nil, nil
 		}
-		target := tools.Target(dcID, serverID, strconv.FormatInt(int64(input.Lan), 10))
+		target := tools.Target(req, dcID, serverID, strconv.FormatInt(int64(input.Lan), 10))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -169,7 +169,7 @@ func registerDeleteNic(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if id == "" {
 			return tools.ErrorText("nic_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, serverID, id)
+		target := tools.Target(req, dcID, serverID, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

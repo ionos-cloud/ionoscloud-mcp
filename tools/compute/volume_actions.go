@@ -40,7 +40,7 @@ func registerCreateVolumeSnapshot(server *mcp.Server, client *ionos.APIClient, s
 		if name == "" {
 			return tools.ErrorText("name is required for the new snapshot"), nil, nil
 		}
-		target := tools.Target(dcID, volumeID, name)
+		target := tools.Target(req, dcID, volumeID, name)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -122,7 +122,7 @@ func registerRestoreVolumeSnapshot(server *mcp.Server, client *ionos.APIClient, 
 			}
 			// Volume and snapshot are both in the target, so a token cannot be
 			// replayed to restore a different snapshot.
-			target := tools.Target(dcID, volumeID, snapshotID)
+			target := tools.Target(req, dcID, volumeID, snapshotID)
 
 			// Phase 2: token present -> validate and execute.
 			if tools.HasToken(input.ConfirmationToken) {

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestFieldsBuildsPairs(t *testing.T) {
@@ -230,12 +232,48 @@ func TestConfirmErrorText(t *testing.T) {
 }
 
 func TestTargetBindsParentChain(t *testing.T) {
-	if got := Target("dc-1", "srv-2", "nic-3"); got != "dc-1|srv-2|nic-3" {
+	// nil req stands in for stdio, whose session id is empty.
+	if got := Target(nil, "dc-1", "srv-2", "nic-3"); got != "|dc-1|srv-2|nic-3" {
 		t.Errorf("Target = %q, want the full chain joined by |", got)
 	}
 	// Different parents with the same leaf name must not collide.
-	if Target("dc-1", "web") == Target("dc-2", "web") {
+	if Target(nil, "dc-1", "web") == Target(nil, "dc-2", "web") {
 		t.Error("targets under different parents must differ")
+	}
+}
+
+// TestTargetIsolatesSessions is the point of threading the request through:
+// over HTTP one process serves many clients, and a token minted by one must not
+// be spendable by another.
+func TestTargetIsolatesSessions(t *testing.T) {
+	a := Target(reqWithCallerID("session-A"), "dc-1", "srv-2")
+	b := Target(reqWithCallerID("session-B"), "dc-1", "srv-2")
+	if a == b {
+		t.Fatalf("two sessions produced the same target %q; a token would cross between clients", a)
+	}
+	// Same session, same operation: must still agree, or preview/execute break.
+	if again := Target(reqWithCallerID("session-A"), "dc-1", "srv-2"); again != a {
+		t.Errorf("same session gave %q then %q; the two phases would never match", a, again)
+	}
+}
+
+// TestCallerIDPrefersForwardedID covers dynamic mode: the catalog session is
+// shared by every caller, so the forwarded id has to win.
+func TestCallerIDPrefersForwardedID(t *testing.T) {
+	if got := CallerID(reqWithCallerID("real-caller")); got != "real-caller" {
+		t.Errorf("CallerID = %q, want the forwarded id", got)
+	}
+	if got := CallerID(nil); got != "" {
+		t.Errorf("CallerID(nil) = %q, want empty", got)
+	}
+	if got := CallerID(&mcp.CallToolRequest{}); got != "" {
+		t.Errorf("CallerID with no params/session = %q, want empty", got)
+	}
+}
+
+func reqWithCallerID(id string) *mcp.CallToolRequest {
+	return &mcp.CallToolRequest{
+		Params: &mcp.CallToolParamsRaw{Meta: mcp.Meta{CallerIDMetaKey: id}},
 	}
 }
 

@@ -48,7 +48,7 @@ func registerCreateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 		if !hasImage && !hasLicence {
 			return tools.ErrorText("provide image or image_alias to create a bootable volume (see list_images), or licence_type to create an empty one"), nil, nil
 		}
-		target := tools.Target(dcID, name)
+		target := tools.Target(req, dcID, name)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -195,7 +195,7 @@ func registerDeleteVolume(server *mcp.Server, client *ionos.APIClient, scope too
 		if id == "" {
 			return tools.ErrorText("volume_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, id)
+		target := tools.Target(req, dcID, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

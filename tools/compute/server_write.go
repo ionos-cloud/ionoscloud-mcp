@@ -55,7 +55,7 @@ func registerCreateServer(server *mcp.Server, client *ionos.APIClient, scope too
 		}
 		// The storage type is in the target, so a token previewed with a disk
 		// cannot execute without one.
-		target := tools.Target(dcID, name, bootVolumeTargetPart(input.BootVolume))
+		target := tools.Target(req, dcID, name, bootVolumeTargetPart(input.BootVolume))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -214,7 +214,7 @@ func registerDeleteServer(server *mcp.Server, client *ionos.APIClient, scope too
 		deleteVolumes := input.DeleteVolumes != nil && *input.DeleteVolumes
 		// delete_volumes is in the target, so a token previewed as "keep" cannot
 		// execute as "destroy".
-		target := tools.Target(dcID, id, strconv.FormatBool(deleteVolumes))
+		target := tools.Target(req, dcID, id, strconv.FormatBool(deleteVolumes))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

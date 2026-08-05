@@ -38,7 +38,7 @@ func registerCreateLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if targetName == "" {
 			targetName = "(unnamed)"
 		}
-		target := tools.Target(dcID, targetName)
+		target := tools.Target(req, dcID, targetName)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -135,7 +135,7 @@ func registerDeleteLan(server *mcp.Server, client *ionos.APIClient, scope tools.
 		if id == "" {
 			return tools.ErrorText("lan_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, id)
+		target := tools.Target(req, dcID, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

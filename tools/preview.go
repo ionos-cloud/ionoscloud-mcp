@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Preview rendering for the two-phase confirmation flow; ConfirmationStore
@@ -153,10 +155,42 @@ func ConfirmErrorText(tool, replayArgs string, err error) string {
 	}
 }
 
+// CallerIDMetaKey carries the originating client's session id when a call is
+// forwarded through a shared session (see tools/dynamic).
+const CallerIDMetaKey = "ionos/callerID"
+
+// CallerID identifies the client session a call arrived on, so a confirmation
+// token cannot cross from one client to another. Empty on stdio, where the
+// process serves exactly one client and there is nothing to isolate.
+func CallerID(req *mcp.CallToolRequest) string {
+	if req == nil {
+		return ""
+	}
+	// The session id is authoritative because it comes from the transport, so a
+	// client cannot forge it. Order matters: _meta travels in the request and is
+	// therefore client-controlled, so trusting it first would let one client
+	// claim another's id and spend its tokens.
+	if req.Session != nil {
+		if id := req.Session.ID(); id != "" {
+			return id
+		}
+	}
+	// No session id of its own: stdio, or the in-memory catalog session that
+	// dynamic mode forwards through. Only there is the dispatcher-supplied id used.
+	if req.Params != nil {
+		if id, ok := req.Params.Meta[CallerIDMetaKey].(string); ok {
+			return id
+		}
+	}
+	return ""
+}
+
 // Target joins the parts of a confirmation target. Include every identifier that
-// makes the operation unique, so a token cannot be replayed elsewhere.
-func Target(parts ...string) string {
-	return strings.Join(parts, "|")
+// makes the operation unique, so a token cannot be replayed elsewhere. The
+// calling session is part of the target, so one client cannot spend a token
+// another client minted.
+func Target(req *mcp.CallToolRequest, parts ...string) string {
+	return strings.Join(append([]string{CallerID(req)}, parts...), "|")
 }
 
 // HasToken reports whether a two-phase input carried a non-empty token, i.e.

@@ -31,7 +31,7 @@ func registerCreateDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 		if location == "" {
 			return tools.ErrorText("location is required to create a data center (e.g. de/fra)"), nil, nil
 		}
-		target := name + "|" + location
+		target := tools.Target(req, name, location)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -98,10 +98,11 @@ func registerDeleteDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 		if id == "" {
 			return tools.ErrorText("datacenter_id is required"), nil, nil
 		}
+		target := tools.Target(req, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
-			if err := confirm.Consume(*input.ConfirmationToken, "delete_datacenter", id); err != nil {
+			if err := confirm.Consume(*input.ConfirmationToken, "delete_datacenter", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("delete_datacenter", "datacenter_id", err)), nil, nil
 			}
 			_, err := client.DataCentersApi.DatacentersDelete(ctx, id).Execute()
@@ -120,7 +121,7 @@ func registerDeleteDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 			return tools.ToResult(nil, err)
 		}
 		radius := datacenterBlastRadius(dc)
-		token, mErr := confirm.Mint("delete_datacenter", id)
+		token, mErr := confirm.Mint("delete_datacenter", target)
 		if mErr != nil {
 			return nil, nil, mErr
 		}

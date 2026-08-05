@@ -253,7 +253,7 @@ func registerNicFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, s
 			return tools.ErrorText(msg), nil, nil
 		}
 		protocol := strings.ToUpper(strings.TrimSpace(tools.OptStr(input.Protocol)))
-		target := tools.Target(dcID, serverID, nicID, protocol, tools.OptStr(input.Name))
+		target := tools.Target(req, dcID, serverID, nicID, protocol, tools.OptStr(input.Name))
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_firewall_rule", target); err != nil {
@@ -317,7 +317,7 @@ func registerNicFirewallRuleTools(server *mcp.Server, client *ionos.APIClient, s
 		if dcID == "" || serverID == "" || nicID == "" || id == "" {
 			return tools.ErrorText("datacenter_id, server_id, nic_id and firewallrule_id are all required"), nil, nil
 		}
-		target := tools.Target(dcID, serverID, nicID, id)
+		target := tools.Target(req, dcID, serverID, nicID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_firewall_rule", target); err != nil {
@@ -368,7 +368,7 @@ func registerSecurityGroupRuleTools(server *mcp.Server, client *ionos.APIClient,
 			return tools.ErrorText(msg), nil, nil
 		}
 		protocol := strings.ToUpper(strings.TrimSpace(tools.OptStr(input.Protocol)))
-		target := tools.Target(dcID, groupID, protocol, tools.OptStr(input.Name))
+		target := tools.Target(req, dcID, groupID, protocol, tools.OptStr(input.Name))
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_security_group_rule", target); err != nil {
@@ -435,7 +435,7 @@ func registerSecurityGroupRuleTools(server *mcp.Server, client *ionos.APIClient,
 		if dcID == "" || groupID == "" || id == "" {
 			return tools.ErrorText("datacenter_id, security_group_id and rule_id are all required"), nil, nil
 		}
-		target := tools.Target(dcID, groupID, id)
+		target := tools.Target(req, dcID, groupID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_security_group_rule", target); err != nil {

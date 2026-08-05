@@ -34,7 +34,7 @@ func registerCreateSecurityGroup(server *mcp.Server, client *ionos.APIClient, sc
 		if name == "" {
 			return tools.ErrorText("name is required to create a security group"), nil, nil
 		}
-		target := tools.Target(dcID, name)
+		target := tools.Target(req, dcID, name)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -132,7 +132,7 @@ func registerDeleteSecurityGroup(server *mcp.Server, client *ionos.APIClient, sc
 		if id == "" {
 			return tools.ErrorText("security_group_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, id)
+		target := tools.Target(req, dcID, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

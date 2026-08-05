@@ -36,7 +36,7 @@ func registerCreateIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 		if input.Size <= 0 {
 			return tools.ErrorText("size must be at least 1: it is the number of public IPv4 addresses to reserve"), nil, nil
 		}
-		target := tools.Target(location, strconv.FormatInt(int64(input.Size), 10))
+		target := tools.Target(req, location, strconv.FormatInt(int64(input.Size), 10))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
@@ -81,7 +81,7 @@ func registerDeleteIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 		if id == "" {
 			return tools.ErrorText("ipblock_id is required"), nil, nil
 		}
-		target := tools.Target(id)
+		target := tools.Target(req, id)
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {

@@ -196,7 +196,7 @@ func registerServerDisruptiveActions(server *mcp.Server, client *ionos.APIClient
 				if id == "" {
 					return tools.ErrorText("server_id is required"), nil, nil
 				}
-				target := tools.Target(dcID, id)
+				target := tools.Target(req, dcID, id)
 
 				// Phase 2: token present -> validate and execute.
 				if tools.HasToken(input.ConfirmationToken) {
@@ -284,7 +284,7 @@ func registerServerVolumeRelations(server *mcp.Server, client *ionos.APIClient, 
 			if dcID == "" || serverID == "" || volumeID == "" {
 				return tools.ErrorText("datacenter_id, server_id and volume_id are all required"), nil, nil
 			}
-			target := tools.Target(dcID, serverID, volumeID)
+			target := tools.Target(req, dcID, serverID, volumeID)
 
 			if tools.HasToken(input.ConfirmationToken) {
 				if err := confirm.Consume(*input.ConfirmationToken, "detach_server_volume", target); err != nil {

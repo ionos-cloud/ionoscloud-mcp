@@ -38,7 +38,7 @@ func registerCreateLoadBalancer(server *mcp.Server, client *ionos.APIClient, sco
 		if name == "" {
 			return tools.ErrorText("name is required"), nil, nil
 		}
-		target := tools.Target(dcID, name)
+		target := tools.Target(req, dcID, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_loadbalancer", target); err != nil {
@@ -124,7 +124,7 @@ func registerDeleteLoadBalancer(server *mcp.Server, client *ionos.APIClient, sco
 		if id == "" {
 			return tools.ErrorText("loadbalancer_id is required"), nil, nil
 		}
-		target := tools.Target(dcID, id)
+		target := tools.Target(req, dcID, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_loadbalancer", target); err != nil {

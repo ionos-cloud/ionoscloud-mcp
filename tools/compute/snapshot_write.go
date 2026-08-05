@@ -75,7 +75,7 @@ func registerDeleteSnapshot(server *mcp.Server, client *ionos.APIClient, scope t
 		if id == "" {
 			return tools.ErrorText("snapshot_id is required"), nil, nil
 		}
-		target := tools.Target(id)
+		target := tools.Target(req, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_snapshot", target); err != nil {

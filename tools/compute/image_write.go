@@ -92,7 +92,7 @@ func registerDeleteImage(server *mcp.Server, client *ionos.APIClient, scope tool
 		if id == "" {
 			return tools.ErrorText("image_id is required"), nil, nil
 		}
-		target := tools.Target(id)
+		target := tools.Target(req, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_image", target); err != nil {

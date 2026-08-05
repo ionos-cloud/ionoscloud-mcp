@@ -44,7 +44,7 @@ func registerCreateTargetGroup(server *mcp.Server, client *ionos.APIClient, scop
 		if msg := validateTargetGroupTargets(input.Targets); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(name)
+		target := tools.Target(req, name)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_target_group", target); err != nil {
@@ -161,7 +161,7 @@ func registerDeleteTargetGroup(server *mcp.Server, client *ionos.APIClient, scop
 		if id == "" {
 			return tools.ErrorText("target_group_id is required"), nil, nil
 		}
-		target := tools.Target(id)
+		target := tools.Target(req, id)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_target_group", target); err != nil {

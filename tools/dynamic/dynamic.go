@@ -223,7 +223,7 @@ func (r *dispatcher) describeHandler(_ context.Context, _ *mcp.CallToolRequest, 
 	return tools.ToResult(map[string]any{"tools": out}, nil)
 }
 
-func (r *dispatcher) callHandler(ctx context.Context, _ *mcp.CallToolRequest, in tools.CallToolInput) (*mcp.CallToolResult, any, error) {
+func (r *dispatcher) callHandler(ctx context.Context, req *mcp.CallToolRequest, in tools.CallToolInput) (*mcp.CallToolResult, any, error) {
 	name := strings.TrimSpace(in.Name)
 	entry, ok := r.byName[name]
 	if !ok {
@@ -247,10 +247,14 @@ func (r *dispatcher) callHandler(ctx context.Context, _ *mcp.CallToolRequest, in
 	// Forward to the catalog server. Input validation, schema enforcement and
 	// IONOS error enrichment all happen inside that handler; we relay its
 	// result verbatim, preserving IsError.
-	res, err := r.session.CallTool(ctx, &mcp.CallToolParams{
-		Name:      name,
-		Arguments: in.Arguments,
-	})
+	params := &mcp.CallToolParams{Name: name, Arguments: in.Arguments}
+	// Every caller shares this one catalog session, so its id cannot distinguish
+	// them. Pass the real caller's id along or confirmation tokens would be
+	// bound to the catalog session and stay interchangeable between clients.
+	if id := tools.CallerID(req); id != "" {
+		params.Meta = mcp.Meta{tools.CallerIDMetaKey: id}
+	}
+	res, err := r.session.CallTool(ctx, params)
 	if err != nil {
 		return errorResult(fmt.Sprintf("calling %q failed: %v", name, err)), nil, nil
 	}
