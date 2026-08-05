@@ -27,6 +27,7 @@ For other install paths (Docker, pre-built binary, `go install`, source), see [I
 <a href="#installation">Install</a> •
 <a href="#configuration">Config</a> •
 <a href="#tool-loading-mode">Tool loading</a> •
+<a href="#wire-transport">Transport</a> •
 <a href="#write-operations">Write ops</a> •
 <a href="#demo">Demo</a> •
 <a href="#development">Dev</a> •
@@ -89,12 +90,20 @@ brew install ionos-cloud/ionos-cloud/ionoscloud-mcp
 docker pull ghcr.io/ionos-cloud/ionoscloud-mcp:latest
 ```
 
-Run with the MCP stdio transport:
+Run with the MCP stdio transport (default):
 
 ```bash
 docker run -i --rm \
   -e IONOS_TOKEN="$IONOS_TOKEN" \
   ghcr.io/ionos-cloud/ionoscloud-mcp
+```
+
+Or over HTTP (see [Wire transport](#wire-transport)):
+
+```bash
+docker run --rm -p 8080:8080 \
+  -e IONOS_TOKEN="$IONOS_TOKEN" \
+  ghcr.io/ionos-cloud/ionoscloud-mcp --transport http --http-addr :8080
 ```
 
 ### Smithery
@@ -196,6 +205,21 @@ The server logs the effective mode and its source (flag / env / default) to stde
 ```
 
 **Tool-count limits:** Windsurf caps connected MCP servers at 100 tools combined; Cursor caps at ~40 across all servers. With the default eager mode the server exceeds both. On Windsurf, `lazy` keeps the startup surface small enough; on Cursor (or any cap-limited client without its own tool search), use `dynamic` to present just three tools. For more information, see [Selective Tool Loading](https://docs.ionos.com/cloud/ai/mcp-server/configuration/selective-tool-loading).
+
+## Wire transport
+
+The server speaks stdio by default — the mode every subprocess-spawning MCP client expects (Claude Desktop, Claude Code, Cursor, Windsurf, etc.). For remote or networked deployments (e.g. running the server centrally and pointing multiple clients at it), switch to the [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http) with `--transport http` or `IONOS_MCP_TRANSPORT=http`; **the flag wins if both are set**.
+
+```bash
+./ionoscloud-mcp --transport http --http-addr :8080
+```
+
+- `--transport <stdio|http>` (or `IONOS_MCP_TRANSPORT`) — selects the transport. Unrecognised values fall back to `stdio` with a warning.
+- `--http-addr <addr>` (or `IONOS_MCP_HTTP_ADDR`) — listen address for the HTTP transport. Default `:8080` (all interfaces); use `127.0.0.1:8080` for local-only. Ignored for stdio.
+
+The server logs the effective transport and its source to stderr at startup, e.g. `transport: http (source: --transport flag)`.
+
+In HTTP mode, point your MCP client at `http://<host>:<port>/` as a Streamable HTTP server. There is no built-in TLS or authentication for the HTTP endpoint itself — put it behind a reverse proxy (e.g. nginx, Caddy) if it needs to be reachable outside a trusted network. `IONOS_TOKEN` and the other IONOS CLOUD credentials still authenticate the server's own calls to the IONOS API regardless of transport.
 
 ## Write operations
 

@@ -48,6 +48,47 @@ func TestResolveLoadMode(t *testing.T) {
 	}
 }
 
+func TestResolveTransport(t *testing.T) {
+	tests := []struct {
+		name       string
+		flag       string
+		env        string
+		wantMode   Transport
+		wantSource transportSource
+	}{
+		// Precedence.
+		{name: "both empty -> default stdio", flag: "", env: "", wantMode: TransportStdio, wantSource: transportSourceDefault},
+		{name: "env only", flag: "", env: "http", wantMode: TransportHTTP, wantSource: transportSourceEnv},
+		{name: "flag only", flag: "http", env: "", wantMode: TransportHTTP, wantSource: transportSourceFlag},
+		{name: "flag beats env", flag: "http", env: "stdio", wantMode: TransportHTTP, wantSource: transportSourceFlag},
+		{name: "blank flag falls through to env", flag: "  ", env: "http", wantMode: TransportHTTP, wantSource: transportSourceEnv},
+
+		// Values.
+		{name: "stdio", flag: "stdio", wantMode: TransportStdio, wantSource: transportSourceFlag},
+		{name: "http", flag: "http", wantMode: TransportHTTP, wantSource: transportSourceFlag},
+
+		// Normalization.
+		{name: "uppercase", flag: "HTTP", wantMode: TransportHTTP, wantSource: transportSourceFlag},
+		{name: "whitespace", env: " Http ", wantMode: TransportHTTP, wantSource: transportSourceEnv},
+
+		// Fallbacks (still report the input source; parseTransport warns).
+		{name: "unknown -> stdio", flag: "sse", wantMode: TransportStdio, wantSource: transportSourceFlag},
+		{name: "unknown env -> stdio", env: "bogus", wantMode: TransportStdio, wantSource: transportSourceEnv},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotMode, gotSource := resolveTransport(tt.flag, tt.env)
+			if gotMode != tt.wantMode {
+				t.Errorf("resolveTransport(%q, %q) mode = %q, want %q", tt.flag, tt.env, gotMode, tt.wantMode)
+			}
+			if gotSource != tt.wantSource {
+				t.Errorf("resolveTransport(%q, %q) source = %q, want %q", tt.flag, tt.env, gotSource, tt.wantSource)
+			}
+		})
+	}
+}
+
 func TestResolveVersion(t *testing.T) {
 	tests := []struct {
 		name string

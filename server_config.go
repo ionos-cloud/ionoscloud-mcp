@@ -4,6 +4,14 @@ import (
 	"log"
 	"runtime/debug"
 	"strings"
+	"time"
+)
+
+const (
+	// httpSessionTimeout closes sessions that stop sending requests
+	httpSessionTimeout = 30 * time.Minute
+	// httpReadHeaderTimeout bounds how long a client may take to send its headers
+	httpReadHeaderTimeout = 10 * time.Second
 )
 
 const serverName = "ionos-cloud-mcp"
@@ -108,6 +116,66 @@ const (
 	sourceEnv     loadModeSource = "IONOS_MCP_LOAD_MODE env"
 	sourceDefault loadModeSource = "default"
 )
+
+// Transport selects how the server communicates with MCP clients.
+type Transport string
+
+const (
+	// TransportStdio serves the MCP protocol over stdin/stdout. Default —
+	// required by clients that spawn the server as a subprocess (Claude
+	// Desktop, Claude Code, Cursor, Windsurf, etc.).
+	TransportStdio Transport = "stdio"
+
+	// TransportHTTP serves the MCP protocol over the Streamable HTTP
+	// transport (a single endpoint accepting POSTed JSON-RPC and, for
+	// server->client streaming, text/event-stream). For remote/networked
+	// deployments where the client connects over HTTP rather than spawning
+	// a subprocess.
+	TransportHTTP Transport = "http"
+)
+
+// transportSource describes where an effective transport came from, for
+// startup diagnostics. It does not imply the provided value was valid —
+// parseTransport logs a warning when it falls back to stdio.
+type transportSource string
+
+const (
+	transportSourceFlag    transportSource = "--transport flag"
+	transportSourceEnv     transportSource = "IONOS_MCP_TRANSPORT env"
+	transportSourceDefault transportSource = "default"
+)
+
+// resolveTransport picks the wire transport from, in priority order, the
+// --transport flag value, the IONOS_MCP_TRANSPORT env value, then the
+// default (stdio). Each input may be empty (meaning "not provided"). It is a
+// pure function so the precedence rules can be unit-tested; callers pass the
+// flag value and os.Getenv("IONOS_MCP_TRANSPORT"). The returned source
+// reflects which input supplied the value (even if that value was invalid
+// and fell back to stdio — parseTransport logs that case).
+func resolveTransport(flagVal, envVal string) (Transport, transportSource) {
+	if strings.TrimSpace(flagVal) != "" {
+		return parseTransport(flagVal), transportSourceFlag
+	}
+	if strings.TrimSpace(envVal) != "" {
+		return parseTransport(envVal), transportSourceEnv
+	}
+	return TransportStdio, transportSourceDefault
+}
+
+// parseTransport normalizes (lowercase + trim) and validates a transport
+// string. Any unrecognised value logs an actionable warning and falls back
+// to stdio.
+func parseTransport(raw string) Transport {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "stdio":
+		return TransportStdio
+	case "http":
+		return TransportHTTP
+	default:
+		log.Printf("unrecognised transport %q; valid values: stdio, http; falling back to stdio", raw)
+		return TransportStdio
+	}
+}
 
 // resolveLoadMode picks the tool registration strategy from, in priority order,
 // the --load-mode flag value, the IONOS_MCP_LOAD_MODE env value, then the
