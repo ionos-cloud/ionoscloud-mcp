@@ -777,6 +777,51 @@ func TestUpdateNatGatewayCarriesRequiredFields(t *testing.T) {
 	}
 }
 
+// TestUpdateNatGatewayEmptyLansIsForwarded pins the asymmetry between the two list
+// fields, which is deliberate and matches the spec: public_ips is required, so an
+// empty list is refused before any call; lans is optional, so an empty list is a
+// legal state and must reach the API rather than being swallowed or rejected.
+// Confirmed live (2026-08-05): the gateway went AVAILABLE with lans: [].
+func TestUpdateNatGatewayEmptyLansIsForwarded(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(natAPI+"/gw-1", `{"id":"gw-1","properties":{
+		"name":"egress","publicIps":["1.2.3.4"],"lans":[{"id":2,"gatewayIps":["10.0.2.1/24"]}]}}`)
+
+	res := callTool(t, h, "update_nat_gateway", map[string]any{
+		"datacenter_id": dcID, "natgateway_id": "gw-1", "lans": []map[string]any{},
+	})
+	if res.IsError {
+		t.Fatalf("an empty lans list is a valid state and must not be refused: %s", resultText(res))
+	}
+	reqs := h.log.allRequests()
+	patch := reqs[len(reqs)-1]
+	// Sent as [], not omitted: omitting it would carry the current LANs forward and
+	// silently ignore what the caller asked for.
+	if !strings.Contains(patch.Body, `"lans":[]`) {
+		t.Errorf("PATCH must send lans as an empty list, not omit it:\n%s", patch.Body)
+	}
+	if strings.Contains(patch.Body, `"id":2`) {
+		t.Errorf("the current LAN must not be carried forward when lans is explicitly empty:\n%s", patch.Body)
+	}
+}
+
+// TestUpdateNatGatewayEmptyPublicIpsIsRefused is the other half of that asymmetry.
+func TestUpdateNatGatewayEmptyPublicIpsIsRefused(t *testing.T) {
+	h := destructiveSetup(t)
+	res := callTool(t, h, "update_nat_gateway", map[string]any{
+		"datacenter_id": dcID, "natgateway_id": "gw-1", "public_ips": []string{},
+	})
+	if !res.IsError {
+		t.Fatal("a gateway with no public IP has nothing to translate to; want a refusal")
+	}
+	if out := resultText(res); !strings.Contains(out, "omit the field entirely") {
+		t.Errorf("refusal should name the way out:\n%s", out)
+	}
+	if n := len(h.log.allRequests()); n != 0 {
+		t.Errorf("the refusal must land before any API call, got %d requests", n)
+	}
+}
+
 func TestCreateNatGatewayRuleTwoPhase(t *testing.T) {
 	h := destructiveSetup(t)
 	preview, res := previewThenExecute(t, h, "create_nat_gateway_rule", map[string]any{

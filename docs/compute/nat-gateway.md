@@ -95,11 +95,16 @@ Lists all rules of a specific NAT gateway.
 
 ## Omitted fields and list fields
 
-Every `update_*` tool here applies a **partial update**: send only the properties you want to
-change, and anything you omit keeps its current value. That holds for the properties the API
-marks required too — you do not need to repeat them just to change something else.
+Every `update_*` tool here applies a **partial update** (an HTTP `PATCH`): send only the
+properties you want to change, and anything you omit keeps its current value. That holds for the
+properties the API marks required too — you do not need to repeat them just to change something
+else.
 
-Lists behave differently from single values. Supplying `targets`, `http_rules`,
-`server_certificates`, `public_ips` or `lans` **replaces** that list, so include every entry
-the resource should keep. Omitting the field leaves the current list untouched. An explicit
-empty list is rejected rather than applied, so a backend pool cannot be emptied by accident.
+Lists behave differently from single values. Supplying `public_ips` or `lans` **replaces** that
+whole list, so include every entry the gateway should keep; omitting the field leaves the current
+list untouched. An explicit empty `public_ips` is rejected rather than applied, since a gateway
+with no public address has nothing to translate to. An empty `lans` is accepted — `lans` is
+optional, so a gateway with no LANs is a valid state. It carries no traffic in that state, and
+its rules keep reporting `state: AVAILABLE` even though nothing routes through them, so check
+`lans` on the gateway itself rather than trusting a rule's state. Send the field only when you
+mean to set the complete list.

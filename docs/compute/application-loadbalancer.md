@@ -95,11 +95,13 @@ Lists all forwarding rules of an application load balancer.
 
 ## Omitted fields and list fields
 
-Every `update_*` tool here applies a **partial update**: send only the properties you want to
-change, and anything you omit keeps its current value. That holds for the properties the API
-marks required too — you do not need to repeat them just to change something else.
+Every `update_*` tool here applies a **partial update** (an HTTP `PATCH`): send only the
+properties you want to change, and anything you omit keeps its current value. That holds for the
+properties the API marks required too — you do not need to repeat them just to change something
+else.
 
-Lists behave differently from single values. Supplying `targets`, `http_rules`,
-`server_certificates`, `public_ips` or `lans` **replaces** that list, so include every entry
-the resource should keep. Omitting the field leaves the current list untouched. An explicit
-empty list is rejected rather than applied, so a backend pool cannot be emptied by accident.
+Lists behave differently from single values. Supplying `http_rules` or `server_certificates`
+**replaces** that whole list, so include every entry the rule should keep; omitting the field
+leaves the current list untouched. An explicit empty list is ignored rather than applied — it
+neither clears the list nor reports an error, so read the rule back with
+`get_alb_forwarding_rule` if you expected a change.
