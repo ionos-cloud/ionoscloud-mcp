@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterImageTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterImageTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_images",
 		Description: "List all available images (OS templates) in IONOS CLOUD",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListImagesInput) (*mcp.CallToolResult, any, error) {

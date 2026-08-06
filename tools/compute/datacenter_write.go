@@ -2,7 +2,6 @@ package compute
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -12,11 +11,7 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterDatacenterWriteTools registers the create/update/delete data center
-// tools. Each is gated by scope inside tools.RegisterTool (create/update need
-// write, delete needs destructive), so they never appear in tools/list unless
-// IONOS_MCP_TOOL_SCOPE opts in. create and delete share one confirmation store
-// so their two-phase preview->execute flow is consistent across load modes.
+// RegisterDatacenterWriteTools registers the create/update/delete data center tools.
 func RegisterDatacenterWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateDatacenter(server, client, scope, confirm)
 	registerUpdateDatacenter(server, client, scope)
@@ -36,12 +31,12 @@ func registerCreateDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 		if location == "" {
 			return tools.ErrorText("location is required to create a data center (e.g. de/fra)"), nil, nil
 		}
-		target := name + "|" + location
+		target := tools.Target(req, name, location)
 
 		// Phase 2: token present -> validate and execute.
-		if input.ConfirmationToken != nil && *input.ConfirmationToken != "" {
+		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_datacenter", target); err != nil {
-				return tools.ErrorText(createConfirmError(err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_datacenter", "name and location", err)), nil, nil
 			}
 			props := ionos.NewDatacenterPropertiesPost(location)
 			props.SetName(name)
@@ -77,7 +72,9 @@ func registerUpdateDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 		if input.Name == nil && input.Description == nil && input.SecAuthProtection == nil {
 			return tools.ErrorText("nothing to update: provide at least one of name, description, sec_auth_protection"), nil, nil
 		}
-		props := ionos.NewDatacenterPropertiesPutWithDefaults()
+		// A zero-valued literal rather than NewDatacenterPropertiesPutWithDefaults():
+		// see the "PATCH bodies" note in CLAUDE.md.
+		props := &ionos.DatacenterPropertiesPut{}
 		if input.Name != nil {
 			props.SetName(*input.Name)
 		}
@@ -101,17 +98,18 @@ func registerDeleteDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 		if id == "" {
 			return tools.ErrorText("datacenter_id is required"), nil, nil
 		}
+		target := tools.Target(req, id)
 
 		// Phase 2: token present -> validate and execute.
-		if input.ConfirmationToken != nil && *input.ConfirmationToken != "" {
-			if err := confirm.Consume(*input.ConfirmationToken, "delete_datacenter", id); err != nil {
-				return tools.ErrorText(deleteConfirmError(err)), nil, nil
+		if tools.HasToken(input.ConfirmationToken) {
+			if err := confirm.Consume(*input.ConfirmationToken, "delete_datacenter", target); err != nil {
+				return tools.ErrorText(tools.ConfirmErrorText("delete_datacenter", "datacenter_id", err)), nil, nil
 			}
 			_, err := client.DataCentersApi.DatacentersDelete(ctx, id).Execute()
 			if err != nil {
 				return tools.ToResult(nil, err)
 			}
-			return tools.TextResult(fmt.Sprintf("Deleted data center %s. Deletion is asynchronous; the API has accepted the request.", id)), nil, nil
+			return tools.TextResult(tools.DeletedAsync("data center", id)), nil, nil
 		}
 
 		// Phase 1: no token -> compute blast radius, preview, and mint a token.
@@ -122,126 +120,75 @@ func registerDeleteDatacenter(server *mcp.Server, client *ionos.APIClient, scope
 			}
 			return tools.ToResult(nil, err)
 		}
-		counts, total := datacenterBlastRadius(dc)
-		token, mErr := confirm.Mint("delete_datacenter", id)
+		radius := datacenterBlastRadius(dc)
+		token, mErr := confirm.Mint("delete_datacenter", target)
 		if mErr != nil {
 			return nil, nil, mErr
 		}
-		return tools.TextResult(formatDeletePreview(dc, id, counts, total, token)), nil, nil
+		return tools.TextResult(formatDeletePreview(dc, id, radius, token)), nil, nil
 	})
-}
-
-// labeledCount is one line of a blast-radius preview.
-type labeledCount struct {
-	label string
-	count int
 }
 
 // datacenterBlastRadius counts the resources a delete would destroy, from a
 // datacenter fetched at depth 2 (which populates the direct child collections).
-// It returns per-category counts (non-zero only) and the total.
-func datacenterBlastRadius(dc ionos.Datacenter) ([]labeledCount, int) {
-	var counts []labeledCount
-	total := 0
+func datacenterBlastRadius(dc ionos.Datacenter) *tools.BlastRadius {
+	r := tools.DestroyedRadius()
 	e := dc.Entities
 	if e == nil {
-		return counts, 0
-	}
-	add := func(label string, n int) {
-		if n > 0 {
-			counts = append(counts, labeledCount{label: label, count: n})
-			total += n
-		}
+		return r
 	}
 	if e.Servers != nil {
-		add("servers", len(e.Servers.Items))
+		r.Add("servers", len(e.Servers.Items))
 	}
 	if e.Volumes != nil {
-		add("volumes", len(e.Volumes.Items))
+		r.Add("volumes", len(e.Volumes.Items))
 	}
 	if e.Loadbalancers != nil {
-		add("load balancers", len(e.Loadbalancers.Items))
+		r.Add("load balancers", len(e.Loadbalancers.Items))
 	}
 	if e.Lans != nil {
-		add("LANs", len(e.Lans.Items))
+		r.Add("LANs", len(e.Lans.Items))
 	}
 	if e.Networkloadbalancers != nil {
-		add("network load balancers", len(e.Networkloadbalancers.Items))
+		r.Add("network load balancers", len(e.Networkloadbalancers.Items))
 	}
 	if e.Natgateways != nil {
-		add("NAT gateways", len(e.Natgateways.Items))
+		r.Add("NAT gateways", len(e.Natgateways.Items))
 	}
 	if e.Securitygroups != nil {
-		add("security groups", len(e.Securitygroups.Items))
+		r.Add("security groups", len(e.Securitygroups.Items))
 	}
-	return counts, total
+	return r
 }
 
 func formatCreatePreview(in tools.CreateDatacenterInput, name, location, token string) string {
-	var b strings.Builder
-	b.WriteString("About to CREATE one data center:\n")
-	fmt.Fprintf(&b, "  name:     %s\n", name)
-	fmt.Fprintf(&b, "  location: %s\n", location)
-	if in.Description != nil && *in.Description != "" {
-		fmt.Fprintf(&b, "  description: %s\n", *in.Description)
-	}
-	if in.SecAuthProtection != nil {
-		fmt.Fprintf(&b, "  sec_auth_protection: %t\n", *in.SecAuthProtection)
-	}
-	b.WriteString("\nThis creates exactly one data center. To proceed, call create_datacenter again with the same name and location plus:\n")
-	fmt.Fprintf(&b, "  confirmation_token: %s\n", token)
-	fmt.Fprintf(&b, "The token authorizes creating only this name+location and expires in %s.", tools.ConfirmationTTL)
-	return b.String()
+	return tools.Preview{
+		Headline: "About to CREATE one data center:",
+		Fields: tools.Fields(
+			"name", name,
+			"location", location,
+			"description", tools.OptStr(in.Description),
+			"sec_auth_protection", tools.OptBool(in.SecAuthProtection),
+		),
+		Tool:      "create_datacenter",
+		Replay:    tools.Fields("name", name, "location", location),
+		TokenNote: "This creates exactly one data center. The token authorizes creating only this name+location",
+	}.Render(token)
 }
 
-func formatDeletePreview(dc ionos.Datacenter, id string, counts []labeledCount, total int, token string) string {
+func formatDeletePreview(dc ionos.Datacenter, id string, radius *tools.BlastRadius, token string) string {
 	props := dc.GetProperties()
-	name := props.GetName()
-	location := props.GetLocation()
-
-	var b strings.Builder
-	b.WriteString("About to DELETE a data center and everything inside it. This is IRREVERSIBLE.\n")
-	fmt.Fprintf(&b, "  id:       %s\n", id)
-	if name != "" {
-		fmt.Fprintf(&b, "  name:     %s\n", name)
-	}
-	if location != "" {
-		fmt.Fprintf(&b, "  location: %s\n", location)
-	}
-	if total == 0 {
-		b.WriteString("\nThis data center is empty; deleting removes only the (empty) data center itself.\n")
-	} else {
-		b.WriteString("\nContained resources that will be destroyed:\n")
-		for _, c := range counts {
-			fmt.Fprintf(&b, "  - %d %s\n", c.count, c.label)
-		}
-		fmt.Fprintf(&b, "Total resources that will be destroyed: %d\n", total)
-	}
-	b.WriteString("\nTo proceed, call delete_datacenter again with:\n")
-	fmt.Fprintf(&b, "  datacenter_id: %s\n", id)
-	fmt.Fprintf(&b, "  confirmation_token: %s\n", token)
-	fmt.Fprintf(&b, "This token authorizes deleting ONLY this data center and expires in %s.", tools.ConfirmationTTL)
-	return b.String()
-}
-
-func createConfirmError(err error) string {
-	switch {
-	case errors.Is(err, tools.ErrTokenMismatch):
-		return "confirmation_token was issued for a different name/location; re-run create_datacenter with only name and location to preview and get a fresh token"
-	case errors.Is(err, tools.ErrTokenExpired):
-		return "confirmation_token expired; re-run create_datacenter with only name and location for a fresh preview and token"
-	default: // ErrTokenUnknown
-		return "confirmation_token not recognized (already used or never issued); re-run create_datacenter with only name and location for a preview and token"
-	}
-}
-
-func deleteConfirmError(err error) string {
-	switch {
-	case errors.Is(err, tools.ErrTokenMismatch):
-		return "confirmation_token was issued for a different data center; re-run delete_datacenter with only datacenter_id to preview THIS one and get a fresh token"
-	case errors.Is(err, tools.ErrTokenExpired):
-		return "confirmation_token expired; re-run delete_datacenter with only datacenter_id for a fresh preview and token"
-	default: // ErrTokenUnknown
-		return "confirmation_token not recognized (already used or never issued); re-run delete_datacenter with only datacenter_id for a preview and token"
-	}
+	return tools.Preview{
+		Headline: "About to DELETE a data center and everything inside it. This is IRREVERSIBLE.",
+		Fields: tools.Fields(
+			"id", id,
+			"name", props.GetName(),
+			"location", props.GetLocation(),
+		),
+		Radius:    radius,
+		EmptyNote: "This data center is empty; deleting removes only the (empty) data center itself.",
+		Tool:      "delete_datacenter",
+		Replay:    tools.Fields("datacenter_id", id),
+		TokenNote: "This token authorizes deleting ONLY this data center",
+	}.Render(token)
 }

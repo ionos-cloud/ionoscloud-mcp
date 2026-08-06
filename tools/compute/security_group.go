@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_security_groups",
 		Description: "List all security groups in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(sgs, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_security_group",
 		Description: "Get details of a specific security group",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SecurityGroupIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(sg, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_security_group_rules",
 		Description: "List all rules in a specific security group",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListSecurityGroupRulesInput) (*mcp.CallToolResult, any, error) {
@@ -54,7 +54,7 @@ func RegisterSecurityGroupTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(rules, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_security_group_rule",
 		Description: "Get details of a specific security group rule",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SecurityGroupRuleIDInput) (*mcp.CallToolResult, any, error) {

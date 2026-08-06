@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_requests",
 		Description: "List all API requests in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListRequestsInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(requests, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_request",
 		Description: "Get details of a specific API request",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.RequestIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterRequestTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(request, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_request_status",
 		Description: "Get the status of a specific API request",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.RequestIDInput) (*mcp.CallToolResult, any, error) {

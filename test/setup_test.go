@@ -340,3 +340,45 @@ func setupWithScope(t *testing.T, scope tools.Scope) *testSetup {
 		resp:    resp,
 	}
 }
+
+// computeOnlyTools registers ONLY the compute product on a throwaway server and
+// returns exactly the tools it registered, at the given scope. Unlike
+// setupWithScope (which registers every product), this isolates one product so a
+// test can make an exhaustive per-product assertion without name heuristics.
+// Registration never calls the API, so no backend is needed.
+func computeOnlyTools(t *testing.T, ctx context.Context, scope tools.Scope) []*mcp.Tool {
+	t.Helper()
+
+	client := ionos.NewAPIClient(&shared.Configuration{
+		Token:              "test-token",
+		DefaultHeader:      map[string]string{},
+		DefaultQueryParams: make(map[string][]string),
+		Servers:            shared.ServerConfigurations{{URL: "http://127.0.0.1:0", Description: "unused"}},
+		OperationServers:   map[string]shared.ServerConfigurations{},
+	})
+
+	srv := mcp.NewServer(&mcp.Implementation{Name: "compute-only", Version: "test"}, nil)
+	compute.RegisterAll(srv, client, scope, tools.NewConfirmationStore())
+
+	ct, st := mcp.NewInMemoryTransports()
+	ss, err := srv.Connect(ctx, st, nil)
+	if err != nil {
+		t.Fatalf("compute-only server.Connect failed: %v", err)
+	}
+	t.Cleanup(func() { ss.Close() })
+
+	cs, err := mcp.NewClient(&mcp.Implementation{Name: "compute-only-reader", Version: "test"}, nil).Connect(ctx, ct, nil)
+	if err != nil {
+		t.Fatalf("compute-only client.Connect failed: %v", err)
+	}
+	t.Cleanup(func() { cs.Close() })
+
+	var out []*mcp.Tool
+	for tool, err := range cs.Tools(ctx, nil) {
+		if err != nil {
+			t.Fatalf("listing compute-only tools: %v", err)
+		}
+		out = append(out, tool)
+	}
+	return out
+}

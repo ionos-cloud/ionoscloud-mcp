@@ -290,6 +290,55 @@ func TestDeleteDatacenterDynamicParity(t *testing.T) {
 	}
 }
 
+// TestEveryComputeToolIsAnnotated covers the annotation backfill exhaustively
+// for compute: every tool compute.RegisterAll registers must go through
+// tools.RegisterTool (or RegisterActionTool) and therefore carry annotations
+// matching its class. Before the migration the compute reads used bare
+// mcp.AddTool and carried no annotations at all, leaving clients unable to tell
+// a read from a mutation without parsing the name.
+//
+// It registers compute alone on a throwaway server so the assertion covers the
+// whole product exactly, with no name heuristics and no way for a newly added
+// compute file to slip through. The other products (DNS, billing, cert, k8s,
+// object storage) still use bare mcp.AddTool and are a separate migration.
+func TestEveryComputeToolIsAnnotated(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name  string
+		scope tools.Scope
+	}{
+		{"read-only", tools.Scope{}},
+		{"write", tools.Scope{Write: true}},
+		{"destructive", tools.Scope{Write: true, Destructive: true}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			seen := 0
+			for _, tool := range computeOnlyTools(t, ctx, tc.scope) {
+				seen++
+				if tool.Annotations == nil {
+					t.Errorf("compute tool %q has no annotations; it must register via tools.RegisterTool", tool.Name)
+					continue
+				}
+				// Annotations must agree with the tool's class, which is what
+				// clients use to decide whether to prompt before invoking.
+				wantReadOnly := tools.ClassFromName(tool.Name) == tools.ClassRead
+				if tool.Annotations.ReadOnlyHint != wantReadOnly {
+					t.Errorf("compute tool %q ReadOnlyHint = %v, want %v (class %s)",
+						tool.Name, tool.Annotations.ReadOnlyHint, wantReadOnly, tools.ClassFromName(tool.Name))
+				}
+				if tools.ClassFromName(tool.Name) == tools.ClassDestructive {
+					if d := tool.Annotations.DestructiveHint; d == nil || !*d {
+						t.Errorf("compute tool %q is destructive but DestructiveHint = %v", tool.Name, d)
+					}
+				}
+			}
+			if seen == 0 {
+				t.Fatal("no compute tools inspected; the assertion would pass vacuously")
+			}
+		})
+	}
+}
+
 func TestDynamicCallToolAnnotationReflectsScope(t *testing.T) {
 	ctx := context.Background()
 	find := func(h *testSetup) *mcp.Tool {

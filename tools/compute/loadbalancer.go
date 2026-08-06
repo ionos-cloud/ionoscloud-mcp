@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterLoadBalancerTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterLoadBalancerTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_loadbalancers",
 		Description: "List all load balancers in a data center",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListInDatacenterInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterLoadBalancerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(lbs, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_loadbalancer",
 		Description: "Get details of a specific load balancer",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.LoadBalancerIDInput) (*mcp.CallToolResult, any, error) {
@@ -38,7 +38,7 @@ func RegisterLoadBalancerTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(lb, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_loadbalancer_nics",
 		Description: "List all NICs balanced by a specific load balancer",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ListLoadBalancerNicsInput) (*mcp.CallToolResult, any, error) {

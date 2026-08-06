@@ -28,24 +28,16 @@ func ValidatePeriod(period string) error {
 	return ValidateDate(strings.TrimSpace(period) + "-01")
 }
 
-// sdkAPIError is the behavioural contract enrichSDKError needs from an IONOS
-// SDK error. It is matched by interface (not concrete type) on purpose: the
-// product SDKs return shared.GenericOpenAPIError *by value* from their API
-// methods (e.g. dns api_zones.go), so a *shared.GenericOpenAPIError target
-// would never bind via errors.As and 401s would silently pass through
-// un-enriched. Matching the interface binds both value and pointer forms.
+// sdkAPIError is what enrichSDKError needs from an SDK error. Matched by interface
+// so every product's generated error type works without importing them all.
 type sdkAPIError interface {
 	error
 	StatusCode() int
 	Body() []byte
 }
 
-// enrichSDKError augments IONOS SDK errors with actionable guidance for the
-// LLM. Only 401 is enriched — 403 is intentionally left alone because IONOS
-// returns 403 for several distinct cases (wrong contract, missing role,
-// resource-level ACL) that need separate guidance not yet researched.
-//
-// Non-SDK errors and other status codes pass through unchanged.
+// enrichSDKError turns an IONOS SDK error into actionable guidance, since the raw
+// message rarely says what to do about it.
 func enrichSDKError(apiErr error) string {
 	var sdkErr sdkAPIError
 	if !errors.As(apiErr, &sdkErr) {
@@ -102,19 +94,14 @@ func TextResult(text string) *mcp.CallToolResult {
 	}
 }
 
-// ErrorText wraps a message as an MCP text result flagged as an error
-// (IsError). Use it for actionable, user-facing failures (missing input,
-// confirmation-token problems) that are surfaced as tool content rather than a
-// transport-level error.
+// ErrorText wraps a message as an MCP result flagged as an error.
 func ErrorText(msg string) *mcp.CallToolResult {
 	r := TextResult(msg)
 	r.IsError = true
 	return r
 }
 
-// IsNotFound reports whether err is an IONOS SDK error carrying HTTP 404. It
-// matches by the same behavioural interface as enrichSDKError (the SDK returns
-// its error by value), so both value and pointer forms bind.
+// IsNotFound reports whether err is an SDK error carrying HTTP 404.
 func IsNotFound(err error) bool {
 	var sdkErr sdkAPIError
 	if !errors.As(err, &sdkErr) {
