@@ -35,7 +35,7 @@ Lists all available images (OS templates) in IONOS CLOUD.
 
 ## There is no create_image
 
-The API exposes no operation to create an image: public images come from IONOS, and private ones are uploaded out of band (FTP upload or the DCD). Only **private images you uploaded** can be updated or deleted — public IONOS images are read-only, and the API rejects attempts to modify them.
+The API exposes no operation to create an image: public images come from IONOS, and private ones are uploaded out of band ([ionosctl](https://github.com/ionos-cloud/ionosctl), FTP upload, or the DCD). Only **private images you uploaded** can be updated or deleted — public IONOS images are read-only, and the API rejects attempts to modify them.
 
 ---
 
