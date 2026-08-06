@@ -8,7 +8,7 @@
 
   Creating and deleting takes two calls: the first returns a preview of exactly what will change plus a one-time token, the second carries that token and executes. A delete preview also lists what else it affects — the servers and volumes inside a data center, the NICs on a LAN, the backends behind a forwarding rule.
 
-  > ⚠️ **These tools create real resources that cost real money, and deletions cannot be undone.** Read the warning in the README before enabling them. You are responsible for what you ask the model to do.
+  > ⚠️ These tools create real resources that cost money, and deletions cannot be undone. Read the warning in the README before enabling them. Enabling them is done at your own risk; IONOS Cloud is not responsible for actions the model takes as a result.
 
 - **`filters` parameter on all compute `list_*` tools**: every compute list tool now accepts an optional `filters` object (`{"property": "value"}` pairs) that is forwarded to the API as server-side query params, so only matching resources are returned. Useful for scoping large result sets by name, location, state, image type, and more without client-side post-processing. If a filter returns an empty result, retry without it — a typo or value mismatch silently returns nothing. Filterable properties vary by resource (e.g. `name`, `location`, `vmState`, `cpuFamily`, `imageType`).
 
