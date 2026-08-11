@@ -9,10 +9,10 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterClusterTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterClusterTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_k8s_clusters",
-		Description: "List all Kubernetes clusters in your IONOS CLOUD account",
+		Description: "List all Kubernetes clusters in your IONOS CLOUD account. Returns names and basic properties by default (depth=1).",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.ListK8sClustersInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
@@ -22,9 +22,10 @@ func RegisterClusterTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(clusters, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
-		Name:        "get_k8s_cluster",
-		Description: "Get details of a specific Kubernetes cluster",
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
+		Name: "get_k8s_cluster",
+		Description: "Get details of a specific Kubernetes cluster: state, version, maintenance window, API server allow list and whether it is public or private. " +
+			"Read this before an upgrade — availableUpgradeVersions lists the versions update_k8s_cluster accepts, and viableNodePoolVersions the ones its node pools may run.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.K8sClusterIDInput) (*mcp.CallToolResult, any, error) {
 		apiReq := client.KubernetesApi.K8sFindByClusterId(ctx, input.K8sClusterID)
 		if input.Depth != nil {
