@@ -134,12 +134,11 @@ func nodeIDs(input tools.K8sNodeActionInput) (clusterID, poolID, nodeID, errMsg 
 // inspectNodeDelete reports whether an autoscaler owns the pool's count, and why the
 // API would refuse the delete. The API's own refusal arrives only after a token is
 // spent and reads "last node can not be deleted from nodepool" even with nodes left;
-// the real rule is that the pool may not drop below its autoscaler minimum. A failed
-// read is not an error — the API stays the authority.
+// the real rule is that the pool may not drop below its autoscaler minimum.
 func inspectNodeDelete(ctx context.Context, client *ionos.APIClient, clusterID, poolID string) (autoscalerActive bool, blockMsg string) {
 	pool, _, err := client.KubernetesApi.K8sNodepoolsFindById(ctx, clusterID, poolID).Depth(1).Execute()
 	if err != nil {
-		return false, ""
+		return false, fmt.Sprintf("could not read node pool %s to check whether this delete is allowed (%v); retry the preview", poolID, err)
 	}
 	cp := pool.GetProperties()
 	count := cp.GetNodeCount()

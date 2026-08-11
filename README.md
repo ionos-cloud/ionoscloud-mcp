@@ -243,7 +243,7 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Networking | IP blocks (reserve and release only), security groups + rules, firewall rules, private cross connects |
 | Load balancing | classic, network and application load balancers + forwarding rules, target groups, NAT gateways + rules |
 | Images | snapshot and image update/delete |
-| Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations, taints), single nodes (recreate, delete) |
+| Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations), single nodes (recreate, delete) |
 
 Not available, because the Go SDK cannot build the request the API accepts: renaming an IP block, attaching a CD-ROM to a server, attaching a NIC to a classic load balancer, and detaching a LAN from a cross connect. Use `ionosctl`, the Terraform provider or the [DCD](https://dcd.ionos.com/) for those.
 

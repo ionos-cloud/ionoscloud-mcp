@@ -24,8 +24,8 @@ func RegisterNodepoolTools(server *mcp.Server, client *ionos.APIClient, scope to
 
 	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name: "get_k8s_nodepool",
-		Description: "Get details of a specific Kubernetes node pool: node count, node hardware, autoscaling bounds, attached LANs, labels, annotations and taints. " +
-			"Read this before calling update_k8s_nodepool with lans, labels, annotations, taints or public_ips, since each of those replaces the whole list. availableUpgradeVersions lists the versions the pool can move to.",
+		Description: "Get details of a specific Kubernetes node pool: node count, node hardware, autoscaling bounds, attached LANs, labels and annotations. " +
+			"Read this before calling update_k8s_nodepool with lans, labels, annotations or public_ips, since each of those replaces the whole list. availableUpgradeVersions lists the versions the pool can move to.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.K8sNodepoolIDInput) (*mcp.CallToolResult, any, error) {
 		apiReq := client.KubernetesApi.K8sNodepoolsFindById(ctx, input.K8sClusterID, input.NodepoolID)
 		if input.Depth != nil {

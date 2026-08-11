@@ -161,7 +161,8 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		Name: "update_k8s_nodepool",
 		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations or public IPs. The pool name and the per-node hardware are immutable. " +
 			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
-			"An autoscaler's bounds can be changed but it cannot be removed. Scaling down evicts what runs on the removed nodes, and a k8s_version change replaces every node one at a time." + asyncResourceNote,
+			"An autoscaler's bounds can be changed but it cannot be removed. " +
+			"BE CAREFUL with two of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, and lowering node_count drains the removed nodes and evicts their pods. Confirm both with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)
 		poolID := strings.TrimSpace(input.NodepoolID)

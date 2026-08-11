@@ -167,7 +167,7 @@ Deletes a Managed Kubernetes cluster. Requires `IONOS_MCP_TOOL_SCOPE` to include
 
 Two-phase: the first call returns a preview with a blast-radius summary (node pools and the worker nodes they are sized for) plus a one-time token; the second call carries the token and deletes.
 
-The preview lists the node pools and worker nodes the cluster would take with it, so you can delete them first with [`delete_k8s_nodepool`](nodepool.md#delete_k8s_nodepool) if you want to go step by step.
+The preview gives a count of the node pools and worker nodes the cluster would take with it — a summary, not a per-resource list. Delete the pools first with [`delete_k8s_nodepool`](nodepool.md#delete_k8s_nodepool) if you want to go step by step.
 
 **Parameters:**
 

@@ -137,7 +137,7 @@ func registerUpdateCluster(server *mcp.Server, client *ionos.APIClient, scope to
 		Name: "update_k8s_cluster",
 		Description: "Update a cluster's name, Kubernetes version, maintenance window, API server allow list or audit-log buckets. location, nat_gateway_ip, node_subnet and public are immutable. " +
 			"This endpoint replaces the cluster's properties, so fields you omit are read and sent back unchanged. api_subnet_allow_list and s3_buckets replace the current list when supplied. " +
-			"A k8s_version change upgrades the control plane, is not reversible, and only accepts a version from availableUpgradeVersions." + asyncResourceNote,
+			"BE CAREFUL with k8s_version: it upgrades the control plane and cannot be undone. Confirm the version with the user before sending it, and check the cluster's availableUpgradeVersions first — nothing else is accepted." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateK8sClusterInput) (*mcp.CallToolResult, any, error) {
 		id := strings.TrimSpace(input.K8sClusterID)
 		if id == "" {
@@ -221,7 +221,7 @@ func registerDeleteCluster(server *mcp.Server, client *ionos.APIClient, scope to
 	tools.RegisterTool(server, scope, tools.MethodDelete, &mcp.Tool{
 		Name: "delete_k8s_cluster",
 		Description: "Delete a Managed Kubernetes cluster. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview and a one-time token, then call again WITH the token to delete. This is irreversible. " +
-			"The preview lists the node pools and worker nodes it would take with it." + asyncResourceNote,
+			"The preview summarises how many node pools and worker nodes it would take with it." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteK8sClusterInput) (*mcp.CallToolResult, any, error) {
 		id := strings.TrimSpace(input.K8sClusterID)
 		if id == "" {

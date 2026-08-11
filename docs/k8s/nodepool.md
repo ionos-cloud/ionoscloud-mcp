@@ -28,7 +28,7 @@ of nodes, because they are handled one at a time:
 
 | Change | Roughly how long |
 |---|---|
-| Rename, maintenance window, labels, annotations | quick, but still asynchronous |
+| Maintenance window, labels, annotations | quick, but still asynchronous |
 | Create the pool | several minutes, proportional to `node_count` |
 | Scale up or down | one node provisioned or drained at a time |
 | `k8s_version` upgrade | **every node replaced, one at a time** — far longer than anything else here on a large pool |
@@ -158,11 +158,11 @@ The per-node hardware and `datacenter_id` are immutable and therefore not accept
 
 > **PUT semantics.** The underlying endpoint replaces the node pool's properties rather than patching them, so this tool reads the pool first and sends every omitted field back unchanged. This matters most for `node_count`: the SDK always serializes it, so without carry-forward a small unrelated change would send `nodeCount: 0` and drain the pool. Carried-forward LANs, labels and annotations likewise keep an unrelated change from detaching worker networking or losing scheduling metadata.
 >
-> Node **taints** are carried forward too, even though no tool accepts them: IONOS marks `taints` internal in the API spec, so it is not exposed here, but a pool may carry taints applied out of band and a replacing PUT would otherwise drop them and let workloads onto nodes meant to repel them.
+> Node **taints** are carried forward too, even though there is no `taints` parameter: IONOS marks the field internal in the API spec, so it is not exposed, but a pool may carry taints applied out of band and a replacing PUT would otherwise drop them.
 >
 > Two fields are deliberately **never** sent back, because a GET response is not always a legal PUT body: the pool **`name`** (the API rejects it as immutable) and an **inactive autoscaler** (a pool without one reads back as `{minNodeCount: 0, maxNodeCount: 0}`, which the API rejects on a write with `autoScaling.minNodeCount must be > 0`).
 
-> **The node pool name cannot be changed.** There is no `name` parameter here — the API refuses it. Recreate the pool under a new name if you need to rename it, or leave it and rely on `nodepool_id`.
+> **The node pool name cannot be changed.** There is no `name` parameter here — the API rejects it as immutable. Note the asymmetry: a *cluster* can be renamed with [`update_k8s_cluster`](cluster.md#update_k8s_cluster), a node pool cannot. Recreate the pool under a new name, or leave it and rely on `nodepool_id`.
 
 > **An autoscaler cannot be switched off.** Its bounds can be changed, but there is no request that removes one from an existing pool — the API answers `422` for zero bounds and silently ignores an omitted `autoScaling`, both verified against a live account. Passing zero bounds is therefore rejected with an explanation rather than accepted as a no-op. To end up with a fixed-size pool, delete this one and create a new pool without `auto_scaling`. This is an IONOS API limitation; `ionosctl` has the same gap.
 

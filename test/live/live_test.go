@@ -64,7 +64,7 @@ func session(t *testing.T) *mcp.ClientSession {
 	dns.RegisterAll(server, dnsSDK.NewAPIClient(cfg))
 	billing.RegisterAll(server, billSDK.NewAPIClient(cfg), "")
 	cert.RegisterAll(server, certSDK.NewAPIClient(cfg))
-	k8s.RegisterAll(server, computeSDK.NewAPIClient(cfg))
+	k8s.RegisterAll(server, computeSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	objectstorage.RegisterAll(server, objstSDK.NewAPIClient(cfg), objmgmtSDK.NewAPIClient(cfg), cfg)
 
 	ct, st := mcp.NewInMemoryTransports()

@@ -591,6 +591,24 @@ func TestUpdateK8sNodepoolValidatesAgainstCarriedForwardState(t *testing.T) {
 	}
 }
 
+// TestDeleteK8sNodePreviewFailsOnUnreadablePool pins fail-closed behaviour: without the
+// pool we cannot check the autoscaler minimum, so no token may be minted.
+func TestDeleteK8sNodePreviewFailsOnUnreadablePool(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(k8sNodePath(), nodeFixture)
+	h.resp.serveStatus(k8sPoolPath(), http.StatusInternalServerError, `{"messages":[{"message":"boom"}]}`)
+
+	res := callTool(t, h, "delete_k8s_node", map[string]any{
+		"k8s_cluster_id": k8sClusterID, "nodepool_id": k8sPoolID, "node_id": k8sNodeID,
+	})
+	if !res.IsError {
+		t.Fatalf("an unreadable pool must fail the preview, got: %s", resultText(res))
+	}
+	if strings.Contains(resultText(res), "confirmation_token") {
+		t.Error("no token may be minted when the pool cannot be read")
+	}
+}
+
 // TestUpdateK8sNodepoolRejectsAutoScalingDisable pins a capability that deliberately
 // does not ship. Turning an existing autoscaler off has no working request body: the
 // API answers 422 for zero bounds and silently ignores an omitted field, both verified
