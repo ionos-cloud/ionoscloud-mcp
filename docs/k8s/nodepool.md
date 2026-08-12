@@ -119,10 +119,9 @@ The cluster must already be `ACTIVE`, and `datacenter_id` must name a data cente
 | `k8s_version` | string | No | Worker node version; defaults to the cluster's. Must be one of the cluster's `viableNodePoolVersions` |
 | `maintenance_window` | object | No | `{ "day_of_the_week": "Saturday", "time": "03:00:00" }`. Node maintenance replaces nodes one at a time |
 | `auto_scaling` | object | No | `{ "min_node_count": 1, "max_node_count": 5 }`. Omit for a fixed-size pool |
-| `lans` | object[] | No | Private LANs to attach: `{ "id": 3, "dhcp": true, "routes": [{ "network": "10.0.0.0/24", "gateway_ip": "10.0.0.1" }] }` |
+| `lans` | object[] | No | Existing private LANs to attach: `{ "id": 3, "dhcp": true, "routes": [{ "network": "10.0.0.0/24", "gateway_ip": "10.0.0.1" }] }`. Inside a route, `network` and `gateway_ip` are each optional, but an entry with neither is rejected |
 | `labels` | object | No | Kubernetes labels on every node, as key-value pairs |
 | `annotations` | object | No | Kubernetes annotations on every node, as key-value pairs |
-| `lans[].routes` | object[] | No | Static routes on the LAN interface: `{ "network": "10.0.0.0/24", "gateway_ip": "10.0.0.1" }`. Both fields are optional individually; an entry with neither is rejected |
 | `public_ips` | string[] | No | Reserved public IPs (`list_ip_blocks`), all from the pool's data center location. Needs **one more** than the maximum node count (`node_count`+1, or `max_node_count`+1 with autoscaling) — the spare covers a node being rebuilt |
 | `confirmation_token` | string | No | Omit on the first call; pass the token returned by the preview on the second |
 
