@@ -1265,6 +1265,125 @@ type K8sNodeIDInput struct {
 	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5)"`
 }
 
+// Kubernetes write input types. Both update endpoints are PUT, not PATCH, so the
+// update tools read the resource first and carry forward whatever is not supplied.
+
+// K8sMaintenanceWindowInput is the weekly maintenance window.
+type K8sMaintenanceWindowInput struct {
+	DayOfTheWeek string `json:"day_of_the_week" jsonschema:"the weekday the window opens: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday or Sunday"`
+	Time         string `json:"time" jsonschema:"the time the window opens, as HH:mm:ss (e.g. 03:30:00), optionally suffixed with Z. The actual start may vary by up to 15 minutes."`
+}
+
+// K8sAutoScalingInput turns the cluster autoscaler on. Once set it owns the node count.
+type K8sAutoScalingInput struct {
+	MinNodeCount int32 `json:"min_node_count" jsonschema:"the fewest worker nodes the autoscaler may scale down to. Must be at least 1."`
+	MaxNodeCount int32 `json:"max_node_count" jsonschema:"the most worker nodes the autoscaler may scale up to. Must be greater than or equal to min_node_count."`
+}
+
+// K8sNodePoolLanRouteInput is one static route. Both fields are optional per the spec.
+type K8sNodePoolLanRouteInput struct {
+	Network   *string `json:"network,omitempty" jsonschema:"the IPv4 or IPv6 CIDR to route via this interface (e.g. 10.0.0.0/24)"`
+	GatewayIp *string `json:"gateway_ip,omitempty" jsonschema:"the IPv4 or IPv6 gateway IP for the route"`
+}
+
+// K8sNodePoolLanInput attaches an existing private LAN to the worker nodes.
+type K8sNodePoolLanInput struct {
+	ID     int32                      `json:"id" jsonschema:"the numeric LAN ID of an existing LAN in the node pool's data center"`
+	Dhcp   *bool                      `json:"dhcp,omitempty" jsonschema:"whether the worker nodes reserve an IP on this LAN via DHCP"`
+	Routes []K8sNodePoolLanRouteInput `json:"routes,omitempty" jsonschema:"static routes to add on this LAN interface"`
+}
+
+// There is deliberately no taint input: the spec marks node pool `taints` x-internal,
+// like `vnet` and `placementGroupId`, which this repo never exposes.
+
+// CreateK8sClusterInput is the input for create_k8s_cluster. Two-phase confirmed.
+type CreateK8sClusterInput struct {
+	Name               string                     `json:"name" jsonschema:"the name of the new cluster: 63 characters or fewer, beginning and ending with an alphanumeric character, with dashes, underscores, dots and alphanumerics between"`
+	K8sVersion         *string                    `json:"k8s_version,omitempty" jsonschema:"the Kubernetes version the control plane runs, e.g. 1.31.2. Omit to take the account default (get_k8s_default_version); list the choices with list_k8s_versions. This caps which versions the cluster's node pools may run."`
+	MaintenanceWindow  *K8sMaintenanceWindowInput `json:"maintenance_window,omitempty" jsonschema:"the weekly window in which IONOS may apply control-plane maintenance. Omit to let IONOS choose one."`
+	Public             *bool                      `json:"public,omitempty" jsonschema:"whether the Kubernetes API server is reachable from the internet. Defaults to true. Setting it to false creates a private cluster, which also requires location and nat_gateway_ip. PRERELEASE at IONOS, along with the three fields below — expect it to be unavailable on some contracts."`
+	Location           *string                    `json:"location,omitempty" jsonschema:"the location of a private cluster, e.g. de/fra. Mandatory when public is false, optional otherwise, and immutable either way. The location must be enabled for your contract or already hold a data center of yours. Prerelease."`
+	NatGatewayIp       *string                    `json:"nat_gateway_ip,omitempty" jsonschema:"the NAT gateway IP of a private cluster. Mandatory when public is false and immutable. Must be an IP you have already reserved (see list_ip_blocks) in the same location as the cluster. Prerelease."`
+	NodeSubnet         *string                    `json:"node_subnet,omitempty" jsonschema:"the node subnet of a private cluster in CIDR notation with a 16-bit prefix, e.g. 10.0.0.0/16. Optional and immutable. Prerelease."`
+	ApiSubnetAllowList []string                   `json:"api_subnet_allow_list,omitempty" jsonschema:"restrict access to the Kubernetes API server to these IPs or CIDRs. Traffic inside the cluster is unaffected. A bare IP is treated as /32 (IPv4) or /128 (IPv6). Omit to leave API server access unrestricted."`
+	S3Buckets          []string                   `json:"s3_buckets,omitempty" jsonschema:"names of already-existing Object Storage buckets for Kubernetes use. At most one, which receives the Kubernetes API audit logs. Only the name is sent: IONOS writes the logs itself, so no Object Storage credentials are involved here."`
+	ConfirmationToken  *string                    `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same name and location) to actually create the cluster. The token expires after a few minutes."`
+}
+
+// UpdateK8sClusterInput is the input for update_k8s_cluster. Single call. Omitted
+// fields are carried forward; dropping api_subnet_allow_list would expose the API
+// server. location, nat_gateway_ip, node_subnet and public are immutable and absent.
+type UpdateK8sClusterInput struct {
+	K8sClusterID       string                     `json:"k8s_cluster_id" jsonschema:"the ID of the cluster to update"`
+	Name               *string                    `json:"name,omitempty" jsonschema:"a new cluster name. Omit to keep the current one."`
+	K8sVersion         *string                    `json:"k8s_version,omitempty" jsonschema:"a Kubernetes version to upgrade the control plane to. Omit to keep the current one. Only the versions in the cluster's availableUpgradeVersions (see get_k8s_cluster) are accepted, and upgrading is not reversible."`
+	MaintenanceWindow  *K8sMaintenanceWindowInput `json:"maintenance_window,omitempty" jsonschema:"a new maintenance window. Omit to keep the current one."`
+	ApiSubnetAllowList []string                   `json:"api_subnet_allow_list,omitempty" jsonschema:"REPLACE the Kubernetes API server allow list with these IPs or CIDRs. Include every entry that should remain — any you leave out loses access. Omit the field to keep the current list; pass an empty array to remove the restriction entirely and expose the API server to any source."`
+	S3Buckets          []string                   `json:"s3_buckets,omitempty" jsonschema:"REPLACE the Object Storage buckets configured for Kubernetes use, by name; they must already exist. Omit the field to keep the current ones; pass an empty array to detach them and stop audit-log delivery."`
+}
+
+// DeleteK8sClusterInput is the input for delete_k8s_cluster. Two-phase confirmed.
+type DeleteK8sClusterInput struct {
+	K8sClusterID      string  `json:"k8s_cluster_id" jsonschema:"the ID of the cluster to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the cluster and its node pools plus a one-time token; pass that token on the SECOND call to actually delete it. The token expires after a few minutes."`
+}
+
+// CreateK8sNodepoolInput is the input for create_k8s_nodepool. Two-phase confirmed.
+// The node hardware fields are fixed at creation, so none appear on the update input.
+type CreateK8sNodepoolInput struct {
+	K8sClusterID      string                     `json:"k8s_cluster_id" jsonschema:"the ID of the cluster the node pool belongs to"`
+	Name              string                     `json:"name" jsonschema:"the name of the new node pool: 63 characters or fewer, beginning and ending with an alphanumeric character, with dashes, underscores, dots and alphanumerics between"`
+	DatacenterID      string                     `json:"datacenter_id" jsonschema:"the ID of the data center that hosts the worker nodes. It must be in the same location as the cluster, or one of that location's associated locations. For a private cluster every node pool's data center must be in the same location. Immutable."`
+	NodeCount         int32                      `json:"node_count" jsonschema:"how many worker nodes to provision. With auto_scaling set, this is the starting count and must fall between min_node_count and max_node_count."`
+	CoresCount        int32                      `json:"cores_count" jsonschema:"CPU cores per worker node. Immutable after creation."`
+	RamSize           int32                      `json:"ram_size" jsonschema:"RAM per worker node in MB. Must be a multiple of 1024 and at least 2048. Immutable after creation."`
+	AvailabilityZone  string                     `json:"availability_zone" jsonschema:"the availability zone for the worker nodes: AUTO, ZONE_1 or ZONE_2. Immutable after creation."`
+	StorageType       string                     `json:"storage_type" jsonschema:"the storage type for the worker nodes: HDD or SSD. Immutable after creation."`
+	StorageSize       int32                      `json:"storage_size" jsonschema:"the volume size per worker node in GB. More than 100 GB is recommended for SSD. Immutable after creation."`
+	CpuFamily         *string                    `json:"cpu_family,omitempty" jsonschema:"DEPRECATED by IONOS — use server_type instead. The CPU family for the worker nodes, e.g. INTEL_ICELAKE. Omit to let IONOS pick one available at the location. An empty string is not accepted. Immutable after creation."`
+	ServerType        *string                    `json:"server_type,omitempty" jsonschema:"whether the nodes get dedicated or shared CPU cores: DedicatedCore or VCPU. Defaults to DedicatedCore. Prefer this over the deprecated cpu_family."`
+	K8sVersion        *string                    `json:"k8s_version,omitempty" jsonschema:"the Kubernetes version the worker nodes run, e.g. 1.31.2. Omit to take the cluster's version. Must be one of the cluster's viableNodePoolVersions (see get_k8s_cluster)."`
+	MaintenanceWindow *K8sMaintenanceWindowInput `json:"maintenance_window,omitempty" jsonschema:"the weekly window in which IONOS may apply node maintenance, which replaces nodes one at a time. Omit to let IONOS choose one."`
+	AutoScaling       *K8sAutoScalingInput       `json:"auto_scaling,omitempty" jsonschema:"turn on the cluster autoscaler and bound the node count. Omit for a fixed-size pool of node_count nodes."`
+	Lans              []K8sNodePoolLanInput      `json:"lans,omitempty" jsonschema:"existing private LANs to attach to the worker nodes"`
+	Labels            map[string]string          `json:"labels,omitempty" jsonschema:"Kubernetes labels to set on every node in the pool, as key-value pairs"`
+	Annotations       map[string]string          `json:"annotations,omitempty" jsonschema:"Kubernetes annotations to set on every node in the pool, as key-value pairs"`
+	PublicIps         []string                   `json:"public_ips,omitempty" jsonschema:"reserved public IPs for the worker nodes (see list_ip_blocks), all from the node pool's data center location. One more IP is needed than the maximum node count — node_count+1, or max_node_count+1 with auto_scaling — because the spare is used while a node is rebuilt."`
+	ConfirmationToken *string                    `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same k8s_cluster_id, name and datacenter_id) to actually create the node pool. The token expires after a few minutes."`
+}
+
+// UpdateK8sNodepoolInput is the input for update_k8s_nodepool. Single call. Omitted
+// fields are carried forward, which is what stops node_count going to 0 and draining
+// the pool. name and the node hardware are immutable and absent.
+type UpdateK8sNodepoolInput struct {
+	K8sClusterID      string                     `json:"k8s_cluster_id" jsonschema:"the ID of the cluster the node pool belongs to"`
+	NodepoolID        string                     `json:"nodepool_id" jsonschema:"the ID of the node pool to update"`
+	NodeCount         *int32                     `json:"node_count,omitempty" jsonschema:"a new worker node count. Omit to keep the current one. Scaling down removes nodes and evicts whatever runs on them. Ignored while auto_scaling is active, since the autoscaler owns the count."`
+	ServerType        *string                    `json:"server_type,omitempty" jsonschema:"a new server type: DedicatedCore or VCPU. Omit to keep the current one."`
+	K8sVersion        *string                    `json:"k8s_version,omitempty" jsonschema:"a Kubernetes version to upgrade the worker nodes to. Omit to keep the current one. Only the versions in the pool's availableUpgradeVersions (see get_k8s_nodepool) are accepted; upgrading replaces every node and is not reversible."`
+	MaintenanceWindow *K8sMaintenanceWindowInput `json:"maintenance_window,omitempty" jsonschema:"a new maintenance window. Omit to keep the current one."`
+	AutoScaling       *K8sAutoScalingInput       `json:"auto_scaling,omitempty" jsonschema:"new autoscaler bounds, both at least 1. Omit to keep the current setting. An existing autoscaler CANNOT be turned off through this endpoint — the API rejects zero bounds and ignores an omitted field — so recreate the node pool without auto_scaling if you need it gone."`
+	Lans              []K8sNodePoolLanInput      `json:"lans,omitempty" jsonschema:"REPLACE the attached private LANs with this list. Include every LAN the pool should keep — any you leave out is detached from the worker nodes. Omit the field to keep the current LANs; pass an empty array to detach them all."`
+	Labels            map[string]string          `json:"labels,omitempty" jsonschema:"REPLACE the node labels with these key-value pairs. Omit the field to keep the current labels; pass an empty object to remove them all."`
+	Annotations       map[string]string          `json:"annotations,omitempty" jsonschema:"REPLACE the node annotations with these key-value pairs. Omit the field to keep the current annotations; pass an empty object to remove them all."`
+	PublicIps         []string                   `json:"public_ips,omitempty" jsonschema:"REPLACE the reserved public IPs for the worker nodes. One more IP is needed than the maximum node count. Omit the field to keep the current IPs; pass an empty array to remove them all."`
+}
+
+// DeleteK8sNodepoolInput is the input for delete_k8s_nodepool. Two-phase confirmed.
+type DeleteK8sNodepoolInput struct {
+	K8sClusterID      string  `json:"k8s_cluster_id" jsonschema:"the ID of the cluster the node pool belongs to"`
+	NodepoolID        string  `json:"nodepool_id" jsonschema:"the ID of the node pool to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the node pool and the worker nodes it would destroy plus a one-time token; pass that token on the SECOND call to actually delete it. The token expires after a few minutes."`
+}
+
+// K8sNodeActionInput is the input for recreate_k8s_node and delete_k8s_node.
+type K8sNodeActionInput struct {
+	K8sClusterID      string  `json:"k8s_cluster_id" jsonschema:"the ID of the cluster the node belongs to"`
+	NodepoolID        string  `json:"nodepool_id" jsonschema:"the ID of the node pool the node belongs to"`
+	NodeID            string  `json:"node_id" jsonschema:"the ID of the node to act on"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the node plus a one-time token; pass that token on the SECOND call to actually perform the operation. The token expires after a few minutes."`
+}
+
 // Dynamic load-mode meta-tool input types. Used only when the server runs in
 // 'dynamic' mode, where these are the only tools the client sees and the full
 // product catalog is browsed/invoked through them.

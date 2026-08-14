@@ -173,7 +173,7 @@ func main() {
 	// in dynamic mode.
 	products := []dynamic.Product{
 		{Name: "compute", Summary: "Compute Engine: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots.", Register: func(s *mcp.Server) { compute.RegisterAll(s, client, scope, confirm) }},
-		{Name: "k8s", Summary: "Managed Kubernetes: clusters, node pools, nodes, versions.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, client) }},
+		{Name: "k8s", Summary: "Managed Kubernetes: clusters, node pools, nodes, versions.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, client, scope, confirm) }},
 		{Name: "objectstorage", Summary: "S3-compatible Object Storage: buckets, bucket config (CORS, encryption, lifecycle, policy, replication, versioning), objects, access keys, regions.", Register: func(s *mcp.Server) { objectstorage.RegisterAll(s, objstClient, objmgmtClient, cfg) }},
 		{Name: "dns", Summary: "DNS: zones, records, reverse records, secondary zones, DNSSEC, quota.", Register: func(s *mcp.Server) { dns.RegisterAll(s, dnsClient) }},
 		{Name: "billing", Summary: "Billing: invoices, usage, utilization, traffic, EVN, FOCUS spec.", Register: func(s *mcp.Server) { billing.RegisterAll(s, billingClient, focusSpec) }},

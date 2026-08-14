@@ -129,16 +129,17 @@ func (m Method) annotations() *mcp.ToolAnnotations {
 // and ClassFromName. No verb may be a prefix of another, so at most one can match.
 var actionVerbs = map[string]Class{
 	// Mutating but recoverable: they add or resume, never discard.
-	"start_":   ClassWrite,
-	"resume_":  ClassWrite,
-	"attach_":  ClassWrite,
-	"assign_":  ClassWrite,
-	"stop_":    ClassDestructive,
-	"reboot_":  ClassDestructive,
-	"suspend_": ClassDestructive,
-	"upgrade_": ClassDestructive,
-	"restore_": ClassDestructive,
-	"detach_":  ClassDestructive,
+	"start_":    ClassWrite,
+	"resume_":   ClassWrite,
+	"attach_":   ClassWrite,
+	"assign_":   ClassWrite,
+	"stop_":     ClassDestructive,
+	"reboot_":   ClassDestructive,
+	"suspend_":  ClassDestructive,
+	"upgrade_":  ClassDestructive,
+	"restore_":  ClassDestructive,
+	"detach_":   ClassDestructive,
+	"recreate_": ClassDestructive,
 }
 
 // Action describes a non-CRUD operation named with a domain verb. Method is used

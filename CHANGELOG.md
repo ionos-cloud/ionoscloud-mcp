@@ -10,6 +10,12 @@
 
   > ⚠️ These tools create real resources that cost money, and deletions cannot be undone. Read the warning in the README before enabling them. Enabling them is done at your own risk; IONOS Cloud is not responsible for actions the model takes as a result.
 
+- **Write operations for Managed Kubernetes**, off by default and behind the same `IONOS_MCP_TOOL_SCOPE` gate: create, update and delete for clusters and node pools, plus `recreate_k8s_node` and `delete_k8s_node`. Node pool creation covers autoscaling, attached LANs with static routes, labels, annotations and reserved public IPs. Every create and delete takes two calls — the first returns a preview and a one-time token, the second carries it. All of these are asynchronous, so poll `get_k8s_cluster` or `get_k8s_nodepool` and read `metadata.state` before chaining a dependent call.
+
+  Three IONOS API limits to be aware of: a node pool cannot be renamed, an autoscaler's bounds can be changed but it cannot be switched off, and `delete_k8s_node` is not a reliable way to replace a node — it removes the node first, and an active autoscaler may hold the pool at the smaller size, so prefer `recreate_k8s_node`.
+
+- **Read-only annotations on the Kubernetes read tools**: the 8 existing `list_*`/`get_*` Kubernetes tools now carry the `readOnlyHint` annotation that clients use to decide whether to prompt before a call. No behaviour or signature change for callers.
+
 - **`filters` parameter on all compute `list_*` tools**: every compute list tool now accepts an optional `filters` object (`{"property": "value"}` pairs) that is forwarded to the API as server-side query params, so only matching resources are returned. Useful for scoping large result sets by name, location, state, image type, and more without client-side post-processing. If a filter returns an empty result, retry without it — a typo or value mismatch silently returns nothing. Filterable properties vary by resource (e.g. `name`, `location`, `vmState`, `cpuFamily`, `imageType`).
 
 ## v1.0.1 — June 2026

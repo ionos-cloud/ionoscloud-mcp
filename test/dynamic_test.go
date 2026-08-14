@@ -78,7 +78,7 @@ func setupDynamicWithScope(t *testing.T, scope tools.Scope) *testSetup {
 
 	products := []dynamic.Product{
 		{Name: "compute", Summary: "Compute Engine.", Register: func(s *mcp.Server) { compute.RegisterAll(s, computeClient, scope, confirm) }},
-		{Name: "k8s", Summary: "Managed Kubernetes.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, computeClient) }},
+		{Name: "k8s", Summary: "Managed Kubernetes.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, computeClient, scope, confirm) }},
 		{Name: "objectstorage", Summary: "Object Storage.", Register: func(s *mcp.Server) { objectstorage.RegisterAll(s, objstClient, objmgmtClient, testCfg()) }},
 		{Name: "dns", Summary: "DNS.", Register: func(s *mcp.Server) { dns.RegisterAll(s, dnsClient) }},
 		{Name: "billing", Summary: "Billing.", Register: func(s *mcp.Server) { billing.RegisterAll(s, billingClient, "") }},

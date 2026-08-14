@@ -9,10 +9,10 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterNodeTools(server *mcp.Server, client *ionos.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterNodeTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_k8s_nodepool_nodes",
-		Description: "List all nodes in a Kubernetes node pool",
+		Description: "List all worker nodes in a Kubernetes node pool, including each node's state and public/private IP addresses.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.K8sNodepoolIDInput) (*mcp.CallToolResult, any, error) {
 		depth := int32(1)
 		if input.Depth != nil {
@@ -22,9 +22,9 @@ func RegisterNodeTools(server *mcp.Server, client *ionos.APIClient) {
 		return tools.ToResult(nodes, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_k8s_node",
-		Description: "Get details of a specific node in a Kubernetes node pool",
+		Description: "Get details of a specific worker node in a Kubernetes node pool: its name, state, Kubernetes version and IP addresses.",
 	}, func(ctx context.Context, _ *mcp.CallToolRequest, input tools.K8sNodeIDInput) (*mcp.CallToolResult, any, error) {
 		apiReq := client.KubernetesApi.K8sNodepoolsNodesFindById(ctx, input.K8sClusterID, input.NodepoolID, input.NodeID)
 		if input.Depth != nil {

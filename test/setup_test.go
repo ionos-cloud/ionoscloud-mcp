@@ -304,12 +304,16 @@ func setupWithScope(t *testing.T, scope tools.Scope) *testSetup {
 		Version: "1.0.0-test",
 	}, nil)
 
+	// One store for every product, as main.go does, so a token minted by one
+	// product's tool is validated against the same state the others see.
+	confirm := tools.NewConfirmationStore()
+
 	activitylog.RegisterAll(server, activitylogClient)
-	compute.RegisterAll(server, computeClient, scope, tools.NewConfirmationStore())
+	compute.RegisterAll(server, computeClient, scope, confirm)
 	dns.RegisterAll(server, dnsClient)
 	billing.RegisterAll(server, billingClient, "")
 	cert.RegisterAll(server, certClient)
-	k8s.RegisterAll(server, computeClient)
+	k8s.RegisterAll(server, computeClient, scope, confirm)
 	objectstorage.RegisterAll(server, objstClient, objmgmtClient, testCfg())
 
 	// in-memory pipe between MCP client and server (replaces stdio)
