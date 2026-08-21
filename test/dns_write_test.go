@@ -787,10 +787,11 @@ func TestCreateDnsDnssecKeyValidation(t *testing.T) {
 	}
 }
 
-// TestDeleteDnsDnssecKeyWarnsAboutTheDsRecord is the operational point of the whole
-// tool: a stale DS record at the registrar takes the zone offline entirely, and the
-// preview is the only place a caller looks before authorizing.
-func TestDeleteDnsDnssecKeyWarnsAboutTheDsRecord(t *testing.T) {
+// TestDeleteDnsDnssecKeyReturnsTheApiResponse pins that the execute phase hands back
+// what the API said rather than a summary of it. The response is the only thing that
+// separates a queued request from a rejected one — a hand-written success message hid
+// a 409 ("the zone has too many operations in progress") behind prose once already.
+func TestDeleteDnsDnssecKeyReturnsTheApiResponse(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(dnsKeysPath, keysFixture)
 
@@ -803,12 +804,35 @@ func TestDeleteDnsDnssecKeyWarnsAboutTheDsRecord(t *testing.T) {
 	if res.IsError {
 		t.Fatalf("execute failed: %s", resultText(res))
 	}
-	req := singleRequest(t, h, http.MethodDelete)
-	if req.Path != dnsKeysPath {
+	if req := singleRequest(t, h, http.MethodDelete); req.Path != dnsKeysPath {
 		t.Errorf("DELETE path = %s, want %s", req.Path, dnsKeysPath)
 	}
-	if !strings.Contains(resultText(res), "registrar") {
-		t.Errorf("the success message should repeat the registrar warning: %s", resultText(res))
+	// The mock echoes the keys fixture, so the API's own JSON must come back through.
+	if !strings.Contains(resultText(res), "dnsseckeys") {
+		t.Errorf("result must carry the API response verbatim, got: %s", resultText(res))
+	}
+}
+
+// TestDeleteDnsDnssecKeySurfacesConflict is the case that motivated the above: a 409
+// with an errorCode must reach the caller intact, not be flattened into "failed".
+func TestDeleteDnsDnssecKeySurfacesConflict(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(dnsKeysPath, keysFixture)
+
+	res := callTool(t, h, "delete_dns_zone_dnssec_key", map[string]any{"zone_id": dnsZoneID})
+	token := extractToken(t, resultText(res))
+	h.resp.serveStatus(dnsKeysPath, http.StatusConflict,
+		`{"httpStatus":409,"messages":[{"errorCode":"paas-dns-rest-0513","message":"the zone has too many operations in progress, please retry later"}]}`)
+	res = callTool(t, h, "delete_dns_zone_dnssec_key",
+		map[string]any{"zone_id": dnsZoneID, "confirmation_token": token})
+
+	if !res.IsError {
+		t.Fatal("a 409 must surface as an error result")
+	}
+	for _, want := range []string{"409", "paas-dns-rest-0513", "too many operations in progress"} {
+		if !strings.Contains(resultText(res), want) {
+			t.Errorf("result must preserve %q from the API body: %s", want, resultText(res))
+		}
 	}
 }
 

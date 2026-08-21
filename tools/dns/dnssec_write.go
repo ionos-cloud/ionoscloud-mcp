@@ -80,10 +80,8 @@ func registerDeleteDnssecKey(server *mcp.Server, client *dnsSDK.APIClient, scope
 			if err := confirm.Consume(*input.ConfirmationToken, "delete_dns_zone_dnssec_key", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("delete_dns_zone_dnssec_key", "zone_id", err)), nil, nil
 			}
-			if _, _, err := client.DNSSECApi.ZonesKeysDelete(ctx, id).Execute(); err != nil {
-				return tools.ToResult(nil, err)
-			}
-			return tools.TextResult(fmt.Sprintf("Disabled DNSSEC on zone %s. Deletion is asynchronous; the API has accepted the request. If you have not already removed the DS record at your registrar, do it now — a stale DS record makes validating resolvers answer SERVFAIL for the entire zone.", id)), nil, nil
+			body, _, err := client.DNSSECApi.ZonesKeysDelete(ctx, id).Execute()
+			return tools.ToResult(body, err)
 		}
 
 		keys, _, err := client.DNSSECApi.ZonesKeysGet(ctx, id).Execute()
