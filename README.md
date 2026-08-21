@@ -4,7 +4,7 @@
 [![Apache 2.0](https://img.shields.io/github/license/ionos-cloud/ionoscloud-mcp)](LICENSE)
 [![Go reference](https://pkg.go.dev/badge/github.com/ionos-cloud/ionoscloud-mcp.svg)](https://pkg.go.dev/github.com/ionos-cloud/ionoscloud-mcp)
 
-A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations across Compute (servers, volumes, networking, load balancing) and Managed Kubernetes (clusters, node pools, nodes) are strictly opt-in and create real, billable resources — see [Write operations](#write-operations).
+A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations across Compute (servers, volumes, networking, load balancing), Managed Kubernetes (clusters, node pools, nodes) and DNS (zones, records, reverse records, DNSSEC) are strictly opt-in and create real, billable resources — see [Write operations](#write-operations).
 
 Built and maintained by the IONOS Cloud team. The server runs as a local binary on your workstation, a CI runner, or inside a container. IONOS CLOUD API calls go directly to IONOS over HTTPS; no third-party AI provider sits in the data path.
 
@@ -67,12 +67,12 @@ Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are 
 | [Compute Engine](docs/compute/) | 50 + 69 write | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
 | [Kubernetes](docs/k8s/) | 8 + 8 write | Clusters, node pools, nodes, available versions |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
-| [DNS](docs/dns/) | 14 | Zones, zone files, records, reverse records, secondary zones, DNSSEC, quota |
+| [DNS](docs/dns/) | 14 + 16 write | Zones, zone files (+ BIND import), records, reverse records, secondary zones (+ zone transfer), DNSSEC, quota |
 | [Billing](docs/billing/) | 15 | Profile, invoices, EVN (provisioning intervals), traffic, usage, utilization, product pricing catalog, FOCUS v1.3 spec |
 | [Certificate Manager](docs/cert/) | 6 | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**120 read-only tools** (118 product + 2 loader), plus **77 opt-in write tools** on Compute Engine and Kubernetes — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**120 read-only tools** (118 product + 2 loader), plus **93 opt-in write tools** on Compute Engine, Kubernetes and DNS — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 
@@ -231,7 +231,7 @@ Scope is a comma-separated, hierarchical set of capabilities (`read` is always o
 |--------------------------|------------------------------------------------|
 | unset / `read` (default) | read-only (`list_*`, `get_*`, `head_*`)                                  |
 | `write`                  | the above **+** `create_*`, `update_*`, and the non-disruptive actions `start_`, `resume_`, `attach_`, `assign_` |
-| `destructive`            | the above **+** `delete_*` and the disruptive actions `stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_` (implies `write`) |
+| `destructive`            | the above **+** `delete_*` and the disruptive actions `stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_`, `import_` (implies `write`) |
 
 Unrecognised values fall back to read-only, and the effective scope is logged to stderr at startup. Because the levels are hierarchical, a single value is enough — `destructive` alone already grants `write` and `read`; you don't need to list them all (though a comma-separated list like `read,write` is also accepted).
 
@@ -244,14 +244,15 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Load balancing | classic, network and application load balancers + forwarding rules, target groups, NAT gateways + rules |
 | Images | snapshot and image update/delete |
 | Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations), single nodes (recreate, delete) |
+| DNS | primary zones (+ BIND zone-file import), records, secondary zones (+ zone transfer), reverse records, DNSSEC enable/disable |
 
 Not available, because the Go SDK cannot build the request the API accepts: renaming an IP block, attaching a CD-ROM to a server, attaching a NIC to a classic load balancer, and detaching a LAN from a cross connect. Use `ionosctl`, the Terraform provider or the [DCD](https://dcd.ionos.com/) for those.
 
-77 tools in total. The server exposes 118 at the default read-only scope, 165 with `write`, and 195 with `destructive`. Reads are unaffected and always available.
+93 tools in total. The server exposes 118 at the default read-only scope, 175 with `write`, and 211 with `destructive`. Reads are unaffected and always available.
 
-**Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_`), is confirmation-gated. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
+**Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_`), is confirmation-gated, along with the DNS zone-file import. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
 
-**Annotations.** Write tools carry MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) so clients can build their own approval UX — but enforcement is always server-side. Note that the class comes from the operation, not the HTTP verb: `stop_server` is a `POST` that is destructive.
+**Annotations.** Write tools carry MCP annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`) so clients can build their own approval UX — but enforcement is always server-side. Note that the class comes from the operation, not the HTTP verb: `stop_server` is a `POST` that is destructive, and `import_dns_zone_file` is a `PUT` that replaces every record in a zone.
 
 ---
 

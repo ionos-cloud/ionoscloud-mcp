@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterRecordTools(server *mcp.Server, client *dnsSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_dns_records",
 		Description: "List all DNS records across all zones",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
@@ -18,7 +18,7 @@ func RegisterRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		return tools.ToResult(records, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_dns_zone_records",
 		Description: "List all DNS records in a specific zone",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ZoneIDInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		return tools.ToResult(records, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_dns_record",
 		Description: "Get details of a specific DNS record in a zone",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.RecordIDInput) (*mcp.CallToolResult, any, error) {
@@ -34,7 +34,7 @@ func RegisterRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		return tools.ToResult(record, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_dns_secondary_zone_records",
 		Description: "List all DNS records in a specific secondary zone",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SecondaryZoneIDInput) (*mcp.CallToolResult, any, error) {

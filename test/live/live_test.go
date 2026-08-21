@@ -61,7 +61,7 @@ func session(t *testing.T) *mcp.ClientSession {
 	server := mcp.NewServer(&mcp.Implementation{Name: "ionos-cloud-mcp", Version: "live-test"}, nil)
 	activitylog.RegisterAll(server, activitylogSDK.NewAPIClient(cfg))
 	compute.RegisterAll(server, computeSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
-	dns.RegisterAll(server, dnsSDK.NewAPIClient(cfg))
+	dns.RegisterAll(server, dnsSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	billing.RegisterAll(server, billSDK.NewAPIClient(cfg), "")
 	cert.RegisterAll(server, certSDK.NewAPIClient(cfg))
 	k8s.RegisterAll(server, computeSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())

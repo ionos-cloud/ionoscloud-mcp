@@ -133,6 +133,7 @@ var actionVerbs = map[string]Class{
 	"resume_":   ClassWrite,
 	"attach_":   ClassWrite,
 	"assign_":   ClassWrite,
+	"import_":   ClassDestructive,
 	"stop_":     ClassDestructive,
 	"reboot_":   ClassDestructive,
 	"suspend_":  ClassDestructive,

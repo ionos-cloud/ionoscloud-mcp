@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterDNSSECTools(server *mcp.Server, client *dnsSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterDNSSECTools(server *mcp.Server, client *dnsSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_dns_zone_dnssec_keys",
 		Description: "List DNSSEC keys for a specific DNS zone",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ZoneIDInput) (*mcp.CallToolResult, any, error) {

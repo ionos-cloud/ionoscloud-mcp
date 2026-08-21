@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterQuotaTools(server *mcp.Server, client *dnsSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterQuotaTools(server *mcp.Server, client *dnsSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_dns_quota",
 		Description: "Get DNS quota usage and limits for your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
