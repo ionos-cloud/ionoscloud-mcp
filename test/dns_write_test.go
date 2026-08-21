@@ -390,17 +390,52 @@ func TestCreateDnsRecordValidation(t *testing.T) {
 
 // TestCreateDnsRecordIgnoresPriorityForOtherTypes covers the spec's "ignored for all
 // other types": sending it anyway would be echoing a value the caller cannot mean.
+// The preview must agree with the body — a preview that showed priority: 10 while the
+// request omitted it would describe a call that was never made, which defeats the
+// point of previewing before authorizing.
 func TestCreateDnsRecordIgnoresPriorityForOtherTypes(t *testing.T) {
 	h := destructiveSetup(t)
-	_, res := previewThenExecute(t, h, "create_dns_record", map[string]any{
+	preview, res := previewThenExecute(t, h, "create_dns_record", map[string]any{
 		"zone_id": dnsZoneID, "name": "www", "type": "A", "content": "192.0.2.1", "priority": 10,
 	})
+	if strings.Contains(preview, "priority:") {
+		t.Errorf("preview must not list a priority it will not send:\n%s", preview)
+	}
+	if !strings.Contains(preview, "priority is ignored for a A record") {
+		t.Errorf("preview must say the priority is being dropped:\n%s", preview)
+	}
 	if res.IsError {
 		t.Fatalf("execute failed: %s", resultText(res))
 	}
 	req := singleRequest(t, h, http.MethodPost)
 	if strings.Contains(req.Body, "priority") {
 		t.Errorf("priority must not be sent for an A record:\n%s", req.Body)
+	}
+}
+
+// TestCreateDnsRecordPreviewMatchesBody pins the general property the case above is
+// one instance of: every field the preview lists must appear in the request.
+func TestCreateDnsRecordPreviewMatchesBody(t *testing.T) {
+	h := destructiveSetup(t)
+	preview, res := previewThenExecute(t, h, "create_dns_record", map[string]any{
+		"zone_id": dnsZoneID, "name": "", "type": "MX", "content": "mail.example.com",
+		"priority": 10, "ttl": 600, "enabled": true,
+	})
+	if res.IsError {
+		t.Fatalf("execute failed: %s", resultText(res))
+	}
+	req := singleRequest(t, h, http.MethodPost)
+	// An MX record keeps its priority, so preview and body must both carry it.
+	if !strings.Contains(preview, "priority:") {
+		t.Errorf("preview should list the priority for an MX record:\n%s", preview)
+	}
+	for _, want := range []string{`"priority":10`, `"ttl":600`, `"enabled":true`} {
+		if !strings.Contains(req.Body, want) {
+			t.Errorf("body missing %s:\n%s", want, req.Body)
+		}
+	}
+	if strings.Contains(preview, "will not be sent") {
+		t.Errorf("preview must not claim a dropped field for an MX record:\n%s", preview)
 	}
 }
 

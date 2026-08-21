@@ -45,6 +45,11 @@ func registerCreateRecord(server *mcp.Server, client *dnsSDK.APIClient, scope to
 		if msg := validatePriority(input.Priority, recordType, true); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
+		priority := input.Priority
+		priorityDropped := false
+		if priority != nil && !priorityTypes[recordType] {
+			priority, priorityDropped = nil, true
+		}
 		target := tools.Target(req, zoneID, name, string(recordType), content)
 
 		if tools.HasToken(input.ConfirmationToken) {
@@ -56,9 +61,7 @@ func registerCreateRecord(server *mcp.Server, client *dnsSDK.APIClient, scope to
 			props := dnsSDK.Record{Name: name, Type: recordType, Content: content}
 			props.Ttl = input.Ttl
 			props.Enabled = input.Enabled
-			if priorityTypes[recordType] {
-				props.Priority = input.Priority
-			}
+			props.Priority = priority
 			created, _, err := client.RecordsApi.ZonesRecordsPost(ctx, zoneID).RecordCreate(dnsSDK.RecordCreate{Properties: props}).Execute()
 			return tools.ToResult(created, err)
 		}
@@ -71,15 +74,19 @@ func registerCreateRecord(server *mcp.Server, client *dnsSDK.APIClient, scope to
 		if displayName == "" {
 			displayName = "(zone apex)"
 		}
+		headline := "About to CREATE one DNS record:"
+		if priorityDropped {
+			headline += fmt.Sprintf("\nNOTE: priority is ignored for a %s record, so it will not be sent.", recordType)
+		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to CREATE one DNS record:",
+			Headline: headline,
 			Fields: tools.Fields(
 				"zone_id", zoneID,
 				"name", displayName,
 				"type", string(recordType),
 				"content", content,
 				"ttl", tools.OptInt32(input.Ttl),
-				"priority", tools.OptInt32(input.Priority),
+				"priority", tools.OptInt32(priority),
 				"enabled", tools.OptBool(input.Enabled),
 			),
 			Tool:      "create_dns_record",
