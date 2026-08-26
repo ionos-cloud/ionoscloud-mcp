@@ -76,7 +76,7 @@ func registerCreateRecord(server *mcp.Server, client *dnsSDK.APIClient, scope to
 		}
 		headline := "About to CREATE one DNS record:"
 		if priorityDropped {
-			headline += fmt.Sprintf("\nNOTE: priority is ignored for a %s record, so it will not be sent.", recordType)
+			headline += fmt.Sprintf("\nNOTE: priority is ignored for record type %s, so it will not be sent.", recordType)
 		}
 		return tools.TextResult(tools.Preview{
 			Headline: headline,
@@ -141,7 +141,10 @@ func registerUpdateRecord(server *mcp.Server, client *dnsSDK.APIClient, scope to
 		// back explicitly rather than dropped.
 		props.Ttl = firstNonNilInt32(input.Ttl, cp.Ttl)
 		props.Enabled = firstNonNilBool(input.Enabled, cp.Enabled)
-		props.Priority = firstNonNilInt32(input.Priority, cp.Priority)
+
+		if priorityTypes[cp.Type] {
+			props.Priority = firstNonNilInt32(input.Priority, cp.Priority)
+		}
 
 		updated, _, err := client.RecordsApi.ZonesRecordsPut(ctx, zoneID, recordID).RecordEnsure(dnsSDK.RecordEnsure{Properties: props}).Execute()
 		return tools.ToResult(updated, err)

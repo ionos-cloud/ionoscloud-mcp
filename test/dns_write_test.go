@@ -401,7 +401,7 @@ func TestCreateDnsRecordIgnoresPriorityForOtherTypes(t *testing.T) {
 	if strings.Contains(preview, "priority:") {
 		t.Errorf("preview must not list a priority it will not send:\n%s", preview)
 	}
-	if !strings.Contains(preview, "priority is ignored for a A record") {
+	if !strings.Contains(preview, "priority is ignored for record type A") {
 		t.Errorf("preview must say the priority is being dropped:\n%s", preview)
 	}
 	if res.IsError {
@@ -1282,4 +1282,137 @@ func TestUpdateDnsRecordOnAnARecordSendsNoPriority(t *testing.T) {
 		t.Fatalf("update failed: %s", resultText(res))
 	}
 	assertDnsKeys(t, dnsPutProperties(t, h), "name", "type", "content", "ttl", "enabled")
+}
+
+// The tests below cover review findings on PR #77.
+
+// TestImportDnsZoneFileTokenIsBoundToTheFile pins the two-phase guarantee for the
+// most destructive DNS operation: the token authorizes one exact file, not "replace
+// this zone with anything". Binding only the zone id let a token minted against one
+// preview execute a completely different file.
+func TestImportDnsZoneFileTokenIsBoundToTheFile(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(dnsZonePath, zoneFixture)
+	previewed := "$ORIGIN example.com.\nwww IN A 192.0.2.1\n"
+	other := "$ORIGIN example.com.\nwww IN A 203.0.113.99\nmail IN A 203.0.113.98\n"
+
+	res := callTool(t, h, "import_dns_zone_file", map[string]any{"zone_id": dnsZoneID, "zone_file": previewed})
+	token := extractToken(t, resultText(res))
+
+	// A different file with the same token must be refused.
+	h.log.clear()
+	res = callTool(t, h, "import_dns_zone_file",
+		map[string]any{"zone_id": dnsZoneID, "zone_file": other, "confirmation_token": token})
+	if !res.IsError {
+		t.Fatal("a token minted for one zone file must not import a different one")
+	}
+	assertNoMutation(t, h, "import_dns_zone_file with a swapped file")
+
+	// The previewed file still works, and spends the token.
+	h.log.clear()
+	res = callTool(t, h, "import_dns_zone_file",
+		map[string]any{"zone_id": dnsZoneID, "zone_file": previewed, "confirmation_token": token})
+	if res.IsError {
+		t.Fatalf("the previewed file should import: %s", resultText(res))
+	}
+	if req := singleRequest(t, h, http.MethodPut); req.Body != previewed {
+		t.Errorf("PUT body should be the previewed file, got %q", req.Body)
+	}
+}
+
+// TestDeleteDnsZonePreviewNeverClaimsEmptyOnError covers a preview that lied: any
+// failure listing records used to collapse to a count of zero, so a transient API
+// error rendered "this zone has no records" and minted a destructive token anyway.
+func TestDeleteDnsZonePreviewNeverClaimsEmptyOnError(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(dnsZonePath, zoneFixture)
+	h.resp.serveStatus("/records", http.StatusInternalServerError, `{"httpStatus":500}`)
+	h.resp.serveStatus(dnsKeysPath, http.StatusTooManyRequests, `{"httpStatus":429}`)
+
+	res := callTool(t, h, "delete_dns_zone", map[string]any{"zone_id": dnsZoneID})
+	if res.IsError {
+		t.Fatalf("the preview should still render: %s", resultText(res))
+	}
+	preview := resultText(res)
+	if strings.Contains(preview, "has no records") {
+		t.Errorf("an unreadable record list must not be reported as an empty zone:\n%s", preview)
+	}
+	for _, want := range []string{"INCOMPLETE", "records", "DNSSEC keys"} {
+		if !strings.Contains(preview, want) {
+			t.Errorf("preview should warn that %q could not be read:\n%s", want, preview)
+		}
+	}
+}
+
+// TestDeleteDnsZonePreviewTreats404AsUnsigned is the other half: a 404 from the keys
+// endpoint genuinely means "no DNSSEC", so it must not trigger the warning above.
+func TestDeleteDnsZonePreviewTreats404AsUnsigned(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(dnsZonePath, zoneFixture)
+	h.resp.serve("/records", `{"items":[{"id":"r-1"}]}`)
+	h.resp.serveStatus(dnsKeysPath, http.StatusNotFound, `{"httpStatus":404}`)
+
+	res := callTool(t, h, "delete_dns_zone", map[string]any{"zone_id": dnsZoneID})
+	preview := resultText(res)
+	if strings.Contains(preview, "INCOMPLETE") {
+		t.Errorf("a 404 from the keys endpoint means unsigned, not unreadable:\n%s", preview)
+	}
+	if !strings.Contains(preview, "1 records") {
+		t.Errorf("preview should still count the records:\n%s", preview)
+	}
+}
+
+// TestImportDnsZoneFilePreviewNeverClaimsEmptyOnError mirrors the delete case.
+func TestImportDnsZoneFilePreviewNeverClaimsEmptyOnError(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(dnsZonePath, zoneFixture)
+	h.resp.serveStatus("/records", http.StatusInternalServerError, `{"httpStatus":500}`)
+
+	res := callTool(t, h, "import_dns_zone_file",
+		map[string]any{"zone_id": dnsZoneID, "zone_file": "www IN A 192.0.2.1\n"})
+	preview := resultText(res)
+	if strings.Contains(preview, "no records yet") {
+		t.Errorf("an unreadable record list must not be reported as an empty zone:\n%s", preview)
+	}
+	if !strings.Contains(preview, "INCOMPLETE") {
+		t.Errorf("preview should warn the radius is incomplete:\n%s", preview)
+	}
+}
+
+// TestUpdateDnsRecordDropsPriorityForOtherTypes makes the update agree with the
+// create: the API ignores priority outside MX/SRV/URI, so neither path sends it.
+func TestUpdateDnsRecordDropsPriorityForOtherTypes(t *testing.T) {
+	h := destructiveSetup(t)
+	// An A record that the API reports with priority 0, as it does in practice.
+	h.resp.serve(dnsRecordPath, `{"id":"r-1","properties":{"name":"www","type":"A","content":"192.0.2.1","ttl":3600,"priority":0,"enabled":true},"metadata":{"state":"AVAILABLE","fqdn":"www.example.com","zoneId":"z-1"}}`)
+
+	res := callTool(t, h, "update_dns_record", map[string]any{
+		"zone_id": dnsZoneID, "record_id": dnsRecordID, "ttl": 600, "priority": 10,
+	})
+	if res.IsError {
+		t.Fatalf("update failed: %s", resultText(res))
+	}
+	props := dnsPutProperties(t, h)
+	if _, present := props["priority"]; present {
+		t.Errorf("priority must not be sent for an A record, got %v", props["priority"])
+	}
+	assertDnsKeys(t, props, "name", "type", "content", "ttl", "enabled")
+}
+
+// TestUpdateDnsRecordKeepsPriorityForMx is the guard on the fix above: gating on the
+// record's type must not break carry-forward for the types that do use priority.
+func TestUpdateDnsRecordKeepsPriorityForMx(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(dnsRecordPath, recordFixture) // MX, priority 10
+
+	res := callTool(t, h, "update_dns_record", map[string]any{
+		"zone_id": dnsZoneID, "record_id": dnsRecordID, "ttl": 600,
+	})
+	if res.IsError {
+		t.Fatalf("update failed: %s", resultText(res))
+	}
+	props := dnsPutProperties(t, h)
+	if props["priority"] != float64(10) {
+		t.Errorf("an MX record must carry its priority forward, got %v", props["priority"])
+	}
 }

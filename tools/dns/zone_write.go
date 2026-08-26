@@ -2,6 +2,8 @@ package dns
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -147,10 +149,11 @@ func registerDeleteZone(server *mcp.Server, client *dnsSDK.APIClient, scope tool
 			}
 			return tools.ToResult(nil, err)
 		}
-		count, capped := zoneRecordCount(ctx, client, id)
+		count, capped, countErr := zoneRecordCount(ctx, client, id)
+		keyCount, keyErr := zoneDnssecKeyCount(ctx, client, id)
 		radius := tools.DestroyedRadius()
 		radius.Add("records", count)
-		radius.Add("DNSSEC signing keys", zoneDnssecKeyCount(ctx, client, id))
+		radius.Add("DNSSEC signing keys", keyCount)
 
 		token, mErr := confirm.Mint("delete_dns_zone", target)
 		if mErr != nil {
@@ -159,6 +162,11 @@ func registerDeleteZone(server *mcp.Server, client *dnsSDK.APIClient, scope tool
 		headline := "About to DELETE a DNS zone and every record in it. This is IRREVERSIBLE."
 		if capped {
 			headline += fmt.Sprintf("\nNOTE: the record count below is a floor — the API returns at most %d per page and reports no total.", recordCountLimit)
+		}
+		emptyNote := "This zone has no records; deleting removes only the (empty) zone itself."
+		if unreadable := incompleteRadiusNote(errLabel(countErr, "records"), errLabel(keyErr, "DNSSEC keys")); unreadable != "" {
+			headline += unreadable
+			emptyNote = "" // an unreadable collection must not read as an empty one
 		}
 		cp := zone.GetProperties()
 		return tools.TextResult(tools.Preview{
@@ -170,7 +178,7 @@ func registerDeleteZone(server *mcp.Server, client *dnsSDK.APIClient, scope tool
 				"enabled", tools.OptBool(cp.Enabled),
 			),
 			Radius:    radius,
-			EmptyNote: "This zone has no records; deleting removes only the (empty) zone itself.",
+			EmptyNote: emptyNote,
 			Tool:      "delete_dns_zone",
 			Replay:    tools.Fields("zone_id", id),
 			TokenNote: "This token authorizes deleting ONLY this zone",
@@ -194,7 +202,9 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 			if strings.TrimSpace(input.ZoneFile) == "" {
 				return tools.ErrorText("zone_file is required; it must be a zone file in BIND format (RFC 1035)"), nil, nil
 			}
-			target := tools.Target(req, id)
+
+			sum := sha256.Sum256([]byte(input.ZoneFile))
+			target := tools.Target(req, id, hex.EncodeToString(sum[:]))
 
 			if tools.HasToken(input.ConfirmationToken) {
 				if err := confirm.Consume(*input.ConfirmationToken, "import_dns_zone_file", target); err != nil {
@@ -211,7 +221,7 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 				}
 				return tools.ToResult(nil, err)
 			}
-			count, capped := zoneRecordCount(ctx, client, id)
+			count, capped, countErr := zoneRecordCount(ctx, client, id)
 			radius := tools.DestroyedRadius()
 			radius.Add("existing records (replaced by the file's contents)", count)
 
@@ -223,6 +233,11 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 			if capped {
 				headline += fmt.Sprintf("\nNOTE: the record count below is a floor — the API returns at most %d per page and reports no total.", recordCountLimit)
 			}
+			emptyNote := "This zone has no records yet, so the import only adds the file's contents."
+			if unreadable := incompleteRadiusNote(errLabel(countErr, "records")); unreadable != "" {
+				headline += unreadable
+				emptyNote = ""
+			}
 			return tools.TextResult(tools.Preview{
 				Headline: headline,
 				Fields: tools.Fields(
@@ -231,10 +246,10 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 					"zone_file_lines", fmt.Sprintf("%d", strings.Count(strings.TrimRight(input.ZoneFile, "\n"), "\n")+1),
 				),
 				Radius:    radius,
-				EmptyNote: "This zone has no records yet, so the import only adds the file's contents.",
+				EmptyNote: emptyNote,
 				Tool:      "import_dns_zone_file",
-				Replay:    tools.Fields("zone_id", id, "zone_file", "(the same file)"),
-				TokenNote: "This token authorizes importing into ONLY this zone",
+				Replay:    tools.Fields("zone_id", id, "zone_file", "(the same file, byte for byte)"),
+				TokenNote: "This token authorizes importing ONLY this exact file into this zone; any change to the file needs a fresh preview",
 			}.Render(token)), nil, nil
 		})
 }
@@ -242,20 +257,52 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 // zoneRecordCount counts a primary zone's records for a blast-radius preview, and
 // reports whether the page came back full. ZonesRecordsGet cannot be used: the SDK
 // exposes no limit on it, so its 100-item default would understate the count.
-func zoneRecordCount(ctx context.Context, client *dnsSDK.APIClient, zoneID string) (n int, capped bool) {
+//
+// A failure is returned rather than folded into a zero, because "none" and "could not
+// tell" are different claims to put in front of someone authorizing a delete.
+func zoneRecordCount(ctx context.Context, client *dnsSDK.APIClient, zoneID string) (n int, capped bool, err error) {
 	records, _, err := client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneID).Limit(recordCountLimit).Execute()
 	if err != nil {
-		return 0, false
+		return 0, false, err
 	}
-	return len(records.Items), len(records.Items) >= recordCountLimit
+	return len(records.Items), len(records.Items) >= recordCountLimit, nil
 }
 
-// zoneDnssecKeyCount reports whether the zone is DNSSEC-signed. Best-effort: an
-// unsigned zone answers 404, which is not a reason to fail the preview.
-func zoneDnssecKeyCount(ctx context.Context, client *dnsSDK.APIClient, zoneID string) int {
+// zoneDnssecKeyCount reports how many DNSSEC keys the zone has. Only a 404 means
+// "unsigned";
+func zoneDnssecKeyCount(ctx context.Context, client *dnsSDK.APIClient, zoneID string) (int, error) {
 	keys, _, err := client.DNSSECApi.ZonesKeysGet(ctx, zoneID).Execute()
-	if err != nil || keys.Metadata == nil {
-		return 0
+	switch {
+	case err != nil && tools.IsNotFound(err):
+		return 0, nil
+	case err != nil:
+		return 0, err
+	case keys.Metadata == nil:
+		return 0, nil
 	}
-	return len(keys.Metadata.Items)
+	return len(keys.Metadata.Items), nil
+}
+
+// incompleteRadiusNote warns that a blast radius could not be fully determined. An
+// unreadable collection must never render as an empty one.
+func incompleteRadiusNote(what ...string) string {
+	var named []string
+	for _, w := range what {
+		if w != "" {
+			named = append(named, w)
+		}
+	}
+	if len(named) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\nWARNING: could not read this zone's %s, so the list below is INCOMPLETE — this may destroy more than it shows.", strings.Join(named, " or "))
+}
+
+// errLabel names a collection when reading it failed, and "" when it succeeded, so
+// callers can build one warning covering however many lookups went wrong.
+func errLabel(err error, label string) string {
+	if err == nil {
+		return ""
+	}
+	return label
 }
