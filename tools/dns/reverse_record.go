@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterReverseRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterReverseRecordTools(server *mcp.Server, client *dnsSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_dns_reverse_records",
 		Description: "List all reverse DNS records in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
@@ -18,7 +18,7 @@ func RegisterReverseRecordTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		return tools.ToResult(records, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_dns_reverse_record",
 		Description: "Get details of a specific reverse DNS record",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ReverseRecordIDInput) (*mcp.CallToolResult, any, error) {

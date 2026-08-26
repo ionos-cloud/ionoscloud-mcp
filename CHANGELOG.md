@@ -4,6 +4,14 @@
 
 ### Added
 
+- **Write operations for DNS**, off by default and behind the same `IONOS_MCP_TOOL_SCOPE` gate: create, update and delete for primary zones, records, secondary zones and reverse records, plus DNSSEC enable/disable, `start_dns_zone_transfer` and `import_dns_zone_file`. Every create and delete takes two calls — the first returns a preview and a one-time token, the second carries it. The 14 existing DNS read tools now carry the `readOnlyHint` annotation.
+
+  `import_dns_zone_file` replaces *every* record in a zone, so it requires `destructive` rather than `write` despite being a `PUT`, and its preview counts the records it would replace. `delete_dns_zone_dnssec_key` warns that the registrar's DS record must be removed first — a stale DS record makes validating resolvers answer SERVFAIL for the whole zone. Updates are PUT, so each one reads the resource and carries every field it does not change forward, including the identity fields (a zone's name, a record's name and type, a reverse record's IP), which are therefore not tool inputs.
+
+## 1.1.0
+
+### Added
+
 - **Write operations for Compute Engine**, off by default. Opt in with `IONOS_MCP_TOOL_SCOPE`: `write` enables create and update, `destructive` also enables delete. Covers data centers, servers, volumes, NICs, LANs, firewall rules, security groups and their rules, IP blocks, classic/network/application load balancers and their forwarding rules, NAT gateways, target groups, cross connects, snapshots and images — plus server power control (start, stop, reboot, suspend, resume, upgrade), volume snapshot create and restore, and volume attach/detach.
 
   Creating and deleting takes two calls: the first returns a preview of exactly what will change plus a one-time token, the second carries that token and executes. A delete preview also lists what else it affects — the servers and volumes inside a data center, the NICs on a LAN, the backends behind a forwarding rule.
@@ -13,6 +21,7 @@
 - **Write operations for Managed Kubernetes**, off by default and behind the same `IONOS_MCP_TOOL_SCOPE` gate: create, update and delete for clusters and node pools, plus `recreate_k8s_node` and `delete_k8s_node`. Node pool creation covers autoscaling, attached LANs with static routes, labels, annotations and reserved public IPs. Every create and delete takes two calls — the first returns a preview and a one-time token, the second carries it. All of these are asynchronous, so poll `get_k8s_cluster` or `get_k8s_nodepool` and read `metadata.state` before chaining a dependent call.
 
   Three IONOS API limits to be aware of: a node pool cannot be renamed, an autoscaler's bounds can be changed but it cannot be switched off, and `delete_k8s_node` is not a reliable way to replace a node — it removes the node first, and an active autoscaler may hold the pool at the smaller size, so prefer `recreate_k8s_node`.
+
 
 - **Read-only annotations on the Kubernetes read tools**: the 8 existing `list_*`/`get_*` Kubernetes tools now carry the `readOnlyHint` annotation that clients use to decide whether to prompt before a call. No behaviour or signature change for callers.
 

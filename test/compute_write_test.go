@@ -299,8 +299,9 @@ func TestDeleteDatacenterDynamicParity(t *testing.T) {
 //
 // It registers compute alone on a throwaway server so the assertion covers the
 // whole product exactly, with no name heuristics and no way for a newly added
-// compute file to slip through. The other products (DNS, billing, cert, k8s,
-// object storage) still use bare mcp.AddTool and are a separate migration.
+// compute file to slip through. DNS and k8s have since had the same migration
+// (TestDnsReadToolsAreAnnotatedReadOnly, TestK8sReadToolsAreAnnotatedReadOnly);
+// billing, cert and object storage still use bare mcp.AddTool.
 func TestEveryComputeToolIsAnnotated(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {

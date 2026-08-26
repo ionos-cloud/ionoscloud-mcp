@@ -1102,6 +1102,122 @@ type SecondaryZoneIDInput struct {
 	SecondaryZoneID string `json:"secondary_zone_id" jsonschema:"the ID of the secondary DNS zone"`
 }
 
+// DNS write input types. Every DNS update is a PUT, so the identity fields
+// (zone_name, a record's name and type, a reverse record's ip) are read from the
+// resource and carried forward rather than accepted here — see tools/dns.
+
+type CreateDnsZoneInput struct {
+	ZoneName          string  `json:"zone_name" jsonschema:"the zone name, e.g. example.com"`
+	Description       *string `json:"description,omitempty" jsonschema:"free-text description of what the zone is for"`
+	Enabled           *bool   `json:"enabled,omitempty" jsonschema:"whether the zone answers lookups. Defaults to true."`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to create the zone"`
+}
+
+type UpdateDnsZoneInput struct {
+	ZoneID      string  `json:"zone_id" jsonschema:"the ID of the zone to update"`
+	Description *string `json:"description,omitempty" jsonschema:"a new description. Omit to keep the current one."`
+	Enabled     *bool   `json:"enabled,omitempty" jsonschema:"set false to stop the zone answering lookups, true to resume. Omit to keep the current setting."`
+}
+
+type DeleteDnsZoneInput struct {
+	ZoneID            string  `json:"zone_id" jsonschema:"the ID of the zone to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a blast-radius preview and a one-time token; pass that token on the second call to delete"`
+}
+
+type ImportDnsZoneFileInput struct {
+	ZoneID            string  `json:"zone_id" jsonschema:"the ID of the zone to overwrite"`
+	ZoneFile          string  `json:"zone_file" jsonschema:"the zone file in BIND format (RFC 1035). Every record currently in the zone is REPLACED by the records in this file. SOA and NS records may be present but are ignored."`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to see how many existing records would be replaced and get a one-time token; pass that token on the second call to import"`
+}
+
+type CreateDnsRecordInput struct {
+	ZoneID            string  `json:"zone_id" jsonschema:"the ID of the zone to add the record to"`
+	Name              string  `json:"name" jsonschema:"the record name relative to the zone, e.g. www. Use an empty string for a record on the zone apex (example.com itself)."`
+	Type              string  `json:"type" jsonschema:"the record type: A, AAAA, CNAME, ALIAS, MX, NS, SRV, TXT, CAA, SSHFP, TLSA, SMIMEA, DS, HTTPS, SVCB, OPENPGPKEY, CERT, URI, RP or LOC"`
+	Content           string  `json:"content" jsonschema:"the record value, e.g. 192.0.2.1 for an A record or mail.example.com for an MX record"`
+	Ttl               *int32  `json:"ttl,omitempty" jsonschema:"time to live in seconds, between 60 and 604800. Defaults to 3600."`
+	Priority          *int32  `json:"priority,omitempty" jsonschema:"priority between 0 and 65535. Required for MX, SRV and URI records; ignored for every other type."`
+	Enabled           *bool   `json:"enabled,omitempty" jsonschema:"whether the record is visible for lookup. Defaults to true."`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to create the record"`
+}
+
+// UpdateDnsRecordInput omits name and type: the endpoint is a PUT, and changing
+// either is a delete-and-recreate that can trip the API's CNAME/SPF conflict rules.
+type UpdateDnsRecordInput struct {
+	ZoneID   string  `json:"zone_id" jsonschema:"the ID of the zone the record belongs to"`
+	RecordID string  `json:"record_id" jsonschema:"the ID of the record to update"`
+	Content  *string `json:"content,omitempty" jsonschema:"a new record value. Omit to keep the current one."`
+	Ttl      *int32  `json:"ttl,omitempty" jsonschema:"a new time to live in seconds, between 60 and 604800. Omit to keep the current one."`
+	Priority *int32  `json:"priority,omitempty" jsonschema:"a new priority between 0 and 65535, for MX, SRV and URI records. Omit to keep the current one."`
+	Enabled  *bool   `json:"enabled,omitempty" jsonschema:"set false to hide the record from lookups, true to publish it. Omit to keep the current setting."`
+}
+
+type DeleteDnsRecordInput struct {
+	ZoneID            string  `json:"zone_id" jsonschema:"the ID of the zone the record belongs to"`
+	RecordID          string  `json:"record_id" jsonschema:"the ID of the record to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to delete"`
+}
+
+type CreateDnsSecondaryZoneInput struct {
+	ZoneName          string   `json:"zone_name" jsonschema:"the zone name, e.g. example.com"`
+	PrimaryIps        []string `json:"primary_ips" jsonschema:"IPv4 or IPv6 addresses of the primary nameservers to transfer the zone from. At least one, no duplicates. Whitelist IONOS's notify sources on your primaries: 212.227.123.25 and 2001:8d8:fe:53::5cd:25."`
+	Description       *string  `json:"description,omitempty" jsonschema:"free-text description of what the zone is for"`
+	ConfirmationToken *string  `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to create the zone"`
+}
+
+type UpdateDnsSecondaryZoneInput struct {
+	SecondaryZoneID string   `json:"secondary_zone_id" jsonschema:"the ID of the secondary zone to update"`
+	PrimaryIps      []string `json:"primary_ips,omitempty" jsonschema:"REPLACE the primary nameserver IPs with this list. Include every IP that should remain — any you leave out stops being used. Omit the field to keep the current list."`
+	Description     *string  `json:"description,omitempty" jsonschema:"a new description. Omit to keep the current one."`
+}
+
+type DeleteDnsSecondaryZoneInput struct {
+	SecondaryZoneID   string  `json:"secondary_zone_id" jsonschema:"the ID of the secondary zone to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to delete"`
+}
+
+type CreateDnsReverseRecordInput struct {
+	Name              string  `json:"name" jsonschema:"the hostname the IP should resolve back to, e.g. mail.example.com"`
+	Ip                string  `json:"ip" jsonschema:"the IPv4 or IPv6 address to create the reverse record for. It must be an IP your contract owns — an IPv4 from one of your IP blocks or an IPv6 from a VDC."`
+	Description       *string `json:"description,omitempty" jsonschema:"free-text description of what the record is for"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to create the record"`
+}
+
+// UpdateDnsReverseRecordInput omits ip: it identifies which address the record
+// covers, and pointing the record at a different one is a create, not an update.
+type UpdateDnsReverseRecordInput struct {
+	ReverseRecordID string  `json:"reverse_record_id" jsonschema:"the ID of the reverse record to update"`
+	Name            *string `json:"name,omitempty" jsonschema:"a new hostname for the IP to resolve back to. Omit to keep the current one."`
+	Description     *string `json:"description,omitempty" jsonschema:"a new description. Omit to keep the current one."`
+}
+
+type DeleteDnsReverseRecordInput struct {
+	ReverseRecordID   string  `json:"reverse_record_id" jsonschema:"the ID of the reverse record to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to delete"`
+}
+
+type CreateDnsDnssecKeyInput struct {
+	ZoneID          string  `json:"zone_id" jsonschema:"the ID of the zone to sign"`
+	Validity        int32   `json:"validity" jsonschema:"signature validity in days, between 90 and 365"`
+	Algorithm       *string `json:"algorithm,omitempty" jsonschema:"signing algorithm. RSASHA256 is the only value the API accepts, and is the default."`
+	KskBits         *int32  `json:"ksk_bits,omitempty" jsonschema:"key signing key length: 1024, 2048 or 4096. Must be greater than or equal to zsk_bits. Defaults to 4096."`
+	ZskBits         *int32  `json:"zsk_bits,omitempty" jsonschema:"zone signing key length: 1024, 2048 or 4096. Defaults to 2048."`
+	NsecMode        *string `json:"nsec_mode,omitempty" jsonschema:"proof-of-nonexistence mode, NSEC or NSEC3. Defaults to NSEC3."`
+	Nsec3Iterations *int32  `json:"nsec3_iterations,omitempty" jsonschema:"NSEC3 hash iterations, between 0 and 50. Defaults to 0, which is what RFC 9276 recommends. Ignored for NSEC mode but still sent, because the API requires the field."`
+	Nsec3SaltBits   *int32  `json:"nsec3_salt_bits,omitempty" jsonschema:"NSEC3 salt length in bits, between 64 and 128 and a multiple of 8. Defaults to 64. Ignored for NSEC mode but still sent, because the API requires the field."`
+
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to enable DNSSEC"`
+}
+
+type DeleteDnsDnssecKeyInput struct {
+	ZoneID            string  `json:"zone_id" jsonschema:"the ID of the zone to stop signing"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to disable DNSSEC"`
+}
+
+type StartDnsZoneTransferInput struct {
+	SecondaryZoneID string `json:"secondary_zone_id" jsonschema:"the ID of the secondary zone to transfer"`
+}
+
 // Billing input types
 // Most billing tools require a contract number — call get_billing_profile first to get it.
 // Exception: list_billing_invoices_by_period is contract-agnostic (the underlying API endpoint does not accept a contract parameter).

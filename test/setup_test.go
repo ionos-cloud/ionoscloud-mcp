@@ -310,7 +310,7 @@ func setupWithScope(t *testing.T, scope tools.Scope) *testSetup {
 
 	activitylog.RegisterAll(server, activitylogClient)
 	compute.RegisterAll(server, computeClient, scope, confirm)
-	dns.RegisterAll(server, dnsClient)
+	dns.RegisterAll(server, dnsClient, scope, confirm)
 	billing.RegisterAll(server, billingClient, "")
 	cert.RegisterAll(server, certClient)
 	k8s.RegisterAll(server, computeClient, scope, confirm)

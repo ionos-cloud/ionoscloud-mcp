@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterSecondaryZoneTools(server *mcp.Server, client *dnsSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterSecondaryZoneTools(server *mcp.Server, client *dnsSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_dns_secondary_zones",
 		Description: "List all secondary DNS zones in your IONOS CLOUD account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
@@ -18,7 +18,7 @@ func RegisterSecondaryZoneTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		return tools.ToResult(zones, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_dns_secondary_zone",
 		Description: "Get details of a specific secondary DNS zone",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SecondaryZoneIDInput) (*mcp.CallToolResult, any, error) {
@@ -26,7 +26,7 @@ func RegisterSecondaryZoneTools(server *mcp.Server, client *dnsSDK.APIClient) {
 		return tools.ToResult(zone, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_dns_secondary_zone_axfr",
 		Description: "Get the zone transfer (AXFR) status of a specific secondary DNS zone",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.SecondaryZoneIDInput) (*mcp.CallToolResult, any, error) {
