@@ -1,4 +1,4 @@
-.PHONY: help build install clean test test-e2e fmt vet deps lint lintfix vuln docker
+.PHONY: help build install test test-e2e fmt vet lint lintfix vuln docker
 
 .DEFAULT_GOAL := help
 
