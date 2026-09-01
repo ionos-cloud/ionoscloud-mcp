@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "ionoscloud-mcp",
   "display_name": "IONOS CLOUD MCP Server",
-  "version": "0.1.1",
+  "version": "1.1.0",
   "description": "Inspect IONOS CLOUD infrastructure via MCP",
   "author": {
     "name": "IONOS CLOUD",
@@ -66,7 +66,7 @@
     "ionos_mcp_load_mode": {
       "type": "string",
       "title": "Tool Loading Mode",
-      "description": "Tool registration strategy. 'eager' (default): all tools at startup. 'lazy': defer Compute and Object Storage behind sentinel loaders (requires MCP client support for notifications/tools/list_changed).",
+      "description": "Tool registration strategy. 'eager' (default): all tools at startup — best for clients with their own tool search, such as Claude Code. 'lazy': defer Compute and Object Storage behind sentinel loaders (requires MCP client support for notifications/tools/list_changed). 'dynamic' (alias 'search'): expose only the ionos_search_tools / ionos_describe_tools / ionos_call_tool meta-tools and browse the full catalog through them — for clients with hard tool caps and no tool search of their own (Cursor, Windsurf).",
       "required": false,
       "sensitive": false,
       "default": "eager"

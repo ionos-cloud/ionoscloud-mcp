@@ -3,7 +3,7 @@
   "name": "io.github.ionos-cloud/ionoscloud-mcp",
   "title": "IONOS CLOUD MCP Server",
   "description": "Inspect IONOS CLOUD infrastructure via MCP",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "repository": {
     "url": "https://github.com/ionos-cloud/ionoscloud-mcp",
     "source": "github"
@@ -37,6 +37,12 @@
         {
           "name": "IONOS_MCP_LOAD_MODE",
           "description": "Tool registration strategy (the --load-mode flag overrides this). 'eager' (default): register all tools at startup. 'lazy': defer Compute and Object Storage behind 'ionos_load_compute_tools' / 'ionos_load_objectstorage_tools' sentinel tools (requires MCP client support for notifications/tools/list_changed). 'dynamic' (alias 'search'): expose only the ionos_search_tools / ionos_describe_tools / ionos_call_tool meta-tools and browse the full catalog through them — for clients with hard tool caps and no tool search of their own (Cursor, Windsurf).",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "IONOS_MCP_TOOL_SCOPE",
+          "description": "Opt in to write operations. Unset (default) leaves the server read-only: only list_/get_/head_ tools are registered. 'write' additionally registers create_/update_ tools and the non-disruptive actions (start_, resume_, attach_, assign_); 'destructive' also registers delete_ and the disruptive actions (stop_, reboot_, suspend_, upgrade_, restore_, detach_, recreate_, import_) and implies 'write'. Comma-separated, case-insensitive, hierarchical; unrecognised values stay read-only. WARNING: enabling this lets an AI model provision, modify and delete billable resources in a live IONOS CLOUD account. Every create and delete requires a two-phase confirmation, but that cannot stop a client configured to approve tool calls automatically. Leave unset unless writes are needed.",
           "isRequired": false,
           "isSecret": false
         }

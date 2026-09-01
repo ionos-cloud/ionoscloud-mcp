@@ -19,8 +19,6 @@ make lint       # Run golangci-lint (read-only)
 make lintfix    # Run golangci-lint with --fix
 make vuln       # Run govulncheck against all packages
 make docker     # Build local Docker image (IMAGE= to override tag)
-make deps       # go mod download + tidy
-make clean      # Remove build artifacts and dist/
 ```
 
 Pass `VERSION=<tag>` to `make build` or `make docker` to override the version string (defaults to `dev`).

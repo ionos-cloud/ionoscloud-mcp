@@ -1,8 +1,10 @@
-# IONOS CLOUD MCP Server
-
 ![Official IONOS Cloud](https://img.shields.io/badge/IONOS%20Cloud-Official-00BFFF.svg)
 [![Apache 2.0](https://img.shields.io/github/license/ionos-cloud/ionoscloud-mcp)](LICENSE)
 [![Go reference](https://pkg.go.dev/badge/github.com/ionos-cloud/ionoscloud-mcp.svg)](https://pkg.go.dev/github.com/ionos-cloud/ionoscloud-mcp)
+
+![Alt text](.github/LOGO_CLOUD_B_RGB.svg?raw=true "Title")
+
+# IONOS CLOUD MCP Server
 
 A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations across Compute (servers, volumes, networking, load balancing), Managed Kubernetes (clusters, node pools, nodes) and DNS (zones, records, reverse records, DNSSEC) are strictly opt-in and create real, billable resources — see [Write operations](#write-operations).
 
@@ -72,7 +74,7 @@ Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are 
 | [Certificate Manager](docs/cert/) | 6 | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**120 read-only tools** (118 product + 2 loader), plus **93 opt-in write tools** on Compute Engine, Kubernetes and DNS — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**118 read-only tools**, plus **93 opt-in write tools** on Compute Engine, Kubernetes and DNS — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 
@@ -215,7 +217,7 @@ The server speaks stdio by default — the mode every subprocess-spawning MCP cl
 ```
 
 - `--transport <stdio|http>` (or `IONOS_MCP_TRANSPORT`) — selects the transport. Unrecognised values fall back to `stdio` with a warning.
-- `--http-addr <addr>` (or `IONOS_MCP_HTTP_ADDR`) — listen address for the HTTP transport. Default `:8080` (all interfaces); use `127.0.0.1:8080` for local-only. Ignored for stdio.
+- `--http-addr <addr>` (or `IONOS_MCP_HTTP_ADDR`) — listen address for the HTTP transport. Default `127.0.0.1:8080` (local-only); use `:8080` to listen on all interfaces. Ignored for stdio.
 
 The server logs the effective transport and its source to stderr at startup, e.g. `transport: http (source: --transport flag)`.
 
@@ -245,8 +247,6 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Images | snapshot and image update/delete |
 | Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations), single nodes (recreate, delete) |
 | DNS | primary zones (+ BIND zone-file import), records, secondary zones (+ zone transfer), reverse records, DNSSEC enable/disable |
-
-Not available, because the Go SDK cannot build the request the API accepts: renaming an IP block, attaching a CD-ROM to a server, attaching a NIC to a classic load balancer, and detaching a LAN from a cross connect. Use `ionosctl`, the Terraform provider or the [DCD](https://dcd.ionos.com/) for those.
 
 93 tools in total. The server exposes 118 at the default read-only scope, 175 with `write`, and 211 with `destructive`. Reads are unaffected and always available.
 
