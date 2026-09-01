@@ -2,7 +2,7 @@
 [![Apache 2.0](https://img.shields.io/github/license/ionos-cloud/ionoscloud-mcp)](LICENSE)
 [![Go reference](https://pkg.go.dev/badge/github.com/ionos-cloud/ionoscloud-mcp.svg)](https://pkg.go.dev/github.com/ionos-cloud/ionoscloud-mcp)
 
-![Alt text](.github/IONOS.CLOUD.BLU.svg?raw=true "Title")
+![Alt text](.github/LOGO_CLOUD_B_RGB.svg?raw=true "Title")
 
 # IONOS CLOUD MCP Server
 
