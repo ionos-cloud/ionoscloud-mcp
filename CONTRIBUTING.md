@@ -5,9 +5,8 @@ Thank you for your interest in contributing to the IONOS CLOUD MCP Server!
 ## Development Setup
 
 1. Fork and clone the repository
-2. Install Go 1.20 or higher
-3. Install dependencies: `make deps`
-4. Build the project: `make build`
+2. Install Go 1.25.11 or higher (the version declared in `go.mod`)
+3. Build the project: `make build`
 
 ## Code Style
 

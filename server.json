@@ -45,18 +45,6 @@
           "description": "Opt in to write operations. Unset (default) leaves the server read-only: only list_/get_/head_ tools are registered. 'write' additionally registers create_/update_ tools and the non-disruptive actions (start_, resume_, attach_, assign_); 'destructive' also registers delete_ and the disruptive actions (stop_, reboot_, suspend_, upgrade_, restore_, detach_, recreate_, import_) and implies 'write'. Comma-separated, case-insensitive, hierarchical; unrecognised values stay read-only. WARNING: enabling this lets an AI model provision, modify and delete billable resources in a live IONOS CLOUD account. Every create and delete requires a two-phase confirmation, but that cannot stop a client configured to approve tool calls automatically. Leave unset unless writes are needed.",
           "isRequired": false,
           "isSecret": false
-        },
-        {
-          "name": "IONOS_MCP_TRANSPORT",
-          "description": "Wire transport (the --transport flag overrides this). 'stdio' (default) serves over stdin/stdout, which is what this package declares and what subprocess-spawning clients expect. 'http' serves the Streamable HTTP transport on IONOS_MCP_HTTP_ADDR instead, for remote/networked deployments. Unrecognised values fall back to stdio.",
-          "isRequired": false,
-          "isSecret": false
-        },
-        {
-          "name": "IONOS_MCP_HTTP_ADDR",
-          "description": "Listen address for IONOS_MCP_TRANSPORT=http (the --http-addr flag overrides this). Default '127.0.0.1:8080' (local-only); use ':8080' to listen on all interfaces. Ignored for stdio. The HTTP endpoint has no built-in TLS or authentication — put it behind a reverse proxy if it must be reachable outside a trusted network.",
-          "isRequired": false,
-          "isSecret": false
         }
       ]
     }
