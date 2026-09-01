@@ -84,10 +84,9 @@ func session(t *testing.T) *mcp.ClientSession {
 	return cs
 }
 
-// callOK invokes a tool, fails on a tool error, and returns the parsed JSON
-// (object or array) from the text result. A nil return means the body was not
-// JSON (e.g. a zone file) — callers that need structure should not rely on it.
-func callOK(t *testing.T, cs *mcp.ClientSession, name string, args map[string]any) any {
+// callTool invokes a tool and returns its concatenated text content plus whether
+// the tool reported an error. A protocol-level failure is always fatal.
+func callTool(t *testing.T, cs *mcp.ClientSession, name string, args map[string]any) (string, bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -102,7 +101,16 @@ func callOK(t *testing.T, cs *mcp.ClientSession, name string, args map[string]an
 			text += tc.Text
 		}
 	}
-	if res.IsError {
+	return text, res.IsError
+}
+
+// callOK invokes a tool, fails on a tool error, and returns the parsed JSON
+// (object or array) from the text result. A nil return means the body was not
+// JSON (e.g. a zone file) — callers that need structure should not rely on it.
+func callOK(t *testing.T, cs *mcp.ClientSession, name string, args map[string]any) any {
+	t.Helper()
+	text, isErr := callTool(t, cs, name, args)
+	if isErr {
 		t.Fatalf("%s returned error: %s", name, text)
 	}
 	var parsed any
@@ -110,6 +118,23 @@ func callOK(t *testing.T, cs *mcp.ClientSession, name string, args map[string]an
 		return nil
 	}
 	return parsed
+}
+
+// callTolerating is callOK for endpoints the API refuses to answer in some
+// legitimate account states: a tool error whose text contains want is logged
+// and accepted, anything else still fails. Returns nothing — the tolerated case
+// has no body to drill into.
+func callTolerating(t *testing.T, cs *mcp.ClientSession, name string, args map[string]any, want string) {
+	t.Helper()
+	text, isErr := callTool(t, cs, name, args)
+	if !isErr {
+		return
+	}
+	if strings.Contains(text, want) {
+		t.Logf("%s: %s (expected for this account)", name, text)
+		return
+	}
+	t.Fatalf("%s returned error: %s", name, text)
 }
 
 // firstID extracts items[0].id from a parsed list response, or "" if the list
@@ -177,7 +202,9 @@ func TestLiveDNS(t *testing.T) {
 	}
 	callOK(t, cs, "get_dns_zone", map[string]any{"zone_id": zone})
 	callOK(t, cs, "list_dns_zone_records", map[string]any{"zone_id": zone})
-	callOK(t, cs, "list_dns_zone_dnssec_keys", map[string]any{"zone_id": zone})
+	// Only a DNSSEC-signed zone has keys; the API answers 400 paas-dns-rest-0438
+	// ("zone is not signed") for every other zone
+	callTolerating(t, cs, "list_dns_zone_dnssec_keys", map[string]any{"zone_id": zone}, "zone is not signed")
 }
 
 func TestLiveK8s(t *testing.T) {
