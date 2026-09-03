@@ -177,7 +177,7 @@ func main() {
 		{Name: "objectstorage", Summary: "S3-compatible Object Storage: buckets, bucket config (CORS, encryption, lifecycle, policy, replication, versioning), objects, access keys, regions.", Register: func(s *mcp.Server) { objectstorage.RegisterAll(s, objstClient, objmgmtClient, cfg) }},
 		{Name: "dns", Summary: "DNS: zones, records, reverse records, secondary zones, DNSSEC, quota, zone-file import.", Register: func(s *mcp.Server) { dns.RegisterAll(s, dnsClient, scope, confirm) }},
 		{Name: "billing", Summary: "Billing: invoices, usage, utilization, traffic, EVN, FOCUS spec.", Register: func(s *mcp.Server) { billing.RegisterAll(s, billingClient, focusSpec) }},
-		{Name: "cert", Summary: "Certificate Manager: certificates, auto-certificates, providers.", Register: func(s *mcp.Server) { cert.RegisterAll(s, certClient) }},
+		{Name: "cert", Summary: "Certificate Manager: certificates, auto-certificates, providers.", Register: func(s *mcp.Server) { cert.RegisterAll(s, certClient, scope, confirm) }},
 		{Name: "activitylog", Summary: "Activity Log: contracts, events.", Register: func(s *mcp.Server) { activitylog.RegisterAll(s, activitylogClient) }},
 	}
 

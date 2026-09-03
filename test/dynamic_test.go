@@ -82,7 +82,7 @@ func setupDynamicWithScope(t *testing.T, scope tools.Scope) *testSetup {
 		{Name: "objectstorage", Summary: "Object Storage.", Register: func(s *mcp.Server) { objectstorage.RegisterAll(s, objstClient, objmgmtClient, testCfg()) }},
 		{Name: "dns", Summary: "DNS.", Register: func(s *mcp.Server) { dns.RegisterAll(s, dnsClient, scope, confirm) }},
 		{Name: "billing", Summary: "Billing.", Register: func(s *mcp.Server) { billing.RegisterAll(s, billingClient, "") }},
-		{Name: "cert", Summary: "Certificate Manager.", Register: func(s *mcp.Server) { cert.RegisterAll(s, certClient) }},
+		{Name: "cert", Summary: "Certificate Manager.", Register: func(s *mcp.Server) { cert.RegisterAll(s, certClient, scope, confirm) }},
 		{Name: "activitylog", Summary: "Activity Log.", Register: func(s *mcp.Server) { activitylog.RegisterAll(s, activitylogClient) }},
 	}
 
