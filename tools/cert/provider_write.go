@@ -2,6 +2,8 @@ package cert
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	certSDK "github.com/ionos-cloud/sdk-go-bundle/products/cert/v2"
@@ -43,11 +45,22 @@ func registerCreateProvider(server *mcp.Server, client *certSDK.APIClient, scope
 			}
 			props.ExternalAccountBinding = &certSDK.ProviderExternalAccountBinding{KeyId: &keyID, KeySecret: &keySecret}
 		}
-		target := tools.Target(req, name, acmeServer, email)
+		var eabKeyID, eabKeySecret *string
+		if eab := props.ExternalAccountBinding; eab != nil {
+			eabKeyID, eabKeySecret = eab.KeyId, eab.KeySecret
+		}
+		// external_account_binding determines which CA account issuance is billed/
+		// authorized against, so the token must bind it too
+		var eabSecretDigest string
+		if eabKeySecret != nil {
+			sum := sha256.Sum256([]byte(*eabKeySecret))
+			eabSecretDigest = hex.EncodeToString(sum[:])
+		}
+		target := tools.Target(req, name, acmeServer, email, tools.OptStr(eabKeyID), eabSecretDigest)
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_cert_provider", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_cert_provider", "name, email and server", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_cert_provider", "name, email, server and external_account_binding", err)), nil, nil
 			}
 			created, _, err := client.ProviderApi.ProvidersPost(ctx).ProviderCreate(certSDK.ProviderCreate{Properties: props}).Execute()
 			return tools.ToResult(redactProvider(created), err)
@@ -56,10 +69,6 @@ func registerCreateProvider(server *mcp.Server, client *certSDK.APIClient, scope
 		token, err := confirm.Mint("create_cert_provider", target)
 		if err != nil {
 			return nil, nil, err
-		}
-		var eabKeyID, eabKeySecret *string
-		if eab := props.ExternalAccountBinding; eab != nil {
-			eabKeyID, eabKeySecret = eab.KeyId, eab.KeySecret
 		}
 		return tools.TextResult(tools.Preview{
 			Headline: "About to CREATE one certificate provider:",
@@ -72,7 +81,7 @@ func registerCreateProvider(server *mcp.Server, client *certSDK.APIClient, scope
 			),
 			Tool:      "create_cert_provider",
 			Replay:    tools.Fields("name", name, "email", email, "server", acmeServer),
-			TokenNote: "This creates exactly one provider. The token authorizes creating only this name, email and server",
+			TokenNote: "This creates exactly one provider. The token authorizes creating only this name, email, server and external_account_binding",
 		}.Render(token)), nil, nil
 	})
 }
@@ -132,9 +141,13 @@ func registerDeleteProvider(server *mcp.Server, client *certSDK.APIClient, scope
 		headline := "About to DELETE a certificate provider. This is IRREVERSIBLE." +
 			tools.CappedCountNote(capped, "auto-certificate", certListLimit)
 		emptyNote := "No auto-certificate issues through this provider."
-		if unreadable := tools.IncompleteRadiusNote(tools.ErrLabel(countErr, "auto-certificates")); unreadable != "" {
-			headline += unreadable
+		switch {
+		case countErr != nil:
+			headline += tools.IncompleteRadiusNote(tools.ErrLabel(countErr, "auto-certificates"))
 			emptyNote = "" // an unreadable collection must not read as an empty one
+		case capped && count == 0:
+			headline += "\nWARNING: the first page of auto-certificates had no match for this provider, but more auto-certificates exist beyond it (the API has no provider filter to check them) -- this may affect more auto-certificates than shown."
+			emptyNote = ""
 		}
 		cp := provider.Properties
 		return tools.TextResult(tools.Preview{

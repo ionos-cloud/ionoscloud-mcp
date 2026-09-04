@@ -46,11 +46,11 @@ func registerCreateAutoCertificate(server *mcp.Server, client *certSDK.APIClient
 			Name:                    name,
 			SubjectAlternativeNames: cleanNames(input.SubjectAlternativeNames),
 		}
-		target := tools.Target(req, providerID, commonName, name)
+		target := tools.Target(req, providerID, commonName, name, algorithm, strings.Join(props.SubjectAlternativeNames, ","))
 
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_cert_auto_certificate", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_cert_auto_certificate", "provider_id, common_name and name", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_cert_auto_certificate", "provider_id, common_name, name, key_algorithm and subject_alternative_names", err)), nil, nil
 			}
 			created, _, err := client.AutoCertificateApi.AutoCertificatesPost(ctx).AutoCertificateCreate(certSDK.AutoCertificateCreate{Properties: props}).Execute()
 			return tools.ToResult(created, err)
@@ -82,7 +82,7 @@ func registerCreateAutoCertificate(server *mcp.Server, client *certSDK.APIClient
 			),
 			Tool:      "create_cert_auto_certificate",
 			Replay:    tools.Fields("provider_id", providerID, "common_name", commonName, "name", name),
-			TokenNote: "This creates exactly one auto-certificate. The token authorizes creating only this provider_id, common_name and name",
+			TokenNote: "This creates exactly one auto-certificate. The token authorizes creating only this provider_id, common_name, name, key_algorithm and subject_alternative_names",
 		}.Render(token)), nil, nil
 	})
 }

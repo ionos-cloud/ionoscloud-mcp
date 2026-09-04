@@ -3,6 +3,7 @@ package cert
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -149,9 +150,18 @@ func registerDeleteCertificate(server *mcp.Server, client *certSDK.APIClient, sc
 }
 
 // materialDigest binds a confirmation token to the exact material previewed.
+// Each component is length-prefixed before hashing: validation permits multiple
+// PEM blocks, so a bare concatenation would let a block move between certificate
+// and certificate_chain — changing what gets uploaded — without changing the sum.
 func materialDigest(c certSDK.Certificate) string {
-	sum := sha256.Sum256([]byte(c.Certificate + c.CertificateChain + c.PrivateKey))
-	return hex.EncodeToString(sum[:])
+	h := sha256.New()
+	for _, s := range []string{c.Certificate, c.CertificateChain, c.PrivateKey} {
+		var length [8]byte
+		binary.BigEndian.PutUint64(length[:], uint64(len(s)))
+		h.Write(length[:])
+		h.Write([]byte(s))
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // timeText renders an optional API timestamp for a preview field.
