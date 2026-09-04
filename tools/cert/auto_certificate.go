@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterAutoCertificateTools(server *mcp.Server, client *certSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterAutoCertificateTools(server *mcp.Server, client *certSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_cert_auto_certificates",
 		Description: "List all auto-certificates in your IONOS Cloud Certificate Manager account",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
@@ -18,7 +18,7 @@ func RegisterAutoCertificateTools(server *mcp.Server, client *certSDK.APIClient)
 		return tools.ToResult(result, err)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_cert_auto_certificate",
 		Description: "Get details of a specific auto-certificate by ID",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.AutoCertificateIDInput) (*mcp.CallToolResult, any, error) {

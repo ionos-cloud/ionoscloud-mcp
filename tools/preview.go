@@ -240,3 +240,44 @@ func OptBool(v *bool) string {
 	}
 	return fmt.Sprintf("%t", *v)
 }
+
+// Redacted acknowledges a secret without echoing it — clients log previews.
+func Redacted(v *string) string {
+	if v == nil || *v == "" {
+		return ""
+	}
+	return "(set, not shown)"
+}
+
+// IncompleteRadiusNote warns that a blast radius could not be fully determined. An
+// unreadable collection must never render as an empty one.
+func IncompleteRadiusNote(what ...string) string {
+	var named []string
+	for _, w := range what {
+		if w != "" {
+			named = append(named, w)
+		}
+	}
+	if len(named) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\nWARNING: could not read this resource's %s, so the list below is INCOMPLETE — this may destroy more than it shows.", strings.Join(named, " or "))
+}
+
+// CappedCountNote warns that a preview count is a floor rather than an exact
+// figure, for list endpoints that cap a page and report no total.
+func CappedCountNote(capped bool, label string, limit int) string {
+	if !capped {
+		return ""
+	}
+	return fmt.Sprintf("\nNOTE: the %s count below is a floor — the API returns at most %d per page and reports no total.", label, limit)
+}
+
+// ErrLabel names a collection when reading it failed, and "" when it succeeded, so
+// callers can build one warning covering however many lookups went wrong.
+func ErrLabel(err error, label string) string {
+	if err == nil {
+		return ""
+	}
+	return label
+}
