@@ -2,18 +2,10 @@ package test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/json"
-	"encoding/pem"
-	"math/big"
 	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
@@ -29,15 +21,14 @@ const (
 	autoCertID = "ac-1"
 	providerID = "p-1"
 
-	certsPath      = "/certificates"
-	certPath       = certsPath + "/" + certID
-	autoCertsPath  = "/auto-certificates"
-	autoCertPath   = autoCertsPath + "/" + autoCertID
-	providersPath  = "/providers"
-	providerPath   = providersPath + "/" + providerID
-	acmeDirectory  = "https://acme-v02.api.letsencrypt.org/directory"
-	eabKeySecret   = "s3cr3t-eab-material"
-	certPrivateKey = "-----BEGIN PRIVATE KEY-----\nMIIBOgIBAAJBAKj34GkxFhD90vcNLYLInFEX6Ppy1tPf9Cnzj4p4WGeKLs1Pt8Qu\n-----END PRIVATE KEY-----\n"
+	certsPath     = "/certificates"
+	certPath      = certsPath + "/" + certID
+	autoCertsPath = "/auto-certificates"
+	autoCertPath  = autoCertsPath + "/" + autoCertID
+	providersPath = "/providers"
+	providerPath  = providersPath + "/" + providerID
+	acmeDirectory = "https://acme-v02.api.letsencrypt.org/directory"
+	eabKeySecret  = "s3cr3t-eab-material"
 
 	// Fixtures the API would return, so a preview has something to show. A
 	// certificate read carries its private key blank, as the API leaves it.
@@ -45,39 +36,6 @@ const (
 	autoCertFixture = `{"id":"ac-1","properties":{"provider":"p-1","commonName":"www.example.com","keyAlgorithm":"rsa4096","name":"renewing cert","subjectAlternativeNames":["app.example.com"]},"metadata":{"state":"AVAILABLE","lastIssuedCertificate":"c-1"}}`
 	providerFixture = `{"id":"p-1","properties":{"name":"Let's Encrypt","email":"ops@example.com","server":"https://acme-v02.api.letsencrypt.org/directory","externalAccountBinding":{"keyId":"key-1","keySecret":"leaked-if-returned"}},"metadata":{"state":"AVAILABLE"}}`
 )
-
-// selfSignedPEM returns a certificate PEM whose subject and expiry the preview
-// assertions can look for, without a checked-in certificate that would age out.
-func selfSignedPEM(t *testing.T, commonName string) string {
-	t.Helper()
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		t.Fatalf("generating a test key: %v", err)
-	}
-	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject:      pkix.Name{CommonName: commonName},
-		DNSNames:     []string{commonName, "app.example.com"},
-		NotBefore:    time.Now().Add(-time.Hour),
-		NotAfter:     time.Now().Add(24 * time.Hour),
-	}
-	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
-	if err != nil {
-		t.Fatalf("creating a test certificate: %v", err)
-	}
-	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
-}
-
-// certificateArgs are the four fields create_cert_certificate needs.
-func certificateArgs(t *testing.T) map[string]any {
-	leaf := selfSignedPEM(t, "www.example.com")
-	return map[string]any{
-		"name":              "prod cert",
-		"certificate":       leaf,
-		"certificate_chain": leaf,
-		"private_key":       certPrivateKey,
-	}
-}
 
 // certPatchProperties returns the decoded properties object of the one PATCH in the
 // log, plus the body's top-level keys.
@@ -97,117 +55,17 @@ func certPatchProperties(t *testing.T, h *testSetup) (props map[string]any, topL
 	return props, topLevel
 }
 
-// ---------- create_cert_certificate ----------
-
-func TestCreateCertCertificateTwoPhase(t *testing.T) {
-	h := destructiveSetup(t)
-	args := certificateArgs(t)
-	preview, res := previewThenExecute(t, h, "create_cert_certificate", args)
-
-	for _, want := range []string{"CREATE one certificate", "prod cert", "CN=www.example.com", "SAN www.example.com app.example.com"} {
-		if !strings.Contains(preview, want) {
-			t.Errorf("preview missing %q:\n%s", want, preview)
+// TestCreateCertCertificateIsNotRegistered pins the deliberate omission. The API
+// requires the private key in the create body, so the tool would have to accept it as
+// an argument — putting it in the model's context, the on-disk transcript and every
+// later request to the model provider, none of which redaction reaches. If someone
+// adds the tool back, this fails and they have to read why first.
+func TestCreateCertCertificateIsNotRegistered(t *testing.T) {
+	for _, scope := range []tools.Scope{{}, {Write: true}, {Write: true, Destructive: true}} {
+		h := setupWithScope(t, scope)
+		if toolNames(t, context.Background(), h)["create_cert_certificate"] {
+			t.Errorf("scope %s: create_cert_certificate must NOT be registered — it would take a private key as a tool argument", scope)
 		}
-	}
-	if res.IsError {
-		t.Fatalf("execute failed: %s", resultText(res))
-	}
-	req := singleRequest(t, h, http.MethodPost)
-	if req.Path != certsPath {
-		t.Errorf("POST path = %s, want %s", req.Path, certsPath)
-	}
-	for _, want := range []string{`"name":"prod cert"`, `"certificate":`, `"certificateChain":`, `"privateKey":`} {
-		if !strings.Contains(req.Body, want) {
-			t.Errorf("POST body missing %s:\n%s", want, req.Body)
-		}
-	}
-}
-
-// TestCreateCertCertificatePreviewNeverEchoesThePrivateKey is the point of the
-// redaction: an MCP client logs previews, so a key echoed there is a key leaked.
-func TestCreateCertCertificatePreviewNeverEchoesThePrivateKey(t *testing.T) {
-	h := destructiveSetup(t)
-	res := callTool(t, h, "create_cert_certificate", certificateArgs(t))
-	preview := resultText(res)
-
-	if strings.Contains(preview, "MIIBOgIBAAJBAKj34Gkx") || strings.Contains(preview, "PRIVATE KEY") {
-		t.Errorf("the preview must not echo the private key:\n%s", preview)
-	}
-	if !strings.Contains(preview, "private_key:") || !strings.Contains(preview, "(set, not shown)") {
-		t.Errorf("the preview should acknowledge the key without showing it:\n%s", preview)
-	}
-}
-
-// TestCreateCertCertificateResultNeverReturnsThePrivateKey covers the response side:
-// the field is write-only in the spec, but the SDK models it, so a server that
-// echoed it would put the key in the transcript.
-func TestCreateCertCertificateResultNeverReturnsThePrivateKey(t *testing.T) {
-	h := destructiveSetup(t)
-	h.resp.serve(certsPath, `{"id":"c-1","properties":{"name":"prod cert","privateKey":"leaked-if-returned"},"metadata":{"state":"AVAILABLE"}}`)
-
-	_, res := previewThenExecute(t, h, "create_cert_certificate", certificateArgs(t))
-	if got := resultText(res); strings.Contains(got, "leaked-if-returned") {
-		t.Errorf("the result must not carry the private key back:\n%s", got)
-	}
-}
-
-// TestCreateCertCertificateTokenIsBoundToTheMaterial: a token previewed for one
-// certificate must not upload a different key.
-func TestCreateCertCertificateTokenIsBoundToTheMaterial(t *testing.T) {
-	h := destructiveSetup(t)
-	args := certificateArgs(t)
-	token := extractToken(t, resultText(callTool(t, h, "create_cert_certificate", args)))
-
-	swapped := map[string]any{"confirmation_token": token}
-	for k, v := range args {
-		swapped[k] = v
-	}
-	swapped["private_key"] = strings.Replace(certPrivateKey, "MIIBOgIBAAJBAKj34Gkx", "MIIBOgIBAAJBAKj34Gky", 1)
-
-	h.log.clear()
-	res := callTool(t, h, "create_cert_certificate", swapped)
-	if !res.IsError {
-		t.Fatalf("a token minted for other material must not execute: %s", resultText(res))
-	}
-	assertNoMutation(t, h, "create_cert_certificate with swapped material")
-}
-
-func TestCreateCertCertificateValidation(t *testing.T) {
-	h := destructiveSetup(t)
-	valid := certificateArgs(t)
-
-	tests := []struct {
-		name    string
-		args    map[string]any
-		wantMsg string
-	}{
-		{"blank name", withArgs(valid, "name", "   "), "name is required"},
-		{"certificate is a path", withArgs(valid, "certificate", "/etc/ssl/cert.pem"), "certificate is not PEM"},
-		{"chain is bare base64", withArgs(valid, "certificate_chain", "TUlJRG9UQ0NBb2tDRkRy"), "certificate_chain is not PEM"},
-		{"private key is not PEM", withArgs(valid, "private_key", "not-a-key"), "private_key is not PEM"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h.log.clear()
-			res := callTool(t, h, "create_cert_certificate", tt.args)
-			if !res.IsError {
-				t.Fatalf("expected a rejection, got: %s", resultText(res))
-			}
-			if got := resultText(res); !strings.Contains(got, tt.wantMsg) {
-				t.Errorf("error = %q, want it to contain %q", got, tt.wantMsg)
-			}
-			assertNoMutation(t, h, tt.name)
-		})
-	}
-}
-
-// TestCreateCertCertificateValidationNeverQuotesTheKey: a rejection message is as
-// loggable as a preview, so the invalid key must not appear in it either.
-func TestCreateCertCertificateValidationNeverQuotesTheKey(t *testing.T) {
-	h := destructiveSetup(t)
-	res := callTool(t, h, "create_cert_certificate", withArgs(certificateArgs(t), "private_key", "hunter2-not-a-key"))
-	if got := resultText(res); strings.Contains(got, "hunter2-not-a-key") {
-		t.Errorf("the rejection must not quote the supplied key back:\n%s", got)
 	}
 }
 
@@ -627,7 +485,6 @@ func TestCertWriteToolAnnotations(t *testing.T) {
 	ctx := context.Background()
 
 	want := map[string]struct{ destructive, idempotent bool }{
-		"create_cert_certificate":      {false, false},
 		"update_cert_certificate":      {false, true},
 		"delete_cert_certificate":      {true, true},
 		"create_cert_auto_certificate": {false, false},
@@ -675,7 +532,7 @@ func TestCertWriteToolsAreScopeGated(t *testing.T) {
 		"list_cert_providers", "get_cert_provider",
 	}
 	writes := []string{
-		"create_cert_certificate", "update_cert_certificate",
+		"update_cert_certificate",
 		"create_cert_auto_certificate", "update_cert_auto_certificate",
 		"create_cert_provider", "update_cert_provider",
 	}
@@ -729,7 +586,7 @@ func TestCertWriteToolsDeclareCompletionSemantics(t *testing.T) {
 		"delete_cert_provider": true,
 	}
 	sync := map[string]bool{
-		"create_cert_certificate": true, "update_cert_certificate": true,
+		"update_cert_certificate":      true,
 		"create_cert_auto_certificate": true, "update_cert_auto_certificate": true,
 		"create_cert_provider": true, "update_cert_provider": true,
 	}

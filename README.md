@@ -71,10 +71,10 @@ Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are 
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
 | [DNS](docs/dns/) | 14 + 16 write | Zones, zone files (+ BIND import), records, reverse records, secondary zones (+ zone transfer), DNSSEC, quota |
 | [Billing](docs/billing/) | 15 | Profile, invoices, EVN (provisioning intervals), traffic, usage, utilization, product pricing catalog, FOCUS v1.3 spec |
-| [Certificate Manager](docs/cert/) | 6 + 9 write | Certificates, auto-certificates, providers |
+| [Certificate Manager](docs/cert/) | 6 + 8 write | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**118 read-only tools**, plus **102 opt-in write tools** on Compute Engine, Kubernetes, DNS and Certificate Manager — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**118 read-only tools**, plus **101 opt-in write tools** on Compute Engine, Kubernetes, DNS and Certificate Manager — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 
@@ -247,9 +247,9 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Images | snapshot and image update/delete |
 | Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations), single nodes (recreate, delete) |
 | DNS | primary zones (+ BIND zone-file import), records, secondary zones (+ zone transfer), reverse records, DNSSEC enable/disable |
-| Certificate Manager | certificates (upload, rename, delete), auto-certificates, ACME providers — renames only change the name, the rest is immutable |
+| Certificate Manager | auto-certificates, ACME providers, certificate rename/delete — renames only change the name, the rest is immutable. Uploading certificate material is deliberately **not** offered: it would require passing a private key as a tool argument. |
 
-102 tools in total. The server exposes 118 at the default read-only scope, 181 with `write`, and 220 with `destructive`. Reads are unaffected and always available.
+101 tools in total. The server exposes 118 at the default read-only scope, 180 with `write`, and 219 with `destructive`. Reads are unaffected and always available.
 
 **Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_`), is confirmation-gated, along with the DNS zone-file import. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
 

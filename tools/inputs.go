@@ -1364,14 +1364,6 @@ type ProviderIDInput struct {
 // Certificate Manager write input types. All three PATCH endpoints accept only the
 // spec's PatchName, so an update renames the resource and changes nothing else.
 
-type CreateCertCertificateInput struct {
-	Name              string  `json:"name" jsonschema:"a name for the certificate, used for management purposes only; it does not have to match the common name"`
-	Certificate       string  `json:"certificate" jsonschema:"the certificate body in PEM format, including the BEGIN CERTIFICATE and END CERTIFICATE lines"`
-	CertificateChain  string  `json:"certificate_chain" jsonschema:"the chain of intermediate CA certificates in PEM format, leaf-issuer first. Required by the API; the root CA does not need to be included."`
-	PrivateKey        string  `json:"private_key" jsonschema:"the unencrypted private key matching the certificate, in PEM format. Write-only: the API never returns it and it is never echoed in a preview."`
-	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to upload the certificate"`
-}
-
 type UpdateCertCertificateInput struct {
 	CertificateID string `json:"certificate_id" jsonschema:"the ID of the certificate to rename"`
 	Name          string `json:"name" jsonschema:"the new certificate name"`
