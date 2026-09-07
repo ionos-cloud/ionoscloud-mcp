@@ -92,7 +92,7 @@ Synchronous (201): the returned body is the stored provider. Read `metadata.stat
 
 Renames a certificate provider. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Single call.
 
-**Only the name can be changed.** The PATCH endpoint accepts the spec's `PatchName` and nothing else, so the email, the ACME directory URL and the external account binding are immutable. To change any of them, create a new provider, repoint the auto-certificates at it, and delete this one.
+**Only the name can be changed.** The PATCH endpoint accepts the spec's `PatchName` and nothing else, so the email, the ACME directory URL and the external account binding are immutable. To change any of them, create a new provider, recreate each auto-certificate against it, and delete this one.
 
 **Parameters:**
 
