@@ -90,7 +90,7 @@ func registerUpdateProvider(server *mcp.Server, client *certSDK.APIClient, scope
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
 		Name: "update_cert_provider",
 		Description: "Rename a certificate provider." + renameNote +
-			"The email, the ACME directory URL and the external account binding are immutable: to change any of them, create a new provider, repoint the auto-certificates at it, and delete this one." + updatedNote,
+			"The email, the ACME directory URL and the external account binding are immutable: to change any of them, create a new provider, recreate each auto-certificate against it, and delete this one." + updatedNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateCertProviderInput) (*mcp.CallToolResult, any, error) {
 		return rename(input.ProviderID, "provider_id", input.Name,
 			func(id string, props certSDK.PatchName) (certSDK.ProviderRead, error) {
