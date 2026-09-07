@@ -80,8 +80,14 @@ func registerCreateAutoCertificate(server *mcp.Server, client *certSDK.APIClient
 				"provider", provider.Properties.Name,
 				"provider_server", provider.Properties.Server,
 			),
-			Tool:      "create_cert_auto_certificate",
-			Replay:    tools.Fields("provider_id", providerID, "common_name", commonName, "name", name),
+			Tool: "create_cert_auto_certificate",
+			Replay: tools.Fields(
+				"provider_id", providerID,
+				"common_name", commonName,
+				"name", name,
+				"key_algorithm", algorithm,
+				"subject_alternative_names", strings.Join(props.SubjectAlternativeNames, ", "),
+			),
 			TokenNote: "This creates exactly one auto-certificate. The token authorizes creating only this provider_id, common_name, name, key_algorithm and subject_alternative_names",
 		}.Render(token)), nil, nil
 	})

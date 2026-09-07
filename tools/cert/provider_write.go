@@ -51,6 +51,10 @@ func registerCreateProvider(server *mcp.Server, client *certSDK.APIClient, scope
 		}
 		// external_account_binding determines which CA account issuance is billed/
 		// authorized against, so the token must bind it too
+		eabReplay := ""
+		if eabKeySecret != nil {
+			eabReplay = "(the same key_id and key_secret)"
+		}
 		var eabSecretDigest string
 		if eabKeySecret != nil {
 			sum := sha256.Sum256([]byte(*eabKeySecret))
@@ -79,8 +83,15 @@ func registerCreateProvider(server *mcp.Server, client *certSDK.APIClient, scope
 				"external_account_binding.key_id", tools.OptStr(eabKeyID),
 				"external_account_binding.key_secret", tools.Redacted(eabKeySecret),
 			),
-			Tool:      "create_cert_provider",
-			Replay:    tools.Fields("name", name, "email", email, "server", acmeServer),
+			Tool: "create_cert_provider",
+			// Every field in the target, or replaying the preview mints a mismatch. The
+			// binding is named rather than printed, as import_dns_zone_file does.
+			Replay: tools.Fields(
+				"name", name,
+				"email", email,
+				"server", acmeServer,
+				"external_account_binding", eabReplay,
+			),
 			TokenNote: "This creates exactly one provider. The token authorizes creating only this name, email, server and external_account_binding",
 		}.Render(token)), nil, nil
 	})

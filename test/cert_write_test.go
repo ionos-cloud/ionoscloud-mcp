@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -443,6 +444,114 @@ func TestDeleteCertProviderPreviewNeverClaimsEmptyOnError(t *testing.T) {
 	if !strings.Contains(preview, "INCOMPLETE") {
 		t.Errorf("preview should warn the radius is incomplete:\n%s", preview)
 	}
+}
+
+// ---------- following the preview must work ----------
+
+// replayArgsFromPreview parses the arguments the preview's "To proceed" block tells
+// the caller to send back, so a test can follow the instructions literally instead of
+// reusing the arguments it already had.
+func replayArgsFromPreview(t *testing.T, preview string) map[string]string {
+	t.Helper()
+	_, after, found := strings.Cut(preview, "To proceed, call")
+	if !found {
+		t.Fatalf("preview has no replay block:\n%s", preview)
+	}
+	_, body, _ := strings.Cut(after, "\n")
+	out := map[string]string{}
+	for _, line := range strings.Split(body, "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), ":")
+		if !ok || key == "" {
+			continue // the trailing token-note prose
+		}
+		out[key] = strings.TrimSpace(value)
+	}
+	return out
+}
+
+// TestCreateCertPreviewsListEveryBoundArgument is the other half of the token-binding
+// tests: those prove a TAMPERED replay is refused, this proves a FAITHFUL one is
+// accepted. Any field in the confirmation target that the replay block omits makes the
+// preview self-defeating — a caller who follows it either trips schema validation or
+// mints a mismatch against a token a human already approved. Nothing pinned the replay
+// list before, which is exactly how two such omissions reached review.
+func TestCreateCertPreviewsListEveryBoundArgument(t *testing.T) {
+	tests := []struct {
+		tool     string
+		args     map[string]any
+		wantArgs []string // must appear in the replay block
+	}{
+		{
+			tool: "create_cert_provider",
+			args: map[string]any{"name": "ZeroSSL", "email": "ops@example.com", "server": acmeDirectory,
+				"external_account_binding": map[string]any{"key_id": "key-1", "key_secret": eabKeySecret}},
+			wantArgs: []string{"name", "email", "server", "external_account_binding"},
+		},
+		{
+			tool:     "create_cert_provider",
+			args:     map[string]any{"name": "LE", "email": "ops@example.com", "server": acmeDirectory},
+			wantArgs: []string{"name", "email", "server"},
+		},
+		{
+			tool: "create_cert_auto_certificate",
+			args: map[string]any{"provider_id": providerID, "common_name": "www.example.com",
+				"key_algorithm": "rsa4096", "name": "auto",
+				"subject_alternative_names": []any{"app.example.com", "api.example.com"}},
+			wantArgs: []string{"provider_id", "common_name", "name", "key_algorithm", "subject_alternative_names"},
+		},
+		{
+			tool: "create_cert_auto_certificate",
+			args: map[string]any{"provider_id": providerID, "common_name": "www.example.com",
+				"key_algorithm": "rsa4096", "name": "auto"},
+			wantArgs: []string{"provider_id", "common_name", "name", "key_algorithm"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.tool+"/"+strings.Join(tt.wantArgs, "+"), func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(providerPath, providerFixture)
+
+			preview := resultText(callTool(t, h, tt.tool, tt.args))
+			replay := replayArgsFromPreview(t, preview)
+			for _, want := range tt.wantArgs {
+				if _, ok := replay[want]; !ok {
+					t.Errorf("replay block omits %q, so following the preview cannot work:\n%s", want, preview)
+				}
+			}
+			if _, ok := replay["confirmation_token"]; !ok {
+				t.Fatalf("replay block has no confirmation_token:\n%s", preview)
+			}
+
+			// Follow the instructions: resend the original values for exactly the
+			// arguments named, plus the token. This must be accepted.
+			execute := map[string]any{"confirmation_token": replay["confirmation_token"]}
+			for _, k := range tt.wantArgs {
+				execute[k] = tt.args[k]
+			}
+			h.log.clear()
+			res := callTool(t, h, tt.tool, execute)
+			if res.IsError {
+				t.Fatalf("a faithful replay of the preview must be accepted, got: %s", resultText(res))
+			}
+			if _, err := singleRequestOrNone(h, http.MethodPost); err != nil {
+				t.Errorf("%s: %v", tt.tool, err)
+			}
+		})
+	}
+}
+
+// singleRequestOrNone reports whether exactly one request of the given method was made.
+func singleRequestOrNone(h *testSetup, method string) (recordedRequest, error) {
+	var found []recordedRequest
+	for _, r := range h.log.allRequests() {
+		if r.Method == method {
+			found = append(found, r)
+		}
+	}
+	if len(found) != 1 {
+		return recordedRequest{}, fmt.Errorf("expected exactly 1 %s, got %d", method, len(found))
+	}
+	return found[0], nil
 }
 
 // ---------- registration, annotations, scope ----------
