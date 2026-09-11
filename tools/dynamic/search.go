@@ -5,13 +5,9 @@ import (
 	"strings"
 )
 
-// snippet returns a short description for search results. It always includes
-// the first sentence (the tool's summary). When the query matched on a LATER
-// sentence (e.g. "idle" → "...set include_zero=true to find idle resources"),
-// it appends that matching sentence so the shown text explains the match —
-// scoring (in score) runs over the full description, so the tool is found
-// regardless; this only controls what's displayed. With no query (group
-// browse), only the first sentence is shown.
+// snippet returns a short description for search results: the first sentence,
+// plus a later matching sentence if the query hit one there (scoring itself
+// runs over the full description). With no query, only the first sentence shows.
 func snippet(desc string, tokens []string) string {
 	parts := splitSentences(desc)
 	if len(parts) == 0 {
@@ -40,9 +36,8 @@ func containsAny(s string, tokens []string) bool {
 }
 
 // splitSentences splits desc into trimmed, non-empty sentences, breaking after
-// sentence-ending punctuation (. ! ?) that is followed by whitespace. A period
-// with no trailing space does not split, so "v1.3." and "(YYYY-MM-DD)." stay
-// intact. (Go's RE2 has no lookbehind, so this is a manual scan.)
+// .!? followed by whitespace — a period with no trailing space doesn't split,
+// so "v1.3." and "(YYYY-MM-DD)." stay intact.
 func splitSentences(desc string) []string {
 	desc = strings.TrimSpace(desc)
 	var out []string
@@ -67,10 +62,9 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n' || r == '\r'
 }
 
-// search ranks catalog entries against a free-text query, optionally restricted
-// to a single product group, returning at most limit results. An empty query
-// (typically combined with a group) browses: it returns entries unscored, in
-// the catalog's stable name order. A non-empty query drops zero-score entries.
+// search ranks catalog entries against a free-text query, optionally
+// restricted to a group, returning at most limit results. An empty query
+// browses (unscored, stable name order); a non-empty query drops zero-score entries.
 func (r *dispatcher) search(query, group string, limit int) []catalogEntry {
 	tokens := tokenize(query)
 	browse := strings.TrimSpace(query) == ""
@@ -99,9 +93,8 @@ func (r *dispatcher) search(query, group string, limit int) []catalogEntry {
 		}
 	}
 
-	// Sort by descending score; break ties by shorter name (a query covers more
-	// of a short, specific name like list_datacenters than a long incidental one
-	// like get_billing_usage_by_datacenter), then alphabetically for stability.
+	// Sort by descending score, then shorter name (a query covers more of a
+	// short name), then alphabetically for stability.
 	sort.SliceStable(hits, func(i, j int) bool {
 		if hits[i].score != hits[j].score {
 			return hits[i].score > hits[j].score
@@ -135,9 +128,8 @@ func score(e catalogEntry, query string, tokens []string) int {
 	case name == q:
 		s += 100
 	case strings.Contains(name, q):
-		// Coverage-weighted: the larger a fraction of the name the query spans,
-		// the more relevant. Keeps the query's primary noun (e.g. "datacenter"
-		// → list_datacenters) above tools that merely contain it in a longer name.
+		// Coverage-weighted: the larger a fraction of the name the query spans, the
+		// more relevant (keeps "datacenter" above a longer incidental name match).
 		s += 10 + 40*len(q)/len(name)
 	}
 	for _, t := range tokens {

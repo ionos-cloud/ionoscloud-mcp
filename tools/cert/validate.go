@@ -10,8 +10,6 @@ import (
 
 // Input validation for the Certificate Manager write tools. Each function returns
 // (value, message); a non-empty message means reject the call with that text.
-// The SDK types all of these as plain strings, so an unchecked mistake surfaces as a
-// round-trip 422 that never names the field.
 
 // keyAlgorithms is the enum the spec allows for an auto-certificate's key.
 var keyAlgorithms = []string{"rsa2048", "rsa3072", "rsa4096"}

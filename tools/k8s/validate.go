@@ -13,8 +13,6 @@ import (
 
 // Input validation for the Kubernetes write tools. Each builder returns
 // (value, message); a non-empty message means reject the call with that text.
-// The enums are plain strings on the wire, so a bad value would otherwise surface as
-// a whole-request rejection that never names the field.
 
 var maintenanceDays = map[string]string{
 	"monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday",

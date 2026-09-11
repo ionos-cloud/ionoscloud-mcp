@@ -1,21 +1,5 @@
 // Package ionosclient builds and maintains the User-Agent string the MCP
 // server attaches to outbound IONOS CLOUD API calls.
-//
-// The User-Agent carries diagnostic metadata: server version, SDK bundle
-// version, OS/arch, transport, eager-load mode, and — once the MCP
-// initialize handshake completes — the calling host's name, version, and
-// negotiated protocol version.
-//
-// Composition is split into a static prefix built once at startup and a
-// dynamic full string updated after handshake. UserAgent stores the
-// composed string in an atomic.Pointer so updates are race-free.
-//
-// UA injection happens at the HTTP boundary via the Transport method,
-// which wraps the cfg.HTTPClient.Transport with a RoundTripper that sets
-// the User-Agent header on every outbound request. Because the SDK shares
-// the underlying *http.Client across every shallow cfg copy (compute,
-// DNS, billing, cert, object storage base + regional clients), a single
-// RoundTripper covers all clients without chasing cfg snapshots.
 package ionosclient
 
 import (

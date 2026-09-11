@@ -88,9 +88,8 @@ func registerUpdateZone(server *mcp.Server, client *dnsSDK.APIClient, scope tool
 			return tools.ErrorText("nothing to update: provide at least one of description, enabled"), nil, nil
 		}
 
-		// The endpoint replaces the zone's properties and the SDK serializes
-		// zoneName unconditionally, so read the zone and override only what the
-		// caller supplied. Without this the PUT would send an empty zone name.
+		// zoneName is serialized unconditionally, so read the zone first or the
+		// PUT would send an empty name.
 		current, _, err := client.ZonesApi.ZonesFindById(ctx, id).Execute()
 		if err != nil {
 			if tools.IsNotFound(err) {
@@ -250,12 +249,9 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 		})
 }
 
-// zoneRecordCount counts a primary zone's records for a blast-radius preview, and
-// reports whether the page came back full. ZonesRecordsGet cannot be used: the SDK
-// exposes no limit on it, so its 100-item default would understate the count.
-//
-// A failure is returned rather than folded into a zero, because "none" and "could not
-// tell" are different claims to put in front of someone authorizing a delete.
+// zoneRecordCount counts a primary zone's records for a blast-radius preview and
+// reports whether the page came back full. A failure is returned rather than folded
+// into a zero, since "none" and "could not tell" are different claims to show.
 func zoneRecordCount(ctx context.Context, client *dnsSDK.APIClient, zoneID string) (n int, capped bool, err error) {
 	records, _, err := client.RecordsApi.RecordsGet(ctx).FilterZoneId(zoneID).Limit(recordCountLimit).Execute()
 	if err != nil {

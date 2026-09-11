@@ -99,11 +99,8 @@ func TestManagedLoadBalancerLanValidation(t *testing.T) {
 	}
 }
 
-// TestUpdateManagedLoadBalancerCarriesRequiredFields is the critical test for these
-// resources. Both models serialize name, listenerLan and targetLan unconditionally,
-// so a PATCH built without them would send an empty name and LAN 0 on both sides —
-// moving the load balancer off its client network AND its backend network as a side
-// effect of, say, toggling logging.
+// TestUpdateManagedLoadBalancerCarriesRequiredFields checks that a PATCH omitting
+// name/listenerLan/targetLan doesn't zero them out and move the LB off its networks.
 func TestUpdateManagedLoadBalancerCarriesRequiredFields(t *testing.T) {
 	for _, f := range managedLbFlavours {
 		t.Run(f.tool, func(t *testing.T) {
@@ -331,11 +328,8 @@ func TestCreateNlbForwardingRuleTwoPhase(t *testing.T) {
 	}
 }
 
-// TestUpdateNlbForwardingRulePreservesTargets is the most important test in this
-// batch. NetworkLoadBalancerForwardingRuleProperties serializes `targets`
-// unconditionally, so a partial update built without it would send an empty targets
-// list and remove EVERY backend from the load balancer — an outage caused by
-// renaming a rule.
+// TestUpdateNlbForwardingRulePreservesTargets checks a rename doesn't send an empty
+// `targets` list, which is serialized unconditionally and would drop every backend.
 func TestUpdateNlbForwardingRulePreservesTargets(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(nlbRulesAPI+"/r-1", `{"id":"r-1","properties":{
@@ -674,10 +668,8 @@ func TestCreateTargetGroupWarnsWithNoTargets(t *testing.T) {
 	}
 }
 
-// TestUpdateTargetGroupCarriesRequiredFields covers the third carry-forward case:
-// name, algorithm and protocol are serialized unconditionally, and the backend list
-// must survive an unrelated change or every load balancer rule forwarding here
-// loses its pool.
+// TestUpdateTargetGroupCarriesRequiredFields checks name/algorithm/protocol and the
+// backend list survive an unrelated update, since all are serialized unconditionally.
 func TestUpdateTargetGroupCarriesRequiredFields(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(tgAPI+"/tg-1", `{"id":"tg-1","properties":{
@@ -777,11 +769,9 @@ func TestUpdateNatGatewayCarriesRequiredFields(t *testing.T) {
 	}
 }
 
-// TestUpdateNatGatewayEmptyLansIsForwarded pins the asymmetry between the two list
-// fields, which is deliberate and matches the spec: public_ips is required, so an
-// empty list is refused before any call; lans is optional, so an empty list is a
-// legal state and must reach the API rather than being swallowed or rejected.
-// Confirmed live (2026-08-05): the gateway went AVAILABLE with lans: [].
+// TestUpdateNatGatewayEmptyLansIsForwarded pins the deliberate asymmetry: public_ips
+// is required so an empty list is refused, but lans is optional and an empty list is
+// legal, so it must reach the API rather than being silently dropped.
 func TestUpdateNatGatewayEmptyLansIsForwarded(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(natAPI+"/gw-1", `{"id":"gw-1","properties":{

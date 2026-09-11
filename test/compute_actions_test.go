@@ -12,10 +12,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Tests for the non-CRUD action tools: server power control, volume snapshot
-// actions, attach/detach relations and security-group assignment. These are the
-// first tools to register through tools.RegisterActionTool, where the mutation
-// class comes from the name's verb rather than the HTTP method.
+// Tests for the non-CRUD action tools (power control, snapshot actions,
+// attach/detach, security-group assignment), registered via
+// tools.RegisterActionTool, where mutation class comes from the verb.
 
 const (
 	srvAPI     = serversAPI + "/srv-1"
@@ -133,11 +132,8 @@ func TestDisruptiveActionTokenIsPerAction(t *testing.T) {
 	}
 }
 
-// TestDisruptiveActionServerTypeGuard covers the second CUBE trap. The API
-// documents that stop_server cannot be used on a CUBE server and that
-// suspend_server works only on one, but its rejection is late and generic. The
-// preview already fetches the server, so the type is checked before a token is
-// even minted and the message names the tool to use instead.
+// TestDisruptiveActionServerTypeGuard checks that a CUBE/non-CUBE mismatch is
+// rejected before a token is minted, with a message naming the correct tool.
 func TestDisruptiveActionServerTypeGuard(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -298,10 +294,8 @@ func TestRestoreVolumeSnapshotTokenBoundToSnapshot(t *testing.T) {
 
 // ---------- attach / detach volume ----------
 
-// TestAttachServerVolumeSendsIdOnly pins the attach-by-reference body. It must be
-// exactly {"id": ...}: any properties object would be property values the caller
-// never supplied, which is why the CD-ROM and LAN-NIC attach tools are not
-// shipped (their SDK models force one).
+// TestAttachServerVolumeSendsIdOnly pins the attach-by-reference body to exactly
+// {"id": ...} — any properties object would be values the caller never supplied.
 func TestAttachServerVolumeSendsIdOnly(t *testing.T) {
 	h := destructiveSetup(t)
 	res := callTool(t, h, "attach_server_volume", map[string]any{
@@ -421,10 +415,9 @@ func TestAssignSecurityGroupsRejectsBlankID(t *testing.T) {
 
 // ---------- scope gating ----------
 
-// TestActionScopeGating pins which actions each scope exposes. The point is the
-// asymmetry the verb table encodes: stop_server is a POST that needs
-// "destructive", while attach_server_volume needs only "write", and
-// detach_server_volume is a DELETE that is not a resource deletion.
+// TestActionScopeGating pins which actions each scope exposes — the asymmetry
+// matters: stop_server needs "destructive" though it's a POST, and
+// detach_server_volume is a DELETE that isn't a resource deletion.
 func TestActionScopeGating(t *testing.T) {
 	ctx := context.Background()
 	writeClass := []string{"start_server", "resume_server", "attach_server_volume",
@@ -459,18 +452,9 @@ func TestActionScopeGating(t *testing.T) {
 	}
 }
 
-// TestDestructiveActionsAbsentFromDynamicCatalog checks that the registration
-// gate keeps destructive actions out of the dynamic catalog under a write-only
-// scope, so they are not merely refused but genuinely not there.
-//
-// Note what this does NOT prove. The refusal here is "no such tool" from the
-// catalog lookup, not the class check in callHandler — under a write-only scope
-// the destructive actions never reach the catalog, so that second gate is
-// unreachable from this direction. The class check is the defence against a tool
-// registered with bare mcp.AddTool, and it is covered where it can actually be
-// exercised: TestCatalogClassifiesActionVerbs in tools/dynamic. Asserting only
-// res.IsError here would pass even with ClassFromName's verb lookup removed,
-// which is why the assertion below is on the specific message.
+// TestDestructiveActionsAbsentFromDynamicCatalog checks that destructive actions
+// are genuinely absent from the dynamic catalog under a write-only scope, not
+// merely refused (see TestCatalogClassifiesActionVerbs for the class-check path).
 func TestDestructiveActionsAbsentFromDynamicCatalog(t *testing.T) {
 	ctx := context.Background()
 	h := setupDynamicWithScope(t, tools.Scope{Write: true})
@@ -492,10 +476,8 @@ func TestDestructiveActionsAbsentFromDynamicCatalog(t *testing.T) {
 		if !res.IsError {
 			t.Errorf("%q must not be callable through ionos_call_tool under a write-only scope", name)
 		}
-		// Assert the specific reason: the tool is not in the catalog at all.
-		// A bare IsError check would also be satisfied by a validation failure or
-		// an API error, and would not distinguish the gate working from the gate
-		// being bypassed.
+		// A bare IsError check would not distinguish the gate from a validation or
+		// API error, so assert the specific "no such tool" message instead.
 		if txt := resultText(res); !strings.Contains(txt, "no such tool") {
 			t.Errorf("%q should be absent from the catalog under a write-only scope, got: %s", name, txt)
 		}

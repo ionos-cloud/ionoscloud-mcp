@@ -14,12 +14,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/ionosclient"
 )
 
-// TestUserAgentReachesSDKOutboundRequests locks the invariant that powers
-// this whole package: when the UA RoundTripper is wired onto cfg.HTTPClient
-// and the IONOS SDK constructs an APIClient from that cfg, every outbound
-// HTTP request the SDK issues carries the current UA — including segments
-// added after construction via SetClient. A future SDK refactor that broke
-// the HTTPClient pointer through its shallow-copy path would fail here.
+// TestUserAgentReachesSDKOutboundRequests verifies the UA RoundTripper
+// wired onto cfg.HTTPClient reaches every outbound request the SDK issues,
+// including segments added after construction via SetClient.
 func TestUserAgentReachesSDKOutboundRequests(t *testing.T) {
 	var (
 		mu       sync.Mutex

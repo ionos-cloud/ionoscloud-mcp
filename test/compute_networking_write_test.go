@@ -57,9 +57,8 @@ func TestCreateIpBlockValidation(t *testing.T) {
 		args    map[string]any
 		wantMsg string
 	}{
-		// location is schema-required, so an omitted one is rejected by the MCP SDK
-		// before the handler runs. The handler's own check catches the case the
-		// schema cannot: a present but blank value.
+		// location is schema-required, so omission is caught by the SDK; a blank
+		// value only fails the handler's own check.
 		{"blank location", map[string]any{"location": "   ", "size": 1}, "location is required"},
 		{"size must be positive", map[string]any{"location": "de/fra", "size": 0}, "size must be at least 1"},
 	} {
@@ -79,18 +78,9 @@ func TestCreateIpBlockValidation(t *testing.T) {
 	}
 }
 
-// TestUpdateIpBlockIsNotRegistered replaces a test that pinned the wrong behaviour.
-//
-// It used to assert that update_ip_block carried location and size forward, on the
-// reading that IpBlockProperties serializes them unconditionally so the PATCH must at
-// least send the *correct* values rather than "" and 0. That was the wrong remedy: the
-// SDK's own comment on the field says location is "disallowed in update requests", so
-// the API rejects a PATCH that carries it at all, correct value or not. The tool
-// therefore failed every time against the real API, and the test passed because the
-// mock did not enforce the constraint.
-//
-// The tool is gone until the SDK models Location and Size as pointers, the way
-// sdk-go/v6 does — see the note in ip_block_write.go.
+// TestUpdateIpBlockIsNotRegistered documents that update_ip_block is absent: the API
+// disallows location in update requests, so no correct PATCH body exists — see
+// ip_block_write.go.
 func TestUpdateIpBlockIsNotRegistered(t *testing.T) {
 	names := toolNames(t, context.Background(), setupWithScope(t, tools.Scope{Write: true, Destructive: true}))
 	if names["update_ip_block"] {
@@ -301,11 +291,9 @@ func TestUpdateFirewallRuleRejectsEmptyUpdate(t *testing.T) {
 	}
 }
 
-// TestUpdateFirewallRuleClearsNullableFields covers widening a rule back to "any".
-// The six nullable rule fields are the only way to express "do not match on this",
-// and a set-only implementation cannot reach it: an omitted field means "leave
-// unchanged", so a rule that once had a source_ip could never be reopened without
-// deleting and recreating it (losing its ID). Clearing must emit an explicit null.
+// TestUpdateFirewallRuleClearsNullableFields covers widening a rule back to "any":
+// omitting a field means "leave unchanged", so clearing must emit an explicit
+// null rather than relying on a set-only update.
 func TestUpdateFirewallRuleClearsNullableFields(t *testing.T) {
 	for _, tool := range []string{"update_firewall_rule", "update_security_group_rule"} {
 		t.Run(tool, func(t *testing.T) {
@@ -373,10 +361,9 @@ func TestRuleClearValidation(t *testing.T) {
 	}
 }
 
-// TestRuleRejectsAllAddressesCidr guards a trap in the API: "0.0.0.0/0" is accepted
-// and echoed back, then stored as the bare "0.0.0.0" once the request settles. That
-// address matches no traffic, so a rule written to open a port to the world silently
-// closes it. The remedy differs by operation, so the message must too.
+// TestRuleRejectsAllAddressesCidr guards a trap: "0.0.0.0/0" is echoed back but
+// stored as "0.0.0.0", which matches no traffic — silently closing what looked
+// like an open rule. The remedy differs by operation.
 func TestRuleRejectsAllAddressesCidr(t *testing.T) {
 	tests := []struct {
 		tool    string
@@ -413,12 +400,9 @@ func TestRuleRejectsAllAddressesCidr(t *testing.T) {
 	}
 }
 
-// TestDeletePccRefusesWhileLansAreConnected pins a documented API constraint that
-// the preview previously contradicted: PccsDelete states a cross connect "can be
-// deleted only if it is not connected to any LANs". The old preview described the
-// peered LANs as merely losing their private connection, minted a token, and left
-// the caller to discover the rejection. Worse, there is no detach anywhere in the
-// tooling, so the error has to name the only real escape.
+// TestDeletePccRefusesWhileLansAreConnected pins that a cross connect with
+// connected LANs must be refused (PccsDelete requires none), naming the only
+// escape since there is no detach tool.
 func TestDeletePccRefusesWhileLansAreConnected(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(pccsAPI+"/pcc-1", `{"id":"pcc-1","properties":{"name":"dc-link","peers":[

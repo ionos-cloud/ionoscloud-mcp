@@ -12,10 +12,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterIpBlockWriteTools registers the create and delete IP block tools. IP
-// blocks are account-level, so these take no datacenter_id.
-//
-// There is no update_ip_block: the API forbids location in update requests, but the
+// RegisterIpBlockWriteTools registers the create and delete IP block tools.
+// There is no update: the API forbids location in update requests, but the
 // SDK always serializes it, so no typed call can produce an acceptable body.
 func RegisterIpBlockWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateIpBlock(server, client, scope, confirm)

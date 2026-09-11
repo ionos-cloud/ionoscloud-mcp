@@ -173,10 +173,8 @@ func compactUtilization(start, end *string, meta *sdk.Metadata, dcs []sdk.Utiliz
 		out.Datacenters = nil
 	}
 
-	// Trim meter_definitions to keys actually present in the final output.
-	// Without this, post-filter/group/top_n leaves ~all input meter_ids in the map,
-	// inflating the response with descriptions for meters that aren't emitted.
-	// group_by=datacenter drops MeterID (key is type+unit) → no surviving keys → empty map.
+	// Trim meter_definitions to keys still present in the output — group_by/top_n
+	// can otherwise leave stale descriptions for meters no longer emitted.
 	if used := usedMeterIDs(out); len(used) > 0 {
 		trimmed := make(map[string]string, len(used))
 		for id := range used {

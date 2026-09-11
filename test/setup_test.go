@@ -44,10 +44,8 @@ type requestLog struct {
 	requests []recordedRequest
 }
 
-// responder controls the HTTP response the test backend returns. By default it
-// answers every request with 200 and an empty JSON object. Tests can override
-// the default (setStatus) or pin a specific body/status for one path
-// (serve / serveStatus) to exercise output transforms and error handling.
+// responder controls the HTTP response the test backend returns: a default
+// status/body for every path, overridable per path via serve/serveStatus.
 type responder struct {
 	mu     sync.Mutex
 	status int
@@ -184,9 +182,8 @@ func (h *testSetup) run(t *testing.T, tests []toolTest) {
 			if err != nil {
 				t.Fatalf("CallTool(%q) returned protocol error: %v", tt.name, err)
 			}
-			// Routing-only cases use the default {} backend body, which does not
-			// unmarshal into array-returning endpoints; only assert success when
-			// the case actually inspects output (fixture / wantContain).
+			// Only assert success when the case inspects output; the default {}
+			// body doesn't unmarshal into array-returning endpoints.
 			if (tt.fixture != "" || len(tt.wantContain) > 0) && res != nil && res.IsError {
 				t.Fatalf("CallTool(%q) returned tool error: %s", tt.name, resultText(res))
 			}
@@ -345,11 +342,9 @@ func setupWithScope(t *testing.T, scope tools.Scope) *testSetup {
 	}
 }
 
-// computeOnlyTools registers ONLY the compute product on a throwaway server and
-// returns exactly the tools it registered, at the given scope. Unlike
-// setupWithScope (which registers every product), this isolates one product so a
-// test can make an exhaustive per-product assertion without name heuristics.
-// Registration never calls the API, so no backend is needed.
+// computeOnlyTools registers only the compute product on a throwaway server
+// and returns exactly the tools it registered, letting a test make an
+// exhaustive per-product assertion without name heuristics.
 func computeOnlyTools(t *testing.T, ctx context.Context, scope tools.Scope) []*mcp.Tool {
 	t.Helper()
 

@@ -162,10 +162,8 @@ func registerUpdateCluster(server *mcp.Server, client *ionos.APIClient, scope to
 			return tools.ErrorText(msg), nil, nil
 		}
 
-		// The endpoint replaces the cluster's properties and the SDK serializes name
-		// unconditionally, so read the current cluster and override only what the
-		// caller supplied. Without this, changing the version alone would send an
-		// empty name and drop the API server allow list.
+		// The PUT serializes name unconditionally: read the current cluster and
+		// override only what the caller supplied, or an unrelated change wipes it.
 		current, _, err := client.KubernetesApi.K8sFindByClusterId(ctx, id).Depth(1).Execute()
 		if err != nil {
 			if tools.IsNotFound(err) {
@@ -179,9 +177,8 @@ func registerUpdateCluster(server *mcp.Server, client *ionos.APIClient, scope to
 		if input.Name != nil {
 			name = strings.TrimSpace(*input.Name)
 		}
-		// A zero-valued literal rather than NewKubernetesClusterPropertiesForPut():
-		// see the "PATCH bodies" note in CLAUDE.md — the same hazard applies to a PUT
-		// body assembled field by field.
+		// Zero-valued literal, not the constructor — the "PATCH bodies" hazard in
+		// CLAUDE.md applies to a PUT body assembled field by field too.
 		props := &ionos.KubernetesClusterPropertiesForPut{Name: name}
 
 		switch {

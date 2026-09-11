@@ -12,16 +12,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// buildCatalog registers every product onto a private in-memory "catalog"
-// server used to dispatch ionos_call_tool, and snapshots each tool's metadata.
-//
-// Group attribution and duplicate detection are done with a separate, exact
-// pass: each product is registered on its OWN throwaway server and that
-// server's tool list is read back, so every tool is attributed to exactly the
-// product that registered it. This also catches a name collision across
-// products — which the combined catalog could not, because mcp.AddTool silently
-// replaces a tool of the same name (leaving describe/search showing one
-// product's metadata while call_tool would invoke the other's handler).
+// buildCatalog registers every product's tools onto a private catalog server
+// and snapshots their metadata. Each product is also probed on its own
+// throwaway server, so tools are attributed by exact origin and duplicates caught.
 func buildCatalog(ctx context.Context, products []Product, scope tools.Scope) (d *dispatcher, err error) {
 	catalog := mcp.NewServer(&mcp.Implementation{
 		Name:    "ionos-cloud-mcp-catalog",

@@ -35,9 +35,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Tolerant manual arg parsing: this binary is spawned by third-party MCP
-	// clients that may pass args we don't recognise, so unknown flags are
-	// ignored rather than fatal (stdlib flag.Parse would exit the process).
+	// Unknown flags are ignored rather than fatal (flag.Parse would exit).
 	var loadModeFlag, transportFlag, httpAddrFlag string
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
@@ -119,16 +117,8 @@ func main() {
 		GOOS:             runtime.GOOS,
 		GOARCH:           runtime.GOARCH,
 	})
-	// Install a single RoundTripper on a *fresh* http.Client. Every SDK
-	// client (compute, DNS, billing, cert, object storage base + regional)
-	// shares this HTTPClient pointer through shallow cfg copies, so one
-	// wrap covers every outbound request without chasing cfg snapshots.
-	//
-	// shared.NewConfigurationFromEnv hands back cfg.HTTPClient =
-	// http.DefaultClient with a custom Transport already installed; if we
-	// mutated that Transport in place we would poison http.DefaultClient
-	// for the rest of the process. Instead we keep the SDK's transport as
-	// our base and wrap it inside a dedicated *http.Client we own.
+	// Wrap the SDK's transport in a fresh *http.Client instead of mutating
+	// cfg.HTTPClient in place, which would poison http.DefaultClient.
 	var base http.RoundTripper
 	if cfg.HTTPClient != nil {
 		base = cfg.HTTPClient.Transport
@@ -167,10 +157,8 @@ func main() {
 
 	registerResources(server)
 
-	// Single source of truth for the product tool groups. Each Register closure
-	// is the same call the eager path makes; lazy and dynamic modes reuse these
-	// so the three modes can never drift. Order here is the catalog listing order
-	// in dynamic mode.
+	// Single source of truth for the product tool groups, shared across all
+	// three load modes so they can never drift.
 	products := []dynamic.Product{
 		{Name: "compute", Summary: "Compute Engine: servers, datacenters, volumes, NICs, LANs, firewall rules, IP blocks, load balancers, NAT gateways, security groups, snapshots.", Register: func(s *mcp.Server) { compute.RegisterAll(s, client, scope, confirm) }},
 		{Name: "k8s", Summary: "Managed Kubernetes: clusters, node pools, nodes, versions.", Register: func(s *mcp.Server) { k8s.RegisterAll(s, client, scope, confirm) }},
@@ -184,11 +172,7 @@ func main() {
 	switch mode {
 	case LoadModeDynamic:
 		// Expose only the search/describe/call meta-tools; the full catalog
-		// lives on a private in-memory server. Best for clients with hard tool
-		// caps and no tool search of their own (Cursor, Windsurf).
-		// The returned closer tears down the private catalog connection on exit.
-		// The catalog is a process-lifetime singleton, so this only matters for a
-		// clean shutdown (server.Run returning); the OS would reclaim it anyway.
+		// lives on a private in-memory server (best for clients with hard tool caps).
 		d, err := dynamic.Register(ctx, server, products, scope)
 		if err != nil {
 			log.Fatalf("dynamic load mode: %v", err)
@@ -196,8 +180,7 @@ func main() {
 		defer d.Close()
 	case LoadModeLazy:
 		// Small products register eagerly; Compute and Object Storage defer
-		// behind ionos_load_*_tools sentinel tools. Requires MCP client support
-		// for notifications/tools/list_changed.
+		// behind ionos_load_*_tools sentinel tools.
 		eagerRegister(server, products, "dns", "billing", "cert", "activitylog", "k8s")
 		loader.RegisterComputeLoader(server, client, scope, confirm)
 		loader.RegisterObjectStorageLoader(server, objstClient, objmgmtClient, cfg)
@@ -214,7 +197,6 @@ func main() {
 			func(*http.Request) *mcp.Server { return server },
 			&mcp.StreamableHTTPOptions{SessionTimeout: httpSessionTimeout},
 		)
-		// Reject non-safe cross-origin browser requests (CSRF)
 		protected := http.NewCrossOriginProtection().Handler(handler)
 		srv := &http.Server{
 			Addr:              httpAddr,

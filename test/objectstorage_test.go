@@ -17,9 +17,7 @@ func TestObjectStorageToolEndpoints(t *testing.T) {
 		// Buckets
 		{name: "list_object_storage_buckets", args: map[string]any{}, wantMethods: []string{"GET"}, wantPaths: []string{"/"}},
 		{name: "get_object_storage_bucket_location", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET"}, wantPaths: []string{"/" + bucket}},
-		// forBucket resolves location on first access (GET /{bucket}?location), then HEAD /{bucket}.
-		// This is the first forBucket call for my-bucket, so it pays the location lookup and
-		// caches the region — subsequent cases below see a single request.
+		// First forBucket call pays a location GET before the HEAD; later cases reuse the cached region.
 		{name: "head_object_storage_bucket", args: map[string]any{"bucket": bucket}, wantMethods: []string{"GET", "HEAD"}, wantPaths: []string{"/" + bucket, "/" + bucket}},
 
 		// Bucket configuration

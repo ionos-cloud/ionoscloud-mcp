@@ -173,9 +173,7 @@ func TestRegionalConfigDerivesEndpoint(t *testing.T) {
 	}
 	c := newClientCache(sdk.NewAPIClient(cfg), mgmtSDK.NewAPIClient(cfg), cfg)
 
-	// regionalConfig sets the endpoint verbatim (scheme normalisation happens in
-	// forBucket before this is called) and must preserve the shared HTTPClient —
-	// and therefore the User-Agent RoundTripper — through the shallow copy.
+	// Scheme normalisation happens in forBucket, not here.
 	got := c.regionalConfig("https://s3.eu-central-3.ionoscloud.com")
 	if len(got.Servers) != 1 || got.Servers[0].URL != "https://s3.eu-central-3.ionoscloud.com" {
 		t.Errorf("regionalConfig Servers = %v, want single https endpoint", got.Servers)

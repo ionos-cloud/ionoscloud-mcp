@@ -174,7 +174,6 @@ func TestUpdateImagePreservesLicenceType(t *testing.T) {
 	if !strings.Contains(patch.Body, `"description":"internal base image"`) {
 		t.Errorf("PATCH missing the requested description:\n%s", patch.Body)
 	}
-	// The injected defaults must still be absent.
 	for _, injected := range []string{"exposeSerial", "requireLegacyBios"} {
 		if strings.Contains(patch.Body, injected) {
 			t.Errorf("PATCH must not carry the SDK-injected default %q:\n%s", injected, patch.Body)

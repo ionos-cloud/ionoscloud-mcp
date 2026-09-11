@@ -64,9 +64,8 @@ func TestEnrichSDKError_NonAuthStatusPassthrough(t *testing.T) {
 }
 
 func TestEnrichSDKError_403Passthrough(t *testing.T) {
-	// 403 is deliberately not enriched yet — IONOS uses 403 for several
-	// distinct causes (wrong contract, missing role, resource ACL) and a
-	// generic "IONOS_TOKEN" hint would mislead the LLM.
+	// 403 is deliberately not enriched yet: IONOS uses it for several causes,
+	// and a generic "IONOS_TOKEN" hint would mislead the LLM.
 	sdkErr := shared.NewGenericOpenAPIError("403 Forbidden", []byte(`{"errCode":403}`), nil, 403)
 
 	got := enrichSDKError(sdkErr)
@@ -97,11 +96,9 @@ func TestEnrichSDKError_WrappedSDKError(t *testing.T) {
 	}
 }
 
-// TestEnrichSDKError_ValueTypedSDKError is a regression test: the IONOS product
-// SDKs return shared.GenericOpenAPIError *by value* from their API methods (not
-// as a pointer). A pointer-only errors.As target silently failed to bind, so
-// 401s passed through un-enriched in production even though the unit tests —
-// which construct the error via NewGenericOpenAPIError (a pointer) — passed.
+// TestEnrichSDKError_ValueTypedSDKError guards a regression: SDK methods return
+// shared.GenericOpenAPIError by value, and a pointer-only errors.As target
+// failed to bind it, so 401s passed through un-enriched in production.
 func TestEnrichSDKError_ValueTypedSDKError(t *testing.T) {
 	valErr := *shared.NewGenericOpenAPIError(
 		"401 Unauthorized: invalid token",

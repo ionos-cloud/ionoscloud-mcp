@@ -44,13 +44,8 @@ const clusterFixture = `{
 }`
 
 // poolFixture is a VCPU node pool with LANs, labels, annotations and taints, so a
-// dropped carry-forward shows up as a missing key rather than a subtle value change.
-// The taints are deliberate: no tool accepts them, so they can only reach a request
-// body via carry-forward.
-//
-// autoScaling is {0,0} on purpose — that is what the API returns for a pool with no
-// autoscaler, and writing it back is rejected. It is here so a carry-forward that
-// resends it fails in this suite rather than against a live account.
+// dropped carry-forward shows up as a missing key. autoScaling is {0,0} on purpose:
+// the API rejects that shape on write, so a bad carry-forward fails here, not live.
 const poolFixture = `{
   "id": "np-1",
   "metadata": {"state": "ACTIVE"},
@@ -487,17 +482,15 @@ func TestCreateK8sNodepoolValidation(t *testing.T) {
 	}
 }
 
-// TestUpdateK8sNodepoolCarriesNodeCountForward is the most important test in this
-// file. KubernetesNodePoolPropertiesForPut.NodeCount is a non-pointer field that the
-// SDK always serializes, so an update that does not carry it forward sends
-// nodeCount=0 and drains every worker out of the pool.
+// TestUpdateK8sNodepoolCarriesNodeCountForward guards NodeCount: a non-pointer field
+// the SDK always serializes, so an update that skips it sends nodeCount=0 and drains
+// every worker out of the pool.
 func TestUpdateK8sNodepoolCarriesNodeCountForward(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(k8sPoolPath(), poolFixture)
 
-	// A benign change to one unrelated field is the shape that must not disturb
-	// anything else. It used to be a rename, until the API rejected the pool name as
-	// immutable and the parameter was removed.
+	// A benign change to one field must not disturb anything else; this used to be a
+	// rename, before the API rejected the pool name as immutable.
 	res := callTool(t, h, "update_k8s_nodepool", map[string]any{
 		"k8s_cluster_id":     k8sClusterID,
 		"nodepool_id":        k8sPoolID,
@@ -609,14 +602,9 @@ func TestDeleteK8sNodePreviewFailsOnUnreadablePool(t *testing.T) {
 	}
 }
 
-// TestUpdateK8sNodepoolRejectsAutoScalingDisable pins a capability that deliberately
-// does not ship. Turning an existing autoscaler off has no working request body: the
-// API answers 422 for zero bounds and silently ignores an omitted field, both verified
-// against a live account. Accepting the input and reporting success while changing
-// nothing is the worst of the three options, so it is rejected up front.
-//
-// This is the same "the tool does not ship" convention CLAUDE.md sets for
-// update_ip_block — a test keeps the absence deliberate.
+// TestUpdateK8sNodepoolRejectsAutoScalingDisable pins a capability that doesn't ship:
+// turning an autoscaler off has no valid request body (the API rejects zero bounds
+// and ignores an omitted field), so the input is rejected rather than silently no-op'd.
 func TestUpdateK8sNodepoolRejectsAutoScalingDisable(t *testing.T) {
 	h := destructiveSetup(t)
 	// A pool with a live autoscaler, so there would be something to switch off.
@@ -680,14 +668,9 @@ func TestUpdateK8sNodepoolChangesAutoScalingBounds(t *testing.T) {
 	}
 }
 
-// TestUpdateK8sNodepoolDropsInactiveAutoScaling is the regression guard for a bug the
-// live pass found and the mocked suite had missed. A pool with no autoscaler reads
-// back as autoScaling {minNodeCount: 0, maxNodeCount: 0}; carrying that forward made
-// the API reject EVERY update to such a pool with
-// "autoScaling.minNodeCount must be > 0".
-//
-// The general lesson, worth more than the fix: a GET response is not necessarily a
-// legal PUT body, so blanket carry-forward needs a per-field sanity check.
+// TestUpdateK8sNodepoolDropsInactiveAutoScaling guards against resending a pool's
+// {0,0} autoScaling (what the API returns when no autoscaler is active), which is
+// rejected on write with "autoScaling.minNodeCount must be > 0".
 func TestUpdateK8sNodepoolDropsInactiveAutoScaling(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(k8sPoolPath(), poolFixture) // autoScaling {0,0}
@@ -709,10 +692,9 @@ func TestUpdateK8sNodepoolDropsInactiveAutoScaling(t *testing.T) {
 	}
 }
 
-// TestUpdateK8sNodepoolNeverSendsName is the second regression guard from the live
-// pass: the API rejects the node pool name as immutable, so it must be neither an
-// input nor part of the body. Unlike the cluster body, this one models name as
-// optional, so it can simply be omitted — there is nothing to carry forward.
+// TestUpdateK8sNodepoolNeverSendsName guards that the immutable pool name is neither
+// a tool input nor part of the PUT body; unlike the cluster, name here is optional,
+// so there is nothing to carry forward.
 func TestUpdateK8sNodepoolNeverSendsName(t *testing.T) {
 	h := destructiveSetup(t)
 	ctx := context.Background()
@@ -827,9 +809,8 @@ func TestDeleteK8sNodeTwoPhase(t *testing.T) {
 		"node_id":        k8sNodeID,
 	})
 
-	// The preview has to be honest that the pool is left short and that an active
-	// autoscaler may keep it that way — the reduction can outlast the call, which is
-	// the opposite of what the tool's name suggests.
+	// The preview must honestly warn the pool is left short and may STAY that way if
+	// the autoscaler is active — the opposite of what the tool's name suggests.
 	for _, want := range []string{
 		"IRREVERSIBLE", "worker-1", "one node short", "recreate_k8s_node",
 		"ACTIVE autoscaler", "may STAY at the reduced size", "update_k8s_nodepool",
@@ -861,11 +842,9 @@ func nodepoolWithAutoScaling(nodeCount, min, max int) string {
 	}`, nodeCount, min, max)
 }
 
-// TestDeleteK8sNodeBlockedByAutoScalingMinimum guards a pre-flight check added after a
-// live 422. The API refuses to remove a node that would take the pool below its
-// autoscaler minimum, and says "last node can not be deleted from nodepool" even with
-// several nodes left — verified on a 2-node pool pinned at min 2. Left to the API, that
-// message arrives only after a confirmation token has been spent.
+// TestDeleteK8sNodeBlockedByAutoScalingMinimum guards a pre-flight check: the API
+// refuses to drop a pool below its autoscaler minimum, but only after a confirmation
+// token has been spent — so the check must happen in preview.
 func TestDeleteK8sNodeBlockedByAutoScalingMinimum(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -965,9 +944,8 @@ func TestK8sNodeToolsRejectMissingIDs(t *testing.T) {
 // ---------- scope gating ----------
 
 // TestK8sWriteToolsAreScopeGated pins which Kubernetes tools each scope exposes.
-// recreate_k8s_node is the interesting one: it is a POST, so a method-based gate
-// would leak it into the write scope, but it destroys a node and belongs with the
-// deletes.
+// recreate_k8s_node is the interesting case: it's a POST, so a method-based gate
+// would misplace it in write scope, but it destroys a node and belongs with deletes.
 func TestK8sWriteToolsAreScopeGated(t *testing.T) {
 	reads := []string{
 		"list_k8s_clusters", "get_k8s_cluster", "list_k8s_nodepools", "get_k8s_nodepool",
@@ -1064,14 +1042,9 @@ func TestK8sWriteToolAnnotations(t *testing.T) {
 	}
 }
 
-// TestK8sNodepoolToolsDoNotExposeTaints pins the deliberate omission. The API spec
-// marks node pool `taints` x-internal — the same marker it puts on vnet,
-// placementGroupId, vni and KubernetesNodePoolLan.datacenterId, all "requires system
-// privileges, for internal usage only" — so it is not part of the customer-facing
-// surface and no tool accepts it, even though the generated SDK models it.
-//
-// This mirrors the convention CLAUDE.md sets for update_ip_block: when a thing is
-// deliberately absent, a test says so, or the next person "fixes" the gap.
+// TestK8sNodepoolToolsDoNotExposeTaints pins the deliberate omission: the spec marks
+// node pool `taints` x-internal, so no tool accepts it even though the generated SDK
+// models it.
 func TestK8sNodepoolToolsDoNotExposeTaints(t *testing.T) {
 	h := destructiveSetup(t)
 	ctx := context.Background()

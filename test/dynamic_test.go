@@ -205,10 +205,8 @@ func TestDynamicSearchBrowseByGroup(t *testing.T) {
 func TestDynamicSearchIndexesFullDescription(t *testing.T) {
 	h := setupDynamic(t)
 
-	// "idle" appears only in a LATER sentence of list_billing_utilization's
-	// description ("set include_zero=true to find idle resources"). Truncating
-	// the displayed snippet must not make the tool unfindable — scoring runs
-	// over the full description.
+	// "idle" appears only in a later sentence, not the truncated snippet —
+	// scoring must run over the full description.
 	out := callSearch(t, h, map[string]any{"query": "idle", "limit": 20})
 	found := false
 	var snippet string
@@ -412,10 +410,9 @@ func TestDynamicDescribeEmptyNames(t *testing.T) {
 	}
 }
 
-// TestDynamicCatalogCoversEveryProductTool guards against forgetting a product
-// in the dynamic products slice (which would silently make its tools
-// unreachable). It builds an eager server with the same products, lists every
-// tool, and asserts ionos_describe_tools resolves all of them in dynamic mode.
+// TestDynamicCatalogCoversEveryProductTool guards against forgetting a
+// product in the dynamic products slice, which would silently make its
+// tools unreachable.
 func TestDynamicCatalogCoversEveryProductTool(t *testing.T) {
 	eager := setup(t)      // registers every product eagerly
 	dyn := setupDynamic(t) // same products, behind the catalog

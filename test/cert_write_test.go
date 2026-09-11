@@ -11,11 +11,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Certificate Manager write-tool tests. Two themes carry most of the weight: the
-// write-only fields (a certificate's private key, a provider's external account
-// binding secret) must never appear in a preview or a tool result, and all three
-// PATCH endpoints accept only the resource name, so an update body that carried
-// anything else would be the API's problem to reject rather than ours to send.
+// Certificate Manager write-tool tests: write-only fields (private key, EAB secret)
+// must never appear in a preview or result, and PATCH endpoints accept only name.
 
 const (
 	certID     = "c-1"
@@ -56,11 +53,9 @@ func certPatchProperties(t *testing.T, h *testSetup) (props map[string]any, topL
 	return props, topLevel
 }
 
-// TestCreateCertCertificateIsNotRegistered pins the deliberate omission. The API
-// requires the private key in the create body, so the tool would have to accept it as
-// an argument — putting it in the model's context, the on-disk transcript and every
-// later request to the model provider, none of which redaction reaches. If someone
-// adds the tool back, this fails and they have to read why first.
+// TestCreateCertCertificateIsNotRegistered pins the deliberate omission: creating a
+// certificate requires the private key in the body, which redaction cannot protect
+// since it's an outbound argument, not a response field.
 func TestCreateCertCertificateIsNotRegistered(t *testing.T) {
 	for _, scope := range []tools.Scope{{}, {Write: true}, {Write: true, Destructive: true}} {
 		h := setupWithScope(t, scope)
@@ -469,12 +464,9 @@ func replayArgsFromPreview(t *testing.T, preview string) map[string]string {
 	return out
 }
 
-// TestCreateCertPreviewsListEveryBoundArgument is the other half of the token-binding
-// tests: those prove a TAMPERED replay is refused, this proves a FAITHFUL one is
-// accepted. Any field in the confirmation target that the replay block omits makes the
-// preview self-defeating — a caller who follows it either trips schema validation or
-// mints a mismatch against a token a human already approved. Nothing pinned the replay
-// list before, which is exactly how two such omissions reached review.
+// TestCreateCertPreviewsListEveryBoundArgument checks a FAITHFUL replay of the preview
+// is accepted: any bound field the replay block omits makes the preview self-defeating,
+// since following it would then mismatch the confirmation token.
 func TestCreateCertPreviewsListEveryBoundArgument(t *testing.T) {
 	tests := []struct {
 		tool     string
@@ -682,10 +674,8 @@ func TestCertWriteToolsAreScopeGated(t *testing.T) {
 	}
 }
 
-// TestCertWriteToolsDeclareCompletionSemantics: the POSTs answer 201 and the PATCHes
-// 200 with the stored resource, while only the DELETEs are asynchronous. A tool that
-// claimed otherwise would send the model polling for a change already applied, or
-// chaining off one that has not happened.
+// TestCertWriteToolsDeclareCompletionSemantics: POSTs answer 201, PATCHes 200 with
+// the stored resource, and only DELETEs are asynchronous — tools must say so exactly.
 func TestCertWriteToolsDeclareCompletionSemantics(t *testing.T) {
 	h := destructiveSetup(t)
 	ctx := context.Background()

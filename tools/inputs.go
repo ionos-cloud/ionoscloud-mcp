@@ -49,15 +49,9 @@ type ServerIDInput struct {
 	Depth        *int32 `json:"depth,omitempty" jsonschema:"nesting depth of returned objects (0-5, default 1 for list operations)"`
 }
 
-// HotPlugFlags are the volume capability flags that decide whether the server it
-// is attached to can change hardware without a reboot. They are embedded in every
-// input that carries volume properties — create_volume, update_volume and the
-// inline boot volume of create_server — because all three IONOS tooling paths
-// expose them on all three (ionosctl's volume create and update, and the volume
-// block of the Terraform server, cube_server and gpu_server resources).
-//
-// Embedded rather than repeated so the wording cannot drift between the three
-// tools; Go flattens the fields into the parent object's JSON schema.
+// HotPlugFlags are the volume capability flags controlling hardware changes without
+// a reboot. Embedded in create_volume, update_volume and create_server's boot volume
+// so the wording cannot drift between them; Go flattens the fields into the JSON schema.
 type HotPlugFlags struct {
 	CpuHotPlug          *bool `json:"cpu_hot_plug,omitempty" jsonschema:"whether CPU cores can be added to the server without rebooting it. Set this before you need to resize a running server, since turning it on later is itself only picked up on a restart."`
 	RamHotPlug          *bool `json:"ram_hot_plug,omitempty" jsonschema:"whether memory can be added to the server without rebooting it. A volume with RAM hot-plug enabled requires the server to have at least 1024 MB of RAM."`
@@ -68,12 +62,8 @@ type HotPlugFlags struct {
 }
 
 // BootVolumeInput describes a volume to create together with a server, in the
-// same API request. This is not merely a convenience: CUBE and GPU servers are
-// template-sized and the API accepts their storage ONLY as part of a composite
-// server-creation call, so neither can be created without it and attaching a
-// volume afterwards is not equivalent. A Confidential Computing server likewise
-// must be created with its boot volume inline, because the API derives the core
-// count and CPU family from the confidential image on that volume.
+// same request. Required for CUBE/GPU servers (storage only via composite create)
+// and Confidential Computing (core count/CPU family derive from the image).
 type BootVolumeInput struct {
 	Type          *string  `json:"type,omitempty" jsonschema:"storage type of the boot volume. Must be DAS for a CUBE server, whose storage exists only as part of the server. Required and must NOT be DAS for ENTERPRISE and VCPU servers: use HDD, SSD, SSD Standard or SSD Premium. Optional for a GPU server — omit it to let the API choose, or pass SSD Premium."`
 	Name          *string  `json:"name,omitempty" jsonschema:"the name of the boot volume"`
@@ -89,14 +79,8 @@ type BootVolumeInput struct {
 }
 
 // CreateServerInput is the input for create_server. Two-phase confirmed; creates
-// exactly one server per call.
-//
-// boot_volume creates a volume in the same request. It is REQUIRED for the
-// template-sized types, CUBE and GPU, whose storage the API accepts only in a
-// composite call. Without a boot_volume an ENTERPRISE or VCPU server comes up with
-// no storage and no NIC, so it has nothing to boot from and no network — follow up
-// with attach_server_volume and create_nic, or supply boot_volume here and save
-// the round trips.
+// exactly one server per call. boot_volume is REQUIRED for CUBE/GPU servers
+// (storage only via composite call) and recommended otherwise to avoid a follow-up.
 type CreateServerInput struct {
 	DatacenterID      string           `json:"datacenter_id" jsonschema:"the ID of the data center to create the server in"`
 	Name              string           `json:"name" jsonschema:"the name of the new server"`
@@ -113,9 +97,8 @@ type CreateServerInput struct {
 }
 
 // UpdateServerInput is the input for update_server. Partial update: only the
-// fields you provide are sent. Resizing cores or ram on a running server may
-// require a reboot, and on a Confidential Computing server cores, ram,
-// cpu_family and availability_zone are immutable and will be rejected.
+// fields you provide are sent. On a Confidential Computing server, cores, ram,
+// cpu_family and availability_zone are immutable and rejected if set.
 type UpdateServerInput struct {
 	DatacenterID  string  `json:"datacenter_id" jsonschema:"the ID of the data center the server is in"`
 	ServerID      string  `json:"server_id" jsonschema:"the ID of the server to update"`
@@ -128,10 +111,9 @@ type UpdateServerInput struct {
 	BootVolumeID  *string `json:"boot_volume_id,omitempty" jsonschema:"set which attached volume the server boots from, by volume ID. This is how you point a server at a different disk: after attach_server_volume, the new volume is attached but NOT the boot device, and detaching the previous boot volume clears the setting entirely, leaving a server that cannot boot until you set this. The volume must already be attached to this server (attach_server_volume first). Reboot the server for the change to take effect."`
 }
 
-// DeleteServerInput is the input for delete_server. Two-phase confirmed. Whether
-// attached volumes are destroyed with the server depends on delete_volumes, so
-// that flag is part of the confirmation target: a token minted for one choice
-// cannot be replayed with the other.
+// DeleteServerInput is the input for delete_server. Two-phase confirmed. The
+// delete_volumes flag is part of the confirmation target, so a token minted for
+// one choice cannot be replayed with the other.
 type DeleteServerInput struct {
 	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the server is in"`
 	ServerID          string  `json:"server_id" jsonschema:"the ID of the server to delete"`
@@ -190,9 +172,8 @@ type DeleteVolumeInput struct {
 }
 
 // ExtraHotPlugFlags are the capability flags that snapshots and images carry but
-// volumes do not. They are kept separate from HotPlugFlags rather than merged so
-// each input exposes exactly the set its resource supports — VolumeProperties has
-// no cpuHotUnplug, ramHotUnplug or SCSI flags at all.
+// volumes do not; kept separate from HotPlugFlags so each input exposes exactly
+// the set its resource supports.
 type ExtraHotPlugFlags struct {
 	CpuHotUnplug      *bool `json:"cpu_hot_unplug,omitempty" jsonschema:"whether CPU cores can be removed from a server without rebooting it"`
 	RamHotUnplug      *bool `json:"ram_hot_unplug,omitempty" jsonschema:"whether memory can be removed from a server without rebooting it"`
@@ -200,11 +181,9 @@ type ExtraHotPlugFlags struct {
 	DiscScsiHotUnplug *bool `json:"disc_scsi_hot_unplug,omitempty" jsonschema:"whether a SCSI disk can be detached without rebooting the server"`
 }
 
-// UpdateSnapshotInput is the input for update_snapshot. There is no create_snapshot:
-// snapshots are taken from a volume with create_volume_snapshot.
-//
-// The hot-plug flags describe what a volume restored from this snapshot will
-// support, so changing them affects future restores rather than the snapshot's data.
+// UpdateSnapshotInput is the input for update_snapshot. There is no
+// create_snapshot: snapshots are taken from a volume with create_volume_snapshot.
+// The hot-plug flags affect future restores, not the snapshot's existing data.
 type UpdateSnapshotInput struct {
 	SnapshotID        string  `json:"snapshot_id" jsonschema:"the ID of the snapshot to update"`
 	Name              *string `json:"name,omitempty" jsonschema:"a new name for the snapshot"`
@@ -224,12 +203,9 @@ type DeleteSnapshotInput struct {
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of the snapshot plus a one-time token; pass that token on the SECOND call to actually delete. A snapshot is frequently the only copy of a volume's earlier contents, so deleting it can remove your only way back. The token expires after a few minutes."`
 }
 
-// UpdateImageInput is the input for update_image. There is no create_image — the API
-// exposes no way to create one, and only private images you uploaded can be changed
-// or deleted; public IONOS images are read-only.
-//
-// licence_type is read and carried forward when omitted, because the API always
-// receives it and an empty value would be rejected or would clear the image's OS type.
+// UpdateImageInput is the input for update_image. There is no create_image; only
+// private images you uploaded can be changed. licence_type is read and carried
+// forward when omitted, since the API always receives it and an empty value would clear it.
 type UpdateImageInput struct {
 	ImageID           string  `json:"image_id" jsonschema:"the ID of the image to update. Only a private image you uploaded can be changed; public IONOS images are read-only."`
 	Name              *string `json:"name,omitempty" jsonschema:"a new name for the image"`
@@ -274,10 +250,9 @@ type CreateNicInput struct {
 	ConfirmationToken *string  `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview of what will be created plus a one-time token; pass that token on the SECOND call (with the same datacenter_id, server_id and lan) to actually create the NIC. The token expires after a few minutes."`
 }
 
-// UpdateNicInput is the input for update_nic. Partial update, with one important
-// exception: the IONOS SDK always serializes the NIC's lan field, so an update
-// that omitted it would move the NIC to LAN 0. update_nic therefore reads the
-// NIC's current lan and sends it back unchanged unless lan is given explicitly.
+// UpdateNicInput is the input for update_nic. Partial update, with one exception:
+// the SDK always serializes lan, so update_nic reads the NIC's current lan and
+// sends it back unchanged unless lan is given explicitly (otherwise it would move it to LAN 0).
 type UpdateNicInput struct {
 	DatacenterID   string   `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	ServerID       string   `json:"server_id" jsonschema:"the ID of the server the NIC belongs to"`
@@ -337,12 +312,9 @@ type DeleteLanInput struct {
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (how many NICs are attached) plus a one-time token; pass that token on the SECOND call to actually delete. The token authorizes deleting only the LAN it was issued for and expires after a few minutes."`
 }
 
-// Compute action input types.
-//
-// These back the non-CRUD tools registered through RegisterActionTool: server
-// power control, volume snapshot actions, and attach/detach/assign relations.
-// The ones whose verb is destructive carry a ConfirmationToken and use the same
-// two-phase preview flow as delete_*.
+// Compute action input types back the non-CRUD tools registered through
+// RegisterActionTool: power control, snapshot actions, and attach/detach/assign
+// relations. Destructive ones carry a ConfirmationToken via the same two-phase flow as delete_*.
 
 // ServerPowerInput is the input for the non-disruptive power actions
 // (start_server, resume_server). Single call — they bring a server up rather
@@ -354,8 +326,7 @@ type ServerPowerInput struct {
 
 // ServerDisruptiveActionInput is the input for the power actions that interrupt a
 // running server (stop_server, reboot_server, suspend_server, upgrade_server).
-// Two-phase confirmed: the preview shows the server's current name and state so
-// the caller can confirm it is about to hit the right machine.
+// Two-phase confirmed: the preview shows the server's current name and state.
 type ServerDisruptiveActionInput struct {
 	DatacenterID      string  `json:"datacenter_id" jsonschema:"the ID of the data center the server is in"`
 	ServerID          string  `json:"server_id" jsonschema:"the ID of the server"`
@@ -509,10 +480,9 @@ type DeleteSecurityGroupInput struct {
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (its rules, and the servers and NICs it is assigned to) plus a one-time token; pass that token on the SECOND call to actually delete. Every server and NIC using the group loses the protection its rules provided. The token expires after a few minutes."`
 }
 
-// RuleFields are the properties of a firewall rule. Embedded by both the
-// NIC-scoped firewall rule tools and the security-group rule tools, because the
-// API uses one FirewallruleProperties model for both and the semantics are
-// identical — only the parent chain differs.
+// RuleFields are the properties of a firewall rule, embedded by both the
+// NIC-scoped and security-group rule tools since the API uses one
+// FirewallruleProperties model for both.
 type RuleFields struct {
 	Protocol       *string `json:"protocol,omitempty" jsonschema:"the protocol the rule matches: TCP, UDP, ICMP, ICMPv6, GRE, VRRP, ESP, AH or ANY. Required when creating a rule. ANY matches every protocol and forbids ports and ICMP fields."`
 	Name           *string `json:"name,omitempty" jsonschema:"a name for the rule"`
@@ -609,14 +579,9 @@ type DeletePccInput struct {
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a blast-radius preview (the LANs peered through it) plus a one-time token; pass that token on the SECOND call to actually delete it. Every peered LAN loses its cross-data-center connection. The token expires after a few minutes."`
 }
 
-// Load-balancing write input types.
-//
-// Every model in this area except the classic load balancer serializes its
-// required fields unconditionally, so each update tool reads the resource first
-// and carries those values forward — see the "PATCH bodies" note in CLAUDE.md.
-// The worst case is a forwarding rule's targets list: a partial update built
-// without it would send an empty targets array and wipe the load balancer's
-// entire backend pool.
+// Load-balancing write input types. Except the classic load balancer, every
+// model here serializes its required fields unconditionally, so update tools
+// read the resource first and carry values forward — see CLAUDE.md's "PATCH bodies" note.
 
 // ManagedLoadBalancerFields are the properties shared by network and application
 // load balancers, whose API models are field-for-field identical.
@@ -639,9 +604,8 @@ type CreateManagedLoadBalancerInput struct {
 }
 
 // UpdateManagedLoadBalancerInput is the input for update_network_loadbalancer and
-// update_application_loadbalancer. Partial update: omitted fields are read from
-// the current resource and sent back unchanged, because the API always receives
-// name, listener_lan and target_lan.
+// update_application_loadbalancer. Partial update: name, listener_lan and target_lan
+// are read from the current resource and carried forward when omitted.
 type UpdateManagedLoadBalancerInput struct {
 	DatacenterID   string  `json:"datacenter_id" jsonschema:"the ID of the data center the load balancer is in"`
 	LoadBalancerID string  `json:"loadbalancer_id" jsonschema:"the ID of the load balancer to update"`
@@ -726,12 +690,8 @@ type CreateNlbForwardingRuleInput struct {
 }
 
 // UpdateNlbForwardingRuleInput is the input for update_nlb_forwarding_rule.
-//
-// Partial update, but with an important caveat: the API always receives name,
-// algorithm, protocol, listener_ip, listener_port AND targets, so all of them are
-// read from the current rule and carried forward when omitted. Without that, a
-// rename would send an empty targets list and remove every backend from the load
-// balancer.
+// Partial update, but name, algorithm, protocol, listener_ip, listener_port and
+// targets are always sent, so all are read from the current rule and carried forward when omitted.
 type UpdateNlbForwardingRuleInput struct {
 	DatacenterID   string               `json:"datacenter_id" jsonschema:"the ID of the data center"`
 	LoadBalancerID string               `json:"loadbalancer_id" jsonschema:"the ID of the network load balancer"`
@@ -839,12 +799,8 @@ type CreateTargetGroupInput struct {
 }
 
 // UpdateTargetGroupInput is the input for update_target_group. Partial update:
-// name, algorithm and protocol are read and carried forward when omitted, because
-// the API always receives them.
-//
-// targets REPLACES the whole backend list rather than adding to it, so omit it
-// unless you intend to redefine the set — that is why it is not carried forward
-// silently the way the scalar fields are.
+// name, algorithm and protocol are read and carried forward when omitted. targets
+// REPLACES the whole backend list, so it is not carried forward the way the scalar fields are.
 type UpdateTargetGroupInput struct {
 	TargetGroupID   string                   `json:"target_group_id" jsonschema:"the ID of the target group to update"`
 	Name            *string                  `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`

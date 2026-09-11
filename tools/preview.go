@@ -18,12 +18,8 @@ type KV struct {
 	V string
 }
 
-// Fields builds a preview field list from alternating key, value arguments:
-//
-//	tools.Fields("name", name, "cores", tools.OptInt32(in.Cores))
-//
-// Empty values are dropped at render time, so callers can list every optional
-// field unconditionally. Panics on an odd number of arguments.
+// Fields builds a preview field list from alternating key, value arguments;
+// empty values are dropped at render time. Panics on an odd number of arguments.
 func Fields(pairs ...string) []KV {
 	if len(pairs)%2 != 0 {
 		panic(fmt.Sprintf("tools.Fields: got %d arguments, want an even number of key, value pairs", len(pairs)))
@@ -41,12 +37,9 @@ type LabeledCount struct {
 	Count int
 }
 
-// BlastRadius accumulates the resources an operation touches. Callers Add each
-// collection they fetched; zero counts are dropped.
-//
-// Whether entries are destroyed or merely affected is a flag rather than free text,
-// because labelling a survivor "will be destroyed" is a false claim in the one place
-// a caller looks before authorizing a change.
+// BlastRadius accumulates the resources an operation touches via Add; zero
+// counts are dropped. Destroys is a flag rather than free text because
+// labelling a survivor "destroyed" would be a false claim before authorizing.
 type BlastRadius struct {
 	// Destroys marks entries that cease to exist with their parent. The zero value is
 	// the safe one: an unset radius reads as merely affected.
@@ -166,10 +159,8 @@ func CallerID(req *mcp.CallToolRequest) string {
 	if req == nil {
 		return ""
 	}
-	// The session id is authoritative because it comes from the transport, so a
-	// client cannot forge it. Order matters: _meta travels in the request and is
-	// therefore client-controlled, so trusting it first would let one client
-	// claim another's id and spend its tokens.
+	// Session id is checked first because it comes from the transport and can't
+	// be forged; trusting client-controlled _meta first would allow spoofing.
 	if req.Session != nil {
 		if id := req.Session.ID(); id != "" {
 			return id
@@ -185,10 +176,9 @@ func CallerID(req *mcp.CallToolRequest) string {
 	return ""
 }
 
-// Target joins the parts of a confirmation target. Include every identifier that
-// makes the operation unique, so a token cannot be replayed elsewhere. The
-// calling session is part of the target, so one client cannot spend a token
-// another client minted.
+// Target joins the parts of a confirmation target, including the calling
+// session, so a token cannot be replayed elsewhere or spent by another
+// client. Include every identifier that makes the operation unique.
 func Target(req *mcp.CallToolRequest, parts ...string) string {
 	return strings.Join(append([]string{CallerID(req)}, parts...), "|")
 }

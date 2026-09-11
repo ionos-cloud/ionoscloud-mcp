@@ -11,12 +11,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// Server power control and volume attach/detach. The mutation class comes from the
-// verb, not the HTTP method: stop_server is a destructive POST, detach_server_volume
-// a non-destructive DELETE.
-//
-// There is no attach_server_cdrom or attach_lan_nic: the API wants a body of only
-// {"id":"..."}, but the SDK always serializes Image.Properties and Nic.Properties.
+// Server power control and volume attach/detach; the mutation class comes from the
+// verb, not the HTTP method. There is no attach_server_cdrom or attach_lan_nic: the
+// API wants a bare {"id":"..."} body, but the SDK always serializes Image/Nic Properties.
 
 // RegisterServerActionTools registers server power control and volume
 // attach/detach.
