@@ -89,8 +89,8 @@ const (
 	LoadModeLazy LoadMode = "lazy"
 
 	// LoadModeDynamic exposes only meta-tools (search/describe/call) that proxy
-// the full catalog at runtime, so the client's tool list never changes. Use it
-// for clients with hard tool caps (e.g. Cursor 40, Windsurf 100); Claude Code should stay eager.
+	// the full catalog at runtime, so the client's tool list never changes. Use it
+	// for clients with hard tool caps (e.g. Cursor 40, Windsurf 100); Claude Code should stay eager.
 	LoadModeDynamic LoadMode = "dynamic"
 )
 
