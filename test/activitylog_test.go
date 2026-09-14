@@ -205,7 +205,6 @@ func TestCompact(t *testing.T) {
 			t.Errorf("action = %q, want %q", ev.Action, "GET")
 		}
 		// auditVersion is dropped — no field to check
-		// contractNumber is dropped — user should not contain it
 		if ev.User == "31909628" {
 			t.Errorf("contractNumber leaked into User field")
 		}

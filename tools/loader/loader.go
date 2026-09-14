@@ -15,10 +15,9 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/objectstorage"
 )
 
-// RegisterComputeLoader registers an MCP tool that lazily loads
-// all Compute Engine tools on first call. scope and confirm are forwarded to
-// compute.RegisterAll so lazy mode applies the same scope gate and shares the
-// same two-phase confirmation store as eager/dynamic mode.
+// RegisterComputeLoader registers an MCP tool that lazily loads all Compute
+// Engine tools on first call. scope and confirm are forwarded to
+// compute.RegisterAll so lazy mode matches eager/dynamic scope and confirmation.
 func RegisterComputeLoader(server *mcp.Server, client *computeSDK.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	var (
 		mu     sync.Mutex

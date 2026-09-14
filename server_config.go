@@ -16,13 +16,8 @@ const (
 
 const serverName = "ionos-cloud-mcp"
 
-// serverVersion is resolved from three sources in priority order:
-//  1. -ldflags "-X main.serverVersion=<tag>"  — set by GoReleaser at release
-//  2. info.Main.Version                       — set by `go install <url>@<ver>`
-//  3. info.Settings vcs.revision              — local-checkout fallback
-//
-// The init() below fills in (2) and (3); a release-time ldflag value pre-empts
-// init() because the linker writes the constant before init() runs.
+// serverVersion is resolved in priority order: an -ldflags override (release
+// builds), the `go install` module version, or local vcs.revision (init()).
 var serverVersion string
 
 func init() {
@@ -33,11 +28,8 @@ func init() {
 	serverVersion = resolveVersion(info, ok)
 }
 
-// resolveVersion derives the server version from build info, following the
-// priority order documented on serverVersion. It is a pure function (no globals,
-// no I/O) so the resolution rules can be unit-tested; init() supplies the live
-// build info. A non-empty ldflag value pre-empts this entirely (init returns
-// early before calling it).
+// resolveVersion derives the version from build info, per the priority order
+// documented on serverVersion. Pure function so resolution logic is testable.
 func resolveVersion(info *debug.BuildInfo, ok bool) string {
 	if !ok || info == nil {
 		return "dev"
@@ -96,13 +88,9 @@ const (
 	// notifications/tools/list_changed.
 	LoadModeLazy LoadMode = "lazy"
 
-	// LoadModeDynamic exposes only a tiny set of meta-tools (search + describe +
-	// call) that let the model discover and invoke the full tool catalog at
-	// runtime, without the catalog ever entering the client's tool list. The
-	// real tool list never changes, so this needs no client cooperation
-	// (no notifications/tools/list_changed). Targets clients with hard tool caps
-	// and no client-side tool search of their own (e.g. Cursor 40, Windsurf 100).
-	// Claude Code should stay eager — it defers schemas client-side via ToolSearch.
+	// LoadModeDynamic exposes only meta-tools (search/describe/call) that proxy
+	// the full catalog at runtime, so the client's tool list never changes. Use it
+	// for clients with hard tool caps (e.g. Cursor 40, Windsurf 100); Claude Code should stay eager.
 	LoadModeDynamic LoadMode = "dynamic"
 )
 
@@ -126,11 +114,9 @@ const (
 	// Desktop, Claude Code, Cursor, Windsurf, etc.).
 	TransportStdio Transport = "stdio"
 
-	// TransportHTTP serves the MCP protocol over the Streamable HTTP
-	// transport (a single endpoint accepting POSTed JSON-RPC and, for
-	// server->client streaming, text/event-stream). For remote/networked
-	// deployments where the client connects over HTTP rather than spawning
-	// a subprocess.
+	// TransportHTTP serves the MCP protocol over Streamable HTTP (POSTed
+	// JSON-RPC, with text/event-stream for server->client streaming). For
+	// remote/networked deployments where the client connects over HTTP.
 	TransportHTTP Transport = "http"
 )
 
@@ -145,13 +131,9 @@ const (
 	transportSourceDefault transportSource = "default"
 )
 
-// resolveTransport picks the wire transport from, in priority order, the
-// --transport flag value, the IONOS_MCP_TRANSPORT env value, then the
-// default (stdio). Each input may be empty (meaning "not provided"). It is a
-// pure function so the precedence rules can be unit-tested; callers pass the
-// flag value and os.Getenv("IONOS_MCP_TRANSPORT"). The returned source
-// reflects which input supplied the value (even if that value was invalid
-// and fell back to stdio — parseTransport logs that case).
+// resolveTransport picks the transport from --transport flag, then
+// IONOS_MCP_TRANSPORT env, then stdio default. Pure function; the returned
+// source reflects the input used even when parseTransport falls back to stdio.
 func resolveTransport(flagVal, envVal string) (Transport, transportSource) {
 	if strings.TrimSpace(flagVal) != "" {
 		return parseTransport(flagVal), transportSourceFlag
@@ -177,13 +159,9 @@ func parseTransport(raw string) Transport {
 	}
 }
 
-// resolveLoadMode picks the tool registration strategy from, in priority order,
-// the --load-mode flag value, the IONOS_MCP_LOAD_MODE env value, then the
-// default (eager). Each input may be empty (meaning "not provided"). It is a
-// pure function so the precedence rules can be unit-tested; callers pass the
-// flag value and os.Getenv("IONOS_MCP_LOAD_MODE"). The returned source reflects
-// which input supplied the value (even if that value was invalid and fell back
-// to eager — parseLoadMode logs that case).
+// resolveLoadMode picks the load mode from --load-mode flag, then
+// IONOS_MCP_LOAD_MODE env, then eager default. Pure function; the returned
+// source reflects the input used even when parseLoadMode falls back to eager.
 func resolveLoadMode(flagVal, envVal string) (LoadMode, loadModeSource) {
 	if strings.TrimSpace(flagVal) != "" {
 		return parseLoadMode(flagVal), sourceFlag

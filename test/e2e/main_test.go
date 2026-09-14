@@ -1,9 +1,8 @@
 //go:build e2e
 
-// Package e2e drives the actual shipped binary over real stdio JSON-RPC framing,
-// with a local HTTP mock standing in for the IONOS API (injected via
-// IONOS_API_URL). It is gated behind the `e2e` build tag so the default
-// `go test ./...` stays fast and hermetic; run it with `make test-e2e`.
+// Package e2e drives the shipped binary over stdio JSON-RPC, with a local HTTP
+// mock standing in for the IONOS API. Gated behind the `e2e` build tag; run
+// with `make test-e2e`.
 package e2e
 
 import (
@@ -135,13 +134,8 @@ func spawn(t *testing.T, extraEnv map[string]string, stderrBuf *syncBuffer, args
 
 	cmd := exec.Command(binPath, args...)
 
-	// Strip keys that the test controls from the ambient environment. On Linux
-	// getenv() returns the first match, so ambient values would otherwise win
-	// over anything appended later. IONOS_MCP_LOAD_MODE and IONOS_MCP_TOOL_SCOPE
-	// are always stripped: tests that need a specific value set it via extraEnv;
-	// tests that omit it get the binary's default (eager / read-only). Stripping
-	// the scope also stops a developer's exported write scope from silently
-	// enabling write tools in the e2e binary.
+	// Strip ambient env vars the test controls: exec uses the first match, so an
+	// exported scope or load mode could otherwise leak into the e2e binary.
 	overrideKeys := map[string]bool{
 		"IONOS_TOKEN":          true,
 		"IONOS_API_URL":        true,

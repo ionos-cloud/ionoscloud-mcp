@@ -27,10 +27,8 @@ func TestFieldsPanicsOnOddArgs(t *testing.T) {
 			t.Error("Fields with an odd argument count should panic")
 		}
 	}()
-	// The argument count is deliberately hidden behind a Split so it is not
-	// statically known: staticcheck's SA5012 check recognises the even-pairs
-	// contract and rejects an odd call it can see through, which is a feature for
-	// real callers but means this test has to reach the runtime panic another way.
+	// Args are hidden behind a Split so staticcheck's SA5012 can't statically
+	// prove the odd count and flag this call.
 	args := strings.Split("name,web-1,orphan", ",")
 	Fields(args...)
 }
@@ -144,14 +142,9 @@ func TestPreviewEmptyBlastRadiusUsesEmptyNote(t *testing.T) {
 	}
 }
 
-// TestAffectedRadiusNeverClaimsDestruction is the regression guard for a preview
-// that told a caller adding a firewall rule to a security group that confirming it
-// would "destroy" the NIC assigned to that group. The counts were right and the
-// framing was invented by the renderer, which wrapped every list in destruction
-// wording. That is worse than a typo: it is a false claim in the one place a caller
-// looks before authorizing a change, and the agent that met it correctly judged the
-// warning bogus and proceeded — which is precisely the habit that makes a truthful
-// warning ineffective later.
+// TestAffectedRadiusNeverClaimsDestruction is the regression guard for a bug
+// where the renderer labelled a merely-affected resource "destroyed" — a false
+// claim in a place a caller relies on before authorizing a change.
 func TestAffectedRadiusNeverClaimsDestruction(t *testing.T) {
 	r := AffectedRadius()
 	r.Add("NICs assigned to this group", 1)

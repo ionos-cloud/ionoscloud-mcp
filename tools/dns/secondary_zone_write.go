@@ -91,9 +91,8 @@ func registerUpdateSecondaryZone(server *mcp.Server, client *dnsSDK.APIClient, s
 			}
 		}
 
-		// zoneName and primaryIps are both serialized unconditionally, and a nil
-		// primaryIps would go out as null, which the API rejects. Read the zone and
-		// override only what the caller supplied.
+		// primaryIps is serialized unconditionally, and nil would go out as null,
+		// which the API rejects — so read the zone and override only what changed.
 		current, _, err := client.SecondaryZonesApi.SecondaryzonesFindById(ctx, id).Execute()
 		if err != nil {
 			if tools.IsNotFound(err) {

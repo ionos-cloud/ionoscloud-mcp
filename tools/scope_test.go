@@ -100,10 +100,9 @@ func TestActionVerbsAreNotPrefixesOfEachOther(t *testing.T) {
 	}
 }
 
-// TestClassFromNameActionVerbs is the test that keeps the two readers of
-// actionVerbs honest. Every verb in the table must classify through
-// ClassFromName to the same class the registration gate would use — otherwise
-// the dynamic dispatcher's defence-in-depth check silently no-ops for that verb.
+// TestClassFromNameActionVerbs keeps ClassFromName and actionVerbs in sync: a
+// mismatch would silently no-op the dynamic dispatcher's defence-in-depth check
+// for that verb.
 func TestClassFromNameActionVerbs(t *testing.T) {
 	if len(actionVerbs) == 0 {
 		t.Fatal("actionVerbs is empty; the action gate would classify every action tool as read")

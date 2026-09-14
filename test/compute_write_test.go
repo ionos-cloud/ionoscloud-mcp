@@ -290,18 +290,9 @@ func TestDeleteDatacenterDynamicParity(t *testing.T) {
 	}
 }
 
-// TestEveryComputeToolIsAnnotated covers the annotation backfill exhaustively
-// for compute: every tool compute.RegisterAll registers must go through
-// tools.RegisterTool (or RegisterActionTool) and therefore carry annotations
-// matching its class. Before the migration the compute reads used bare
-// mcp.AddTool and carried no annotations at all, leaving clients unable to tell
-// a read from a mutation without parsing the name.
-//
-// It registers compute alone on a throwaway server so the assertion covers the
-// whole product exactly, with no name heuristics and no way for a newly added
-// compute file to slip through. DNS and k8s have since had the same migration
-// (TestDnsReadToolsAreAnnotatedReadOnly, TestK8sReadToolsAreAnnotatedReadOnly);
-// billing, cert and object storage still use bare mcp.AddTool.
+// TestEveryComputeToolIsAnnotated asserts every compute tool goes through
+// tools.RegisterTool (or RegisterActionTool) and carries annotations matching
+// its class, using an isolated compute-only server so none can slip through.
 func TestEveryComputeToolIsAnnotated(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {

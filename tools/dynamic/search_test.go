@@ -30,9 +30,8 @@ func callText(t *testing.T, d *dispatcher, in tools.CallToolInput) (bool, string
 }
 
 func TestCallHandlerScopeGuard(t *testing.T) {
-	// Mutating tools in the catalog must be refused when the scope does not allow
-	// their class, even though the names are known. session is nil to prove the
-	// guard returns before forwarding.
+	// Mutating tools must be refused under a read-only scope; session is nil to
+	// prove the guard returns before forwarding.
 	d := &dispatcher{scope: tools.Scope{}, byName: map[string]catalogEntry{
 		"create_datacenter": {Name: "create_datacenter", Group: "compute", Class: tools.ClassWrite},
 		"delete_datacenter": {Name: "delete_datacenter", Group: "compute", Class: tools.ClassDestructive},
@@ -48,21 +47,12 @@ func TestCallHandlerScopeGuard(t *testing.T) {
 	}
 }
 
-// TestCatalogClassifiesActionVerbs is the defence-in-depth guard for action
-// tools. Registration is the primary gate, so a tool the scope disallows is
-// normally absent from the catalog entirely. This test covers the case that gate
-// cannot catch: a tool registered with bare mcp.AddTool instead of
-// tools.RegisterActionTool, which lands in the catalog whatever the scope. The
-// only thing standing between it and the API is buildCatalog classifying it by
-// name (tools.ClassFromName) and callHandler refusing it.
-//
-// Before actionVerbs was wired into ClassFromName, a destructive POST named
-// stop_server classified as ClassRead and this second gate silently no-opped for
-// every action verb.
+// TestCatalogClassifiesActionVerbs is the defence-in-depth guard: a tool that
+// bypasses the registration gate (via bare mcp.AddTool) must still be
+// classified correctly by name and refused by callHandler.
 func TestCatalogClassifiesActionVerbs(t *testing.T) {
-	// A product that bypasses the registration gate, as a careless addition
-	// would. Under a write-only scope the destructive verbs must still be
-	// refused, and the write-class ones allowed.
+	// Bypasses the registration gate; under a write-only scope the destructive
+	// verbs must still be refused and the write-class ones allowed.
 	ungated := Product{
 		Name:    "ungated",
 		Summary: "tools registered without the scope gate",
@@ -254,10 +244,8 @@ func TestScoreRanking(t *testing.T) {
 	if sList <= sDescOnly {
 		t.Errorf("name match (%d) should outrank description-only match (%d)", sList, sDescOnly)
 	}
-	// Exact whole-name match is the strongest signal. Pin the value so a
-	// regression in the token bonus is caught, not masked by a loose >=100:
-	// 100 (exact name) + 10+10 (name tokens get, datacenter) + 2 (desc token
-	// "get" in "Get a single data center by ID.") = 122.
+	// Pin the exact value (100 exact-name + 10+10 name tokens + 2 desc token =
+	// 122) so a regression in the token bonus is caught, not masked by >=100.
 	if exact := score(getOne, "get_datacenter", tokenize("get_datacenter")); exact != 122 {
 		t.Errorf("exact name match score = %d, want 122", exact)
 	}
@@ -322,10 +310,9 @@ func regTool(name string) func(*mcp.Server) {
 	}
 }
 
-// assertNoGoroutineLeak waits for goroutines to settle back to the baseline
-// captured before the operation under test, then fails if any leaked. The
-// in-memory MCP sessions unwind their goroutines asynchronously after Close, so
-// a fixed sleep would be flaky; poll up to a deadline instead.
+// assertNoGoroutineLeak waits for goroutines to settle back to before, then
+// fails if any leaked. Polls instead of a fixed sleep since in-memory MCP
+// sessions unwind asynchronously after Close.
 func assertNoGoroutineLeak(t *testing.T, before int) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -363,7 +350,7 @@ func TestBuildCatalogDuplicateNoLeak(t *testing.T) {
 // both sessions are live. The deferred cleanup must still close them.
 func TestBuildCatalogEmptyNoLeak(t *testing.T) {
 	products := []Product{
-		{Name: "empty", Register: func(_ *mcp.Server) {}}, // registers nothing
+		{Name: "empty", Register: func(_ *mcp.Server) {}},
 	}
 
 	before := runtime.NumGoroutine()
@@ -378,12 +365,9 @@ func TestBuildCatalogEmptyNoLeak(t *testing.T) {
 	assertNoGoroutineLeak(t, before)
 }
 
-// TestBuildCatalogCloseNoLeak covers the success path: a built catalog holds two
-// live sessions, and dispatcher.Close must tear them down. Guards against Close
-// regressing to a no-op — a path the error-path tests never reach, since they
-// never return a dispatcher to Close. (Closing either half of the in-memory pair
-// cascades to the other, so dropping just one Close call would still pass here;
-// what this catches is Close doing nothing at all.)
+// TestBuildCatalogCloseNoLeak covers the success path: a built catalog holds
+// two live sessions, and dispatcher.Close must tear them down rather than
+// regressing to a no-op.
 func TestBuildCatalogCloseNoLeak(t *testing.T) {
 	products := []Product{
 		{Name: "a", Register: regTool("get_alpha")},

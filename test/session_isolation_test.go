@@ -17,10 +17,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools/dynamic"
 )
 
-// Confirmation tokens must not cross between clients. Only the Streamable HTTP
-// transport issues session ids (stdio and in-memory both return ""), so these
-// tests run over a real HTTP handler — an in-memory harness cannot tell two
-// sessions apart and would pass no matter what the code did.
+// Only the Streamable HTTP transport issues session ids, so these tests run
+// over a real HTTP handler — an in-memory harness couldn't tell sessions apart.
 
 var tokenRE = regexp.MustCompile(`confirmation_token: (\w+)`)
 

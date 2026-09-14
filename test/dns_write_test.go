@@ -12,10 +12,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// DNS write-tool tests. Unlike compute, DNS paths carry no /cloudapi/v6 prefix.
-// Every DNS update is a PUT, so the carry-forward assertions are the core of this
-// file: the SDK serializes each resource's identity fields unconditionally, and a
-// PUT that omitted them would blank them out.
+// DNS write-tool tests. Every DNS update is a PUT: identity fields are serialized
+// unconditionally, so carry-forward assertions are the core of this file.
 
 const (
 	dnsZoneID      = "z-1"
@@ -389,10 +387,7 @@ func TestCreateDnsRecordValidation(t *testing.T) {
 }
 
 // TestCreateDnsRecordIgnoresPriorityForOtherTypes covers the spec's "ignored for all
-// other types": sending it anyway would be echoing a value the caller cannot mean.
-// The preview must agree with the body — a preview that showed priority: 10 while the
-// request omitted it would describe a call that was never made, which defeats the
-// point of previewing before authorizing.
+// other types": the preview and request must agree in dropping it.
 func TestCreateDnsRecordIgnoresPriorityForOtherTypes(t *testing.T) {
 	h := destructiveSetup(t)
 	preview, res := previewThenExecute(t, h, "create_dns_record", map[string]any{
@@ -441,10 +436,9 @@ func TestCreateDnsRecordPreviewMatchesBody(t *testing.T) {
 
 // ---------- update_dns_record ----------
 
-// TestUpdateDnsRecordCarriesFieldsForward is the sharpest carry-forward case. The
-// endpoint is a PUT; name/type/content are serialized unconditionally, and ttl,
-// priority and enabled are pointers the SDK drops when nil while the spec gives ttl
-// and enabled defaults. Changing only the TTL must preserve everything else.
+// TestUpdateDnsRecordCarriesFieldsForward is the sharpest carry-forward case: ttl,
+// priority and enabled are pointer fields the SDK drops when nil, but the spec gives
+// ttl and enabled defaults, so changing only the TTL must preserve everything else.
 func TestUpdateDnsRecordCarriesFieldsForward(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(dnsRecordPath, recordFixture)
@@ -822,10 +816,9 @@ func TestCreateDnsDnssecKeyValidation(t *testing.T) {
 	}
 }
 
-// TestDeleteDnsDnssecKeyReturnsTheApiResponse pins that the execute phase hands back
-// what the API said rather than a summary of it. The response is the only thing that
-// separates a queued request from a rejected one — a hand-written success message hid
-// a 409 ("the zone has too many operations in progress") behind prose once already.
+// TestDeleteDnsDnssecKeyReturnsTheApiResponse pins that execute hands back the API's
+// own response, not a summary — a hand-written message once hid a real 409 behind
+// prose.
 func TestDeleteDnsDnssecKeyReturnsTheApiResponse(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(dnsKeysPath, keysFixture)
@@ -1071,9 +1064,8 @@ func TestDnsWriteToolAnnotations(t *testing.T) {
 }
 
 // TestDnsWriteToolsDeclareCompletionSemantics covers the per-operation split: DNS
-// mutations are mostly 202, but a reverse record's create and update answer with the
-// finished record and expose no state to poll, so promising a polling step would
-// send the model looking for a field that does not exist.
+// mutations are mostly 202, but a reverse record's create/update return the finished
+// record with no state to poll.
 func TestDnsWriteToolsDeclareCompletionSemantics(t *testing.T) {
 	h := destructiveSetup(t)
 	ctx := context.Background()
@@ -1213,10 +1205,8 @@ func TestImportDnsZoneFileIsGatedAsDestructive(t *testing.T) {
 }
 
 // TestDnsUpdateBodiesContainOnlyExpectedFields is the DNS counterpart of
-// TestUpdateBodiesContainOnlyRequestedFields, which covers PATCH bodies only. DNS
-// updates are PUT, so the expected key set is the caller's fields plus every field
-// carried forward — a PUT replaces the resource's properties, so anything missing
-// here is a field the update would silently blank.
+// TestUpdateBodiesContainOnlyRequestedFields: DNS updates are PUT, so the expected
+// key set includes every field carried forward, not just the caller's fields.
 func TestDnsUpdateBodiesContainOnlyExpectedFields(t *testing.T) {
 	tests := []struct {
 		tool      string
@@ -1286,10 +1276,9 @@ func TestUpdateDnsRecordOnAnARecordSendsNoPriority(t *testing.T) {
 
 // The tests below cover review findings on PR #77.
 
-// TestImportDnsZoneFileTokenIsBoundToTheFile pins the two-phase guarantee for the
-// most destructive DNS operation: the token authorizes one exact file, not "replace
-// this zone with anything". Binding only the zone id let a token minted against one
-// preview execute a completely different file.
+// TestImportDnsZoneFileTokenIsBoundToTheFile pins that the token authorizes one exact
+// file, not "replace this zone with anything" — binding only the zone id let a token
+// execute a completely different file than the one previewed.
 func TestImportDnsZoneFileTokenIsBoundToTheFile(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(dnsZonePath, zoneFixture)

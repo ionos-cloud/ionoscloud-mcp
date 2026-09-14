@@ -1,14 +1,8 @@
 //go:build e2e_live
 
-// Package live runs the MCP server against the REAL IONOS API. It is gated
-// behind the `e2e_live` build tag AND the presence of IONOS_TOKEN, so it never
-// runs in the default suite. It is read-only and discovery-based: each chain
-// lists a resource and, only if the account has one, drills into it — so the
-// suite stays green on an empty or freshly-reset account. It asserts response
-// shape (parses, not an error), never specific values.
-//
-// Run with: make test-live   (requires IONOS_TOKEN; object storage chains also
-// require IONOS_S3_ACCESS_KEY / IONOS_S3_SECRET_KEY).
+// Package live runs read-only discovery tests against the REAL IONOS API,
+// gated behind the `e2e_live` build tag and IONOS_TOKEN so it never runs in
+// the default suite. Run with: make test-live.
 package live
 
 import (
@@ -120,10 +114,8 @@ func callOK(t *testing.T, cs *mcp.ClientSession, name string, args map[string]an
 	return parsed
 }
 
-// callTolerating is callOK for endpoints the API refuses to answer in some
-// legitimate account states: a tool error whose text contains want is logged
-// and accepted, anything else still fails. Returns nothing — the tolerated case
-// has no body to drill into.
+// callTolerating is callOK, but a tool error containing want is logged and
+// accepted instead of failing the test.
 func callTolerating(t *testing.T, cs *mcp.ClientSession, name string, args map[string]any, want string) {
 	t.Helper()
 	text, isErr := callTool(t, cs, name, args)
@@ -242,10 +234,8 @@ func TestLiveBilling(t *testing.T) {
 	callOK(t, cs, "list_billing_utilization_by_period", map[string]any{"contract": contract, "period": period})
 }
 
-// contractFromProfile extracts a contract number from get_billing_profile, which
-// returns {"companies":[{"contractId":"<number-as-string>", ...}]}. The billing
-// tools take an int32 contract, so the string id is parsed. Returns 0 when the
-// profile has no company (→ caller skips).
+// contractFromProfile extracts the contract number from get_billing_profile's
+// JSON, parsing the string contractId to int32. Returns 0 if none found.
 func contractFromProfile(parsed any) int32 {
 	m, ok := parsed.(map[string]any)
 	if !ok {

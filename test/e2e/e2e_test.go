@@ -128,12 +128,9 @@ func TestLoadModeFlagOverridesEnv(t *testing.T) {
 	}
 }
 
-// TestDynamicCatalogCoversProductsViaBinary drives the REAL main.go product
-// slice end to end: it searches the catalog through the shipped binary in
-// dynamic mode and asserts a representative tool from every product is present,
-// then invokes one via ionos_call_tool. This is the only test that exercises
-// main.go's actual wiring (the in-process tests build their own product slice),
-// so it catches a product dropped or mis-wired in main.go.
+// TestDynamicCatalogCoversProductsViaBinary drives the real main.go product
+// slice through the shipped binary's dynamic-mode catalog — the only test
+// that exercises main.go's actual wiring.
 func TestDynamicCatalogCoversProductsViaBinary(t *testing.T) {
 	clearStatus()
 	session, _ := spawn(t, map[string]string{"IONOS_MCP_LOAD_MODE": "dynamic"}, nil)

@@ -136,9 +136,8 @@ func registerUpdateRecord(server *mcp.Server, client *dnsSDK.APIClient, scope to
 		if input.Content != nil {
 			props.Content = strings.TrimSpace(*input.Content)
 		}
-		// ttl, priority and enabled are pointers the SDK omits when nil, and the
-		// spec gives ttl and enabled defaults, so an omitted field must be sent
-		// back explicitly rather than dropped.
+		// ttl and enabled have spec defaults, so an omitted value must be sent
+		// back explicitly, not dropped.
 		props.Ttl = firstNonNilInt32(input.Ttl, cp.Ttl)
 		props.Enabled = firstNonNilBool(input.Enabled, cp.Enabled)
 

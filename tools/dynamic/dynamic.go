@@ -1,18 +1,6 @@
 // Package dynamic implements the 'dynamic' load mode: instead of exposing the
-// full product tool catalog (110+ tools) to the MCP client, the server exposes
-// only three meta-tools — ionos_search_tools, ionos_describe_tools and
-// ionos_call_tool — through which the model discovers and invokes the real
-// tools at runtime. The real catalog never enters the client's tool list, so
-// this works for clients with hard tool caps and no client-side tool search of
-// their own (e.g. Cursor, Windsurf), without relying on
-// notifications/tools/list_changed.
-//
-// Mechanism: the full catalog is registered onto a private, in-memory "catalog"
-// server (reusing each product's existing RegisterAll, unchanged). The dynamic
-// package self-connects to that server over an in-memory transport, snapshots
-// the tool metadata once at startup, and forwards ionos_call_tool invocations
-// to it. Input validation, schema inference and error enrichment all run inside
-// the catalog server exactly as they would in eager mode.
+// full tool catalog, the server exposes three meta-tools — ionos_search_tools,
+// ionos_describe_tools and ionos_call_tool — for runtime discovery and invocation.
 package dynamic
 
 import (
@@ -47,9 +35,7 @@ type catalogEntry struct {
 }
 
 // dispatcher holds the immutable post-startup state shared by the three
-// meta-tool handlers: the searchable index and the live session to the private
-// catalog server. (Named "dispatcher", not "router", to avoid confusion with
-// the retired "router" load mode.)
+// meta-tool handlers: the searchable index and the session to the catalog server.
 type dispatcher struct {
 	entries    []catalogEntry
 	byName     map[string]catalogEntry
@@ -61,10 +47,8 @@ type dispatcher struct {
 const defaultSearchLimit = 10
 
 // Close tears down the private catalog server connection (both halves of the
-// in-memory self-connection). main defers it for a clean shutdown when
-// server.Run returns; since the dispatcher is a process-lifetime singleton the
-// OS would reclaim everything at exit anyway, but tests also rely on it to avoid
-// leaking a catalog server + sessions per run. nil-safe on each half.
+// self-connection). main defers it for shutdown; tests close it to avoid
+// leaking sessions. nil-safe on each half.
 func (d *dispatcher) Close() error {
 	if d.session != nil {
 		_ = d.session.Close()
@@ -76,9 +60,8 @@ func (d *dispatcher) Close() error {
 }
 
 // Register builds the private catalog from products and registers the three
-// dynamic meta-tools on the public server. It returns an io.Closer that tears
-// down the catalog connection; main defers it for a clean shutdown and tests
-// Close it to avoid leaks. Returns an error if the catalog cannot be built.
+// dynamic meta-tools on the public server. Returns an io.Closer that tears
+// down the catalog connection; main defers it, tests Close it to avoid leaks.
 func Register(ctx context.Context, public *mcp.Server, products []Product, scope tools.Scope) (io.Closer, error) {
 	d, err := buildCatalog(ctx, products, scope)
 	if err != nil {
@@ -177,10 +160,8 @@ func (r *dispatcher) searchHandler(_ context.Context, _ *mcp.CallToolRequest, in
 	tokens := tokenize(in.Query)
 	results := make([]searchResult, 0, len(matches))
 	for _, e := range matches {
-		// Scoring runs over the full description (see search/score), so a tool
-		// matched via a later sentence is still found; we only shorten what's
-		// shown. Prefer the first sentence that contains a query term, so the
-		// snippet always explains the match; fall back to the first sentence.
+		// snippet picks the first sentence containing a query term (fallback:
+		// the first sentence); scoring itself runs over the full description.
 		results = append(results, searchResult{Name: e.Name, Group: e.Group, Description: snippet(e.Description, tokens)})
 	}
 	return tools.ToResult(map[string]any{
@@ -236,21 +217,17 @@ func (r *dispatcher) callHandler(ctx context.Context, req *mcp.CallToolRequest, 
 		return errorResult(msg), nil, nil
 	}
 
-	// Defense-in-depth: enforce the scope gate here too. Registration already
-	// keeps classes the scope disallows out of the catalog, so this is a second
-	// gate — a mutating tool is only dispatched when IONOS_MCP_TOOL_SCOPE opts its
-	// class in, and it fails closed otherwise.
+	// Defense-in-depth: registration already excludes disallowed classes; this
+	// is a second gate that fails closed.
 	if !r.scope.Allows(entry.Class) {
 		return errorResult(fmt.Sprintf("tool %q requires IONOS_MCP_TOOL_SCOPE to include the %q capability; current scope is %q", name, entry.Class.String(), r.scope.String())), nil, nil
 	}
 
-	// Forward to the catalog server. Input validation, schema enforcement and
-	// IONOS error enrichment all happen inside that handler; we relay its
-	// result verbatim, preserving IsError.
+	// Forward to the catalog server: validation, schema enforcement and error
+	// enrichment happen there; relay its result verbatim (including IsError).
 	params := &mcp.CallToolParams{Name: name, Arguments: in.Arguments}
-	// Every caller shares this one catalog session, so its id cannot distinguish
-	// them. Pass the real caller's id along or confirmation tokens would be
-	// bound to the catalog session and stay interchangeable between clients.
+	// The shared catalog session can't distinguish callers; pass the real
+	// caller id or confirmation tokens become interchangeable between clients.
 	if id := tools.CallerID(req); id != "" {
 		params.Meta = mcp.Meta{tools.CallerIDMetaKey: id}
 	}

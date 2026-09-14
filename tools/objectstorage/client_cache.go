@@ -11,17 +11,9 @@ import (
 	"github.com/ionos-cloud/sdk-go-bundle/shared"
 )
 
-// clientCache maps buckets to regional API clients.
-// S3-compatible APIs require requests to target the bucket's regional endpoint;
-// the wrong endpoint causes a redirect loop because the signed Authorization
-// header is bound to the original host and cannot follow cross-host redirects.
-//
-// cfg is kept as a live pointer (not a value snapshot) so any mutation made
-// during the process lifetime — UA updates after the MCP handshake, future
-// token rotation, etc. — flows through to regional clients constructed
-// later. Regional clients are still independent SDK clients with their own
-// Server URL override; only the User-Agent injection (handled by the
-// RoundTripper wired on cfg.HTTPClient.Transport) is shared.
+// clientCache maps buckets to regional API clients. S3-compatible APIs
+// require requests to target the bucket's regional endpoint, since the
+// signed Authorization header cannot follow a cross-host redirect.
 type clientCache struct {
 	mu           sync.Mutex
 	cfg          *shared.Configuration
@@ -41,11 +33,9 @@ func newClientCache(base *sdk.APIClient, mgmt *mgmtSDK.APIClient, cfg *shared.Co
 	}
 }
 
-// forBucket returns the regional API client for bucket. On the first access for
-// a given bucket it calls GetBucketLocation (always answered by the default
-// endpoint without redirecting) to determine the region, resolves the endpoint
-// via the management API, then caches both mappings so subsequent calls are
-// served from memory.
+// forBucket returns the regional API client for bucket, resolving the region
+// via GetBucketLocation (answered by the default endpoint without
+// redirecting) and caching the result for later calls.
 func (c *clientCache) forBucket(ctx context.Context, bucket string) (*sdk.APIClient, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -84,10 +74,9 @@ func (c *clientCache) forBucket(ctx context.Context, bucket string) (*sdk.APICli
 	return client, nil
 }
 
-// regionalConfig derives a configuration for a single regional endpoint by
-// dereferencing the live cfg pointer at call time. The result is a fresh
-// value the SDK is free to mutate; the shared HTTPClient — and therefore
-// the User-Agent RoundTripper — is preserved through the shallow copy.
+// regionalConfig derives a configuration for a single regional endpoint from
+// the live cfg pointer. The shared HTTPClient — and therefore the
+// User-Agent RoundTripper — is preserved through the shallow copy.
 func (c *clientCache) regionalConfig(endpoint string) *shared.Configuration {
 	derived := *c.cfg
 	derived.Servers = shared.ServerConfigurations{{URL: endpoint}}

@@ -110,23 +110,20 @@ func (m Method) Class() Class {
 // annotations returns the MCP annotations implied by the HTTP method.
 func (m Method) annotations() *mcp.ToolAnnotations {
 	switch m {
-	case MethodPost: // create: mutating, not destructive, not idempotent
+	case MethodPost:
 		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: boolPtr(false), IdempotentHint: false}
-	case MethodPut, MethodPatch: // update: mutating, not destructive, idempotent
+	case MethodPut, MethodPatch:
 		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: boolPtr(false), IdempotentHint: true}
-	case MethodDelete: // delete: mutating, destructive, idempotent
+	case MethodDelete:
 		return &mcp.ToolAnnotations{ReadOnlyHint: false, DestructiveHint: boolPtr(true), IdempotentHint: true}
-	default: // GET, HEAD: read-only
+	default: // GET, HEAD
 		return &mcp.ToolAnnotations{ReadOnlyHint: true}
 	}
 }
 
-// actionVerbs maps a non-CRUD tool's name prefix to its mutation class. Power
-// control, snapshot restore and attach/detach read better as domain verbs than as
-// create_/delete_.
-//
-// Single source of truth for action classification, read by both RegisterActionTool
-// and ClassFromName. No verb may be a prefix of another, so at most one can match.
+// actionVerbs maps a non-CRUD tool name prefix to its mutation class, for domain
+// verbs (power control, snapshot restore, attach/detach) that don't fit
+// create_/delete_. No verb may be a prefix of another.
 var actionVerbs = map[string]Class{
 	// Mutating but recoverable: they add or resume, never discard.
 	"start_":    ClassWrite,

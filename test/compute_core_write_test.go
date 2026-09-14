@@ -52,10 +52,8 @@ func assertNoMutation(t *testing.T, h *testSetup, phase string) {
 	}
 }
 
-// previewThenExecute runs both phases of a two-phase tool: it asserts the preview
-// mutates nothing, extracts the minted token, clears the request log, then calls
-// again with the token. It returns the preview text and the execute result so a
-// caller can assert on both.
+// previewThenExecute runs both phases of a two-phase tool and returns the
+// preview text and the execute result.
 func previewThenExecute(t *testing.T, h *testSetup, tool string, args map[string]any) (string, *mcp.CallToolResult) {
 	t.Helper()
 
@@ -104,10 +102,8 @@ func TestCreateServerTwoPhase(t *testing.T) {
 			t.Errorf("preview missing %q:\n%s", want, preview)
 		}
 	}
-	// With no boot_volume the server comes up with no disk and no NIC, which the
-	// preview must say — see also TestCreateServerWithoutBootVolumeSendsNoEntities.
-	// Assert the actionable substance, not the exact phrasing: the caller must
-	// learn the server has no disk or network and which tools fix that.
+	// With no boot_volume the server has no disk or NIC; assert the substance, not
+	// exact phrasing (see also TestCreateServerWithoutBootVolumeSendsNoEntities).
 	for _, want := range []string{"no disk and no network", "attach_server_volume", "create_nic"} {
 		if !strings.Contains(preview, want) {
 			t.Errorf("preview should tell the caller %q:\n%s", want, preview)
@@ -161,10 +157,8 @@ func TestCreateServerRejectsBothSizings(t *testing.T) {
 }
 
 // TestCreateCubeServerRequiresDasBootVolume covers the failure that made CUBE
-// servers uncreatable: a CUBE server's storage is Direct Attached Storage, which
-// the API accepts ONLY inside the composite create request. Attaching a volume
-// afterwards does not work, so without an inline boot_volume there is no recovery
-// path — the error has to say exactly what to pass.
+// servers uncreatable: DAS storage is only accepted inside the composite create
+// request, so the error must say exactly what to pass.
 func TestCreateCubeServerRequiresDasBootVolume(t *testing.T) {
 	h := destructiveSetup(t)
 	res := callTool(t, h, "create_server", map[string]any{
@@ -247,15 +241,9 @@ func TestCreateCubeServerWithDasBootVolume(t *testing.T) {
 	}
 }
 
-// TestCreateGpuServerRequiresBootVolume covers the GPU half of the same trap. GPU
-// servers are template-sized like CUBE, so the API accepts their storage only
-// inside the composite create — a GPU server created without a boot_volume hits
-// the identical dead end.
-//
-// Evidence for the requirement, since it is not stated in the Go SDK: the team's
-// Terraform provider marks the inline volume Required in resource_gpu_server.go
-// (Optional in the ENTERPRISE/VCPU resource), and ionosctl builds the volume into
-// entities for GPU as well as CUBE.
+// TestCreateGpuServerRequiresBootVolume covers the GPU half of the same trap:
+// GPU servers are template-sized, so storage is accepted only inside the
+// composite create request.
 func TestCreateGpuServerRequiresBootVolume(t *testing.T) {
 	h := destructiveSetup(t)
 	res := callTool(t, h, "create_server", map[string]any{
@@ -332,10 +320,9 @@ func TestCreateGpuServerWithSsdPremium(t *testing.T) {
 	}
 }
 
-// TestCreateGpuServerWithoutBootVolumeType covers ionosctl's actual behaviour: for
-// GPU it sends no storage type at all and lets the API choose, so boot_volume.type
-// must be optional for this server type (and only this one, besides CUBE's
-// mandatory DAS).
+// TestCreateGpuServerWithoutBootVolumeType covers ionosctl's behaviour: GPU sends
+// no storage type and lets the API choose, so boot_volume.type must be optional
+// for GPU (and CUBE's mandatory DAS).
 func TestCreateGpuServerWithoutBootVolumeType(t *testing.T) {
 	h := destructiveSetup(t)
 	preview, res := previewThenExecute(t, h, "create_server", map[string]any{
@@ -430,12 +417,9 @@ func TestCreateServerBootVolumeTypeRules(t *testing.T) {
 	}
 }
 
-// TestCreateServerBootVolumeWarningsDoNotBlock covers the rules that are inferred
-// rather than documented. They must surface in the preview but must NOT reject the
-// request: a mistaken block would break a valid request with no way around it,
-// while an unwanted storage type is trivially recoverable — the API rejects it and
-// the caller retries. Only the documented rules (CUBE's DAS type, the missing
-// inline volume on a template-sized server) are hard errors.
+// TestCreateServerBootVolumeWarningsDoNotBlock covers rules that are inferred
+// rather than documented: they must warn in the preview but never reject the
+// request, unlike the documented hard-error rules.
 func TestCreateServerBootVolumeWarningsDoNotBlock(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -443,9 +427,8 @@ func TestCreateServerBootVolumeWarningsDoNotBlock(t *testing.T) {
 		wantWarn string
 	}{
 		{
-			// The specific case: DAS on an ENTERPRISE server. Implied by the spec
-			// ("DAS could be used only in a composite call with a Cube server") but
-			// never stated as an ENTERPRISE rejection, so the API decides.
+			// DAS on ENTERPRISE: the spec says DAS is only for CUBE but doesn't state
+			// this case is rejected, so it's a warning, not a hard error.
 			name:     "DAS on ENTERPRISE warns",
 			bootVol:  map[string]any{"type": "DAS", "image_alias": "ubuntu:latest"},
 			wantWarn: "DAS storage is documented for template-sized CUBE servers",
@@ -622,15 +605,8 @@ func TestUpdateServer(t *testing.T) {
 	}
 }
 
-// TestUpdateServerSetsBootVolume covers the capability whose absence stranded a
-// real disk-swap: attaching a volume does not make it bootable, and detaching the
-// previous boot volume clears the server's boot setting outright. With no way to
-// set it, a server could be driven into an unbootable state the toolset could not
-// repair — the only remaining option was to delete and recreate it.
-//
-// The API's mechanism is a server PATCH carrying properties.bootVolume as a
-// reference to an already-attached volume, which is what the Terraform provider's
-// UpdateBootDevice does.
+// TestUpdateServerSetsBootVolume covers setting the boot volume via a PATCH
+// carrying properties.bootVolume as a reference to an already-attached volume.
 func TestUpdateServerSetsBootVolume(t *testing.T) {
 	h := destructiveSetup(t)
 	res := callTool(t, h, "update_server", map[string]any{
@@ -707,10 +683,9 @@ func TestUpdateVolumeRejectsBadBootOrder(t *testing.T) {
 	}
 }
 
-// TestDiskSwapIsReachable walks the whole sequence from the reported flow, in the
-// order the tools now recommend: attach the replacement, point the server at it,
-// then detach the old one. The point is that every step exists — previously the
-// middle one did not, which is what turned a disk swap into "delete and recreate".
+// TestDiskSwapIsReachable walks the recommended disk-swap sequence: attach the
+// replacement, point the server at it, then detach the old one — the middle step
+// used to be missing, turning a disk swap into "delete and recreate".
 func TestDiskSwapIsReachable(t *testing.T) {
 	h := destructiveSetup(t)
 	ctx := context.Background()
@@ -751,10 +726,9 @@ func TestDiskSwapIsReachable(t *testing.T) {
 	singleRequest(t, h, http.MethodDelete)
 }
 
-// TestVolumeToolsPointAtTheBootRecoveryPath checks the descriptions and preview
-// name the tool that fixes an unbootable server. The gap in the reported flow was
-// as much discoverability as capability: the agent inspected bootVolume and
-// bootOrder, found no tool for either, and gave up.
+// TestVolumeToolsPointAtTheBootRecoveryPath checks that tool descriptions and
+// previews name the tool that fixes an unbootable server, since the original gap
+// was discoverability as much as capability.
 func TestVolumeToolsPointAtTheBootRecoveryPath(t *testing.T) {
 	ctx := context.Background()
 	byName := map[string]*mcp.Tool{}
@@ -887,10 +861,9 @@ func TestDeleteServerWithVolumes(t *testing.T) {
 	}
 }
 
-// TestDeleteServerTokenBoundToDeleteVolumes is the reason delete_volumes is part
-// of the confirmation target: a token previewed as "keep the volumes" must not be
-// replayable as "destroy them", or the two-phase preview would be describing
-// something other than what executes.
+// TestDeleteServerTokenBoundToDeleteVolumes is why delete_volumes is part of the
+// confirmation target: a token previewed as "keep the volumes" must not be
+// replayable as "destroy them".
 func TestDeleteServerTokenBoundToDeleteVolumes(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(serversAPI+"/"+srvID, `{"id":"srv-1","properties":{"name":"web-1"},
@@ -1017,14 +990,9 @@ func TestUpdateVolume(t *testing.T) {
 	}
 }
 
-// TestVolumeHotPlugFlags covers the capability flags that decide whether the
-// server a volume is attached to can change CPU, RAM, NICs or disks without a
-// reboot. They live on the VOLUME, not the server, which is easy to miss — and
-// without them a running server cannot be resized at all.
-//
-// They are exposed on all three paths that carry volume properties, matching
-// ionosctl (volume create and update) and the Terraform provider (the volume
-// resource plus the inline volume block of server, cube_server and gpu_server).
+// TestVolumeHotPlugFlags covers the capability flags that let a running server's
+// CPU/RAM/NIC/disks change without reboot. They live on the VOLUME, not the
+// server, and are exposed on all three paths that carry volume properties.
 func TestVolumeHotPlugFlags(t *testing.T) {
 	allFlags := map[string]any{
 		"cpu_hot_plug": true, "ram_hot_plug": true,
@@ -1229,10 +1197,9 @@ func TestCreateNicRequiresLan(t *testing.T) {
 	}
 }
 
-// TestUpdateNicPreservesLan is the most important test in this file. NicProperties
-// serializes lan unconditionally, so a PATCH built without it sends "lan":0 and
-// moves the NIC off its LAN as a side effect of an unrelated change. update_nic
-// therefore reads the current lan first and sends it back unchanged.
+// TestUpdateNicPreservesLan covers that NicProperties serializes lan
+// unconditionally, so update_nic reads the current lan first and sends it back
+// unchanged rather than risk a PATCH that silently moves the NIC off its LAN.
 func TestUpdateNicPreservesLan(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(nicsAPI+"/nic-1", `{"id":"nic-1","properties":{"name":"eth0","lan":7}}`)
@@ -1414,15 +1381,9 @@ func TestUpdateLan(t *testing.T) {
 	}
 }
 
-// TestDeleteLanRefusesWhileNicsAttached pins a confirmed API constraint. Deleting a LAN
-// that still has NICs on it returns "422 [nics] Cannot delete lan which contains nics" —
-// verified live, along with the positive control: the same delete succeeded once the NIC
-// was removed.
-//
-// This replaces a test that asserted the opposite. The old preview counted "N NICs that
-// will lose their network connection", which implied the delete proceeds and merely
-// disconnects them. Nothing happens at all until the LAN is empty, so the tool now refuses
-// in phase one and names the NICs to move or remove.
+// TestDeleteLanRefusesWhileNicsAttached pins a confirmed API constraint: deleting
+// a LAN with NICs attached returns 422 "Cannot delete lan which contains nics", so
+// the tool refuses in phase one and names the NICs to move or remove.
 func TestDeleteLanRefusesWhileNicsAttached(t *testing.T) {
 	h := destructiveSetup(t)
 	h.resp.serve(lansAPI+"/3", `{"id":"3","properties":{"name":"public-lan","public":true},
@@ -1475,18 +1436,9 @@ func TestDeleteLanProceedsWhenEmpty(t *testing.T) {
 
 // ---------- cross-cutting ----------
 
-// TestUpdateBodiesContainOnlyRequestedFields is the regression guard for a whole
-// class of silent-corruption bug. The SDK's generated New*Properties[WithDefaults]
-// constructors pre-set documented API defaults — NicProperties gets dhcp=true,
-// VolumeProperties gets exposeSerial=false, requireLegacyBios=true and
-// bootOrder="AUTO". Building a PATCH body from one of those constructors sends
-// those defaults as though the caller had asked for them, so renaming a volume
-// would also force legacy BIOS on and reset its boot order, which can stop a
-// server booting. Update handlers must therefore build a zero-valued literal and
-// set only the fields the caller supplied.
-//
-// Asserting on the exact JSON key set (rather than probing for known-bad keys)
-// means a future SDK bump that adds a new default is caught too.
+// TestUpdateBodiesContainOnlyRequestedFields guards against SDK constructors that
+// inject undocumented defaults into PATCH bodies. It asserts the exact JSON key
+// set, so a future SDK default is caught too, not just known-bad keys.
 func TestUpdateBodiesContainOnlyRequestedFields(t *testing.T) {
 	tests := []struct {
 		tool     string
@@ -1690,11 +1642,9 @@ func TestCoreWriteDynamicParity(t *testing.T) {
 	singleRequest(t, h, http.MethodDelete)
 }
 
-// TestOptionalNameRemediationDoesNotImplyRequired covers a review finding: three creates
-// take an optional name that is nevertheless part of the confirmation target, so the
-// remediation text has to tell you to repeat it *if you gave one*. Saying "re-run with
-// datacenter_id and name" left a caller who created an unnamed resource with no way to
-// read the instruction correctly.
+// TestOptionalNameRemediationDoesNotImplyRequired covers a review finding:
+// creates with an optional name still bind it into the confirmation target, so
+// remediation text must say "if you gave one" rather than implying it's required.
 func TestOptionalNameRemediationDoesNotImplyRequired(t *testing.T) {
 	cases := []struct {
 		tool string

@@ -7,9 +7,7 @@ import (
 )
 
 // CompactResponse is the shape returned by list_activitylog_events.
-// It strips the Elasticsearch-style _source wrapper and other
-// guaranteed-redundant fields from the SDK response to reduce
-// output tokens for LLM consumers.
+// It strips guaranteed-redundant fields from the SDK response to reduce output tokens.
 type CompactResponse struct {
 	Events []CompactEvent `json:"events"`
 	Total  int32          `json:"total"`
@@ -55,10 +53,7 @@ type CompactOptions struct {
 }
 
 // Compact projects a raw GetByContractResponse into CompactResponse.
-//
-// inputContract is the contract number that was passed to GetByContract.
-// Any principal.identity.contractNumber matching this value is dropped
-// from the per-event output (it is guaranteed-redundant for that endpoint).
+// principal.identity.contractNumber equal to inputContract is dropped as redundant.
 func Compact(raw sdk.GetByContractResponse, inputContract int32, opts CompactOptions) CompactResponse {
 	out := CompactResponse{Events: []CompactEvent{}}
 	if raw.Hits == nil {
@@ -151,7 +146,6 @@ func compactSource(src sdk.GetByContractResponseHitsHitsSource, inputContract in
 				Type: deref(r.Type),
 				ID:   deref(r.Id),
 			}
-			// Only include action when non-empty.
 			if len(r.Action) > 0 {
 				cr.Action = r.Action
 			}

@@ -406,7 +406,6 @@ func buildBootVolume(bv *tools.BootVolumeInput) *ionos.Volume {
 func bootVolumePreviewFields(serverType string, bv *tools.BootVolumeInput) []tools.KV {
 	size := tools.OptFloat32(bv.Size)
 	if size == "" {
-		// Only template-sized servers take their size from the template.
 		if isTemplateSized(serverType) {
 			size = "fixed by the template"
 		} else {
