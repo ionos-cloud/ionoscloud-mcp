@@ -1361,6 +1361,63 @@ type ProviderIDInput struct {
 	ProviderID string `json:"provider_id" jsonschema:"the ID of the certificate provider"`
 }
 
+// Certificate Manager write input types. All three PATCH endpoints accept only the
+// spec's PatchName, so an update renames the resource and changes nothing else.
+
+type UpdateCertCertificateInput struct {
+	CertificateID string `json:"certificate_id" jsonschema:"the ID of the certificate to rename"`
+	Name          string `json:"name" jsonschema:"the new certificate name"`
+}
+
+type DeleteCertCertificateInput struct {
+	CertificateID     string  `json:"certificate_id" jsonschema:"the ID of the certificate to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to delete"`
+}
+
+type CreateCertAutoCertificateInput struct {
+	ProviderID              string   `json:"provider_id" jsonschema:"the ID of the certificate provider that will issue the certificates; list them with list_cert_providers"`
+	CommonName              string   `json:"common_name" jsonschema:"the common name (DNS) to issue the certificate for, e.g. www.example.com. It must belong to a zone hosted in IONOS Cloud DNS, or issuing fails."`
+	KeyAlgorithm            string   `json:"key_algorithm" jsonschema:"the key algorithm: rsa2048, rsa3072 or rsa4096"`
+	Name                    string   `json:"name" jsonschema:"a name for the auto-certificate, used for management purposes only"`
+	SubjectAlternativeNames []string `json:"subject_alternative_names,omitempty" jsonschema:"additional DNS names to add to the issued certificate. Each one must also belong to a zone hosted in IONOS Cloud DNS."`
+	ConfirmationToken       *string  `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to create the auto-certificate"`
+}
+
+type UpdateCertAutoCertificateInput struct {
+	AutoCertificateID string `json:"auto_certificate_id" jsonschema:"the ID of the auto-certificate to rename"`
+	Name              string `json:"name" jsonschema:"the new auto-certificate name"`
+}
+
+type DeleteCertAutoCertificateInput struct {
+	AutoCertificateID string  `json:"auto_certificate_id" jsonschema:"the ID of the auto-certificate to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a blast-radius preview and a one-time token; pass that token on the second call to delete"`
+}
+
+// CertExternalAccountBindingInput carries both EAB halves as required fields, so a
+// key ID can never be sent without its secret.
+type CertExternalAccountBindingInput struct {
+	KeyID     string `json:"key_id" jsonschema:"the external account binding key ID issued by the ACME provider"`
+	KeySecret string `json:"key_secret" jsonschema:"the external account binding secret (usually base64url). Write-only: the API never returns it and it is never echoed in a preview."`
+}
+
+type CreateCertProviderInput struct {
+	Name                   string                           `json:"name" jsonschema:"a name for the provider, used for management purposes only, e.g. Let's Encrypt"`
+	Email                  string                           `json:"email" jsonschema:"the email address registered with the ACME provider as the certificate requester; it receives expiry notices"`
+	Server                 string                           `json:"server" jsonschema:"the ACME directory URL, e.g. https://acme-v02.api.letsencrypt.org/directory"`
+	ExternalAccountBinding *CertExternalAccountBindingInput `json:"external_account_binding,omitempty" jsonschema:"external account binding credentials, for ACME providers that require an account to be pre-registered (e.g. ZeroSSL, Google Trust Services). Omit for Let's Encrypt."`
+	ConfirmationToken      *string                          `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a preview and a one-time token; pass that token on the second call to create the provider"`
+}
+
+type UpdateCertProviderInput struct {
+	ProviderID string `json:"provider_id" jsonschema:"the ID of the certificate provider to rename"`
+	Name       string `json:"name" jsonschema:"the new provider name"`
+}
+
+type DeleteCertProviderInput struct {
+	ProviderID        string  `json:"provider_id" jsonschema:"the ID of the certificate provider to delete"`
+	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"omit on the first call to get a blast-radius preview and a one-time token; pass that token on the second call to delete"`
+}
+
 // Kubernetes input types
 
 type K8sClusterIDInput struct {

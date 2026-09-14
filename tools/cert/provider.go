@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterProviderTools(server *mcp.Server, client *certSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterProviderTools(server *mcp.Server, client *certSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_cert_providers",
 		Description: "List all certificate providers in your IONOS Cloud Certificate Manager account. Returns provider configuration but not the external account binding secret.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
@@ -18,15 +18,10 @@ func RegisterProviderTools(server *mcp.Server, client *certSDK.APIClient) {
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
-		for i := range result.Items {
-			if eab := result.Items[i].Properties.ExternalAccountBinding; eab != nil {
-				eab.KeySecret = nil
-			}
-		}
-		return tools.ToResult(result, nil)
+		return tools.ToResult(redactProviderList(result), nil)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_cert_provider",
 		Description: "Get details of a specific certificate provider by ID. Returns provider configuration but not the external account binding secret.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.ProviderIDInput) (*mcp.CallToolResult, any, error) {
@@ -34,9 +29,6 @@ func RegisterProviderTools(server *mcp.Server, client *certSDK.APIClient) {
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
-		if eab := result.Properties.ExternalAccountBinding; eab != nil {
-			eab.KeySecret = nil
-		}
-		return tools.ToResult(result, nil)
+		return tools.ToResult(redactProvider(result), nil)
 	})
 }

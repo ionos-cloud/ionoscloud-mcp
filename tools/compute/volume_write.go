@@ -110,12 +110,12 @@ func registerCreateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			"type", volType,
 			"image", tools.OptStr(input.Image),
 			"image_alias", tools.OptStr(input.ImageAlias),
-			"image_password", redacted(input.ImagePassword),
+			"image_password", tools.Redacted(input.ImagePassword),
 			"ssh_keys", sshKeySummary(input.SshKeys),
 			"licence_type", tools.OptStr(input.LicenceType),
 			"availability_zone", tools.OptStr(input.AvailabilityZone),
 			"bus", tools.OptStr(input.Bus),
-			"user_data", redacted(input.UserData),
+			"user_data", tools.Redacted(input.UserData),
 			"backupunit_id", tools.OptStr(input.BackupunitId),
 			"expose_serial", tools.OptBool(input.ExposeSerial),
 		)
@@ -282,14 +282,6 @@ func hotPlugPreviewFields(prefix string, f tools.HotPlugFlags) []tools.KV {
 		prefix+"disc_virtio_hot_plug", tools.OptBool(f.DiscVirtioHotPlug),
 		prefix+"disc_virtio_hot_unplug", tools.OptBool(f.DiscVirtioHotUnplug),
 	)
-}
-
-// redacted acknowledges a secret without echoing it — clients log previews.
-func redacted(v *string) string {
-	if v == nil || *v == "" {
-		return ""
-	}
-	return "(set, not shown)"
 }
 
 // sshKeySummary reports how many SSH keys were supplied rather than listing them,

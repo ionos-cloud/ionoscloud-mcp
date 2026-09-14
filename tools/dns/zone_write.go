@@ -159,12 +159,10 @@ func registerDeleteZone(server *mcp.Server, client *dnsSDK.APIClient, scope tool
 		if mErr != nil {
 			return nil, nil, mErr
 		}
-		headline := "About to DELETE a DNS zone and every record in it. This is IRREVERSIBLE."
-		if capped {
-			headline += fmt.Sprintf("\nNOTE: the record count below is a floor — the API returns at most %d per page and reports no total.", recordCountLimit)
-		}
+		headline := "About to DELETE a DNS zone and every record in it. This is IRREVERSIBLE." +
+			tools.CappedCountNote(capped, "record", recordCountLimit)
 		emptyNote := "This zone has no records; deleting removes only the (empty) zone itself."
-		if unreadable := incompleteRadiusNote(errLabel(countErr, "records"), errLabel(keyErr, "DNSSEC keys")); unreadable != "" {
+		if unreadable := tools.IncompleteRadiusNote(tools.ErrLabel(countErr, "records"), tools.ErrLabel(keyErr, "DNSSEC keys")); unreadable != "" {
 			headline += unreadable
 			emptyNote = "" // an unreadable collection must not read as an empty one
 		}
@@ -229,12 +227,10 @@ func registerImportZoneFile(server *mcp.Server, client *dnsSDK.APIClient, scope 
 			if mErr != nil {
 				return nil, nil, mErr
 			}
-			headline := "About to REPLACE every record in a DNS zone from a zone file. This is IRREVERSIBLE."
-			if capped {
-				headline += fmt.Sprintf("\nNOTE: the record count below is a floor — the API returns at most %d per page and reports no total.", recordCountLimit)
-			}
+			headline := "About to REPLACE every record in a DNS zone from a zone file. This is IRREVERSIBLE." +
+				tools.CappedCountNote(capped, "record", recordCountLimit)
 			emptyNote := "This zone has no records yet, so the import only adds the file's contents."
-			if unreadable := incompleteRadiusNote(errLabel(countErr, "records")); unreadable != "" {
+			if unreadable := tools.IncompleteRadiusNote(tools.ErrLabel(countErr, "records")); unreadable != "" {
 				headline += unreadable
 				emptyNote = ""
 			}
@@ -281,28 +277,4 @@ func zoneDnssecKeyCount(ctx context.Context, client *dnsSDK.APIClient, zoneID st
 		return 0, nil
 	}
 	return len(keys.Metadata.Items), nil
-}
-
-// incompleteRadiusNote warns that a blast radius could not be fully determined. An
-// unreadable collection must never render as an empty one.
-func incompleteRadiusNote(what ...string) string {
-	var named []string
-	for _, w := range what {
-		if w != "" {
-			named = append(named, w)
-		}
-	}
-	if len(named) == 0 {
-		return ""
-	}
-	return fmt.Sprintf("\nWARNING: could not read this zone's %s, so the list below is INCOMPLETE — this may destroy more than it shows.", strings.Join(named, " or "))
-}
-
-// errLabel names a collection when reading it failed, and "" when it succeeded, so
-// callers can build one warning covering however many lookups went wrong.
-func errLabel(err error, label string) string {
-	if err == nil {
-		return ""
-	}
-	return label
 }

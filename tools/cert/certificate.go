@@ -9,8 +9,8 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-func RegisterCertificateTools(server *mcp.Server, client *certSDK.APIClient) {
-	mcp.AddTool(server, &mcp.Tool{
+func RegisterCertificateTools(server *mcp.Server, client *certSDK.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "list_cert_certificates",
 		Description: "List all SSL/TLS certificates in your IONOS Cloud Certificate Manager account. Returns certificate metadata and public key material but not the private key.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, any, error) {
@@ -18,13 +18,10 @@ func RegisterCertificateTools(server *mcp.Server, client *certSDK.APIClient) {
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
-		for i := range result.Items {
-			result.Items[i].Properties.PrivateKey = ""
-		}
-		return tools.ToResult(result, nil)
+		return tools.ToResult(redactCertificateList(result), nil)
 	})
 
-	mcp.AddTool(server, &mcp.Tool{
+	tools.RegisterTool(server, scope, tools.MethodGet, &mcp.Tool{
 		Name:        "get_cert_certificate",
 		Description: "Get details of a specific SSL/TLS certificate by ID. Returns certificate metadata and public key material but not the private key.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CertificateIDInput) (*mcp.CallToolResult, any, error) {
@@ -32,7 +29,6 @@ func RegisterCertificateTools(server *mcp.Server, client *certSDK.APIClient) {
 		if err != nil {
 			return tools.ToResult(nil, err)
 		}
-		result.Properties.PrivateKey = ""
-		return tools.ToResult(result, nil)
+		return tools.ToResult(redactCertificate(result), nil)
 	})
 }

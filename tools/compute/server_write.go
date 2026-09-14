@@ -427,11 +427,11 @@ func bootVolumePreviewFields(serverType string, bv *tools.BootVolumeInput) []too
 		"boot_volume.size (GB)", size,
 		"boot_volume.image", tools.OptStr(bv.Image),
 		"boot_volume.image_alias", tools.OptStr(bv.ImageAlias),
-		"boot_volume.image_password", redacted(bv.ImagePassword),
+		"boot_volume.image_password", tools.Redacted(bv.ImagePassword),
 		"boot_volume.ssh_keys", sshKeySummary(bv.SshKeys),
 		"boot_volume.licence_type", tools.OptStr(bv.LicenceType),
 		"boot_volume.bus", tools.OptStr(bv.Bus),
-		"boot_volume.user_data", redacted(bv.UserData),
+		"boot_volume.user_data", tools.Redacted(bv.UserData),
 	)
 	return append(out, hotPlugPreviewFields("boot_volume.", bv.HotPlugFlags)...)
 }

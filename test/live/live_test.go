@@ -63,7 +63,7 @@ func session(t *testing.T) *mcp.ClientSession {
 	compute.RegisterAll(server, computeSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	dns.RegisterAll(server, dnsSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	billing.RegisterAll(server, billSDK.NewAPIClient(cfg), "")
-	cert.RegisterAll(server, certSDK.NewAPIClient(cfg))
+	cert.RegisterAll(server, certSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	k8s.RegisterAll(server, computeSDK.NewAPIClient(cfg), tools.Scope{}, tools.NewConfirmationStore())
 	objectstorage.RegisterAll(server, objstSDK.NewAPIClient(cfg), objmgmtSDK.NewAPIClient(cfg), cfg)
 

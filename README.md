@@ -6,7 +6,7 @@
 
 # IONOS CLOUD MCP Server
 
-A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations across Compute (servers, volumes, networking, load balancing), Managed Kubernetes (clusters, node pools, nodes) and DNS (zones, records, reverse records, DNSSEC) are strictly opt-in and create real, billable resources — see [Write operations](#write-operations).
+A **read-only-by-default** [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server that connects your IONOS CLOUD account to any MCP-compatible AI assistant or autonomous AI agent: Claude Desktop, Cursor, VS Code (GitHub Copilot), Windsurf, Cline, Continue, OpenCode, and 5+ others. **118 read-only tools across 7 IONOS CLOUD products** — list, inspect, and audit your infrastructure through natural-language prompts or programmatic agentic loops. Write operations across Compute (servers, volumes, networking, load balancing), Managed Kubernetes (clusters, node pools, nodes), DNS (zones, records, reverse records, DNSSEC) and Certificate Manager (certificates, auto-certificates, providers) are strictly opt-in and create real, billable resources — see [Write operations](#write-operations).
 
 Built and maintained by the IONOS Cloud team. The server runs as a local binary on your workstation, a CI runner, or inside a container. IONOS CLOUD API calls go directly to IONOS over HTTPS; no third-party AI provider sits in the data path.
 
@@ -71,10 +71,10 @@ Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are 
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
 | [DNS](docs/dns/) | 14 + 16 write | Zones, zone files (+ BIND import), records, reverse records, secondary zones (+ zone transfer), DNSSEC, quota |
 | [Billing](docs/billing/) | 15 | Profile, invoices, EVN (provisioning intervals), traffic, usage, utilization, product pricing catalog, FOCUS v1.3 spec |
-| [Certificate Manager](docs/cert/) | 6 | Certificates, auto-certificates, providers |
+| [Certificate Manager](docs/cert/) | 6 + 8 write | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**118 read-only tools**, plus **93 opt-in write tools** on Compute Engine, Kubernetes and DNS — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**118 read-only tools**, plus **101 opt-in write tools** on Compute Engine, Kubernetes, DNS and Certificate Manager — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 
@@ -247,8 +247,9 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Images | snapshot and image update/delete |
 | Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations), single nodes (recreate, delete) |
 | DNS | primary zones (+ BIND zone-file import), records, secondary zones (+ zone transfer), reverse records, DNSSEC enable/disable |
+| Certificate Manager | auto-certificates, ACME providers, certificate rename/delete — renames only change the name, the rest is immutable. Uploading certificate material is deliberately **not** offered: it would require passing a private key as a tool argument. |
 
-93 tools in total. The server exposes 118 at the default read-only scope, 175 with `write`, and 211 with `destructive`. Reads are unaffected and always available.
+101 tools in total. The server exposes 118 at the default read-only scope, 180 with `write`, and 219 with `destructive`. Reads are unaffected and always available.
 
 **Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_`), is confirmation-gated, along with the DNS zone-file import. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
 
