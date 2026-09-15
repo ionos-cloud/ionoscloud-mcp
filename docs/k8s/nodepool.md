@@ -95,7 +95,7 @@ Gets detailed information about a specific Kubernetes node pool, including node 
 
 Creates one node pool of worker nodes in a cluster. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`.
 
-Two-phase: call once without `confirmation_token` for a preview plus a one-time token, then again with the token and the same `k8s_cluster_id`, `name`, `datacenter_id` and `taints`. The token is bound to the taints because they decide what the pool will accept, so a swapped taint is refused rather than created; reordering the same taints is not a change.
+Two-phase: call once without `confirmation_token` for a preview plus a one-time token, then again with the token and **every other argument unchanged**. The token is bound to a digest of the whole previewed configuration — node count, the immutable hardware, autoscaling, LANs, labels, annotations, taints and public IPs — so changing any of it between the two calls is refused rather than created. Order-insensitive where order carries no meaning (taints, labels, annotations); re-preview to authorize a different configuration.
 
 The cluster must already be `ACTIVE`, and `datacenter_id` must name a data center in the same location as the cluster. Provisioning is asynchronous and takes several minutes.
 
@@ -124,7 +124,7 @@ The cluster must already be `ACTIVE`, and `datacenter_id` must name a data cente
 | `annotations` | object | No | Kubernetes annotations on every node, as key-value pairs |
 | `taints` | object[] | No | Kubernetes taints on every node: `{ "key": "dedicated", "value": "gpu", "effect": "NoSchedule" }`. `key` and `effect` are required, `value` optional; `effect` is `NoSchedule`, `NoExecute` or `PreferNoSchedule`. At most 50 per pool |
 | `public_ips` | string[] | No | Reserved public IPs (`list_ip_blocks`), all from the pool's data center location. Needs **one more** than the maximum node count (`node_count`+1, or `max_node_count`+1 with autoscaling) — the spare covers a node being rebuilt |
-| `confirmation_token` | string | No | Omit on the first call; pass the token returned by the preview on the second. Bound to `k8s_cluster_id`, `name`, `datacenter_id` and `taints` |
+| `confirmation_token` | string | No | Omit on the first call; pass the token returned by the preview on the second. Bound to every field in the preview, so nothing may change between the two calls |
 
 **Example:**
 

@@ -1167,6 +1167,75 @@ func TestCreateK8sNodepoolTokenIsBoundToTheTaints(t *testing.T) {
 	}
 }
 
+// TestCreateK8sNodepoolTokenIsBoundToTheWholeConfiguration covers the rest of the
+// payload: every field in the preview costs money, is immutable, or decides what the
+// pool accepts, so none of them may change between the two phases.
+func TestCreateK8sNodepoolTokenIsBoundToTheWholeConfiguration(t *testing.T) {
+	base := map[string]any{
+		"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+		"node_count": 2, "cores_count": 4, "ram_size": 4096,
+		"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		"labels": map[string]any{"tier": "app"},
+		"lans":   []any{map[string]any{"id": 3, "dhcp": true}},
+	}
+	args := func(over map[string]any) map[string]any {
+		out := map[string]any{}
+		for k, v := range base {
+			out[k] = v
+		}
+		for k, v := range over {
+			out[k] = v
+		}
+		return out
+	}
+
+	for _, tt := range []struct {
+		name string
+		over map[string]any
+	}{
+		{"more nodes than previewed", map[string]any{"node_count": 20}},
+		{"bigger cores", map[string]any{"cores_count": 32}},
+		{"more RAM", map[string]any{"ram_size": 65536}},
+		{"bigger storage", map[string]any{"storage_size": 2000}},
+		{"a different availability zone", map[string]any{"availability_zone": "ZONE_2"}},
+		{"a different storage type", map[string]any{"storage_type": "HDD"}},
+		{"a different server type", map[string]any{"server_type": "VCPU"}},
+		{"different labels", map[string]any{"labels": map[string]any{"tier": "db"}}},
+		{"a rerouted LAN", map[string]any{"lans": []any{map[string]any{"id": 9, "dhcp": true}}}},
+		{"public IPs that were not previewed", map[string]any{"public_ips": []any{"203.0.113.1", "203.0.113.2", "203.0.113.3"}}},
+		{"an autoscaler that was not previewed", map[string]any{"auto_scaling": map[string]any{"min_node_count": 2, "max_node_count": 40}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+			res := callTool(t, h, "create_k8s_nodepool", args(nil))
+			if res.IsError {
+				t.Fatalf("preview failed: %s", resultText(res))
+			}
+			token := extractToken(t, resultText(res))
+			h.log.clear()
+
+			swapped := args(tt.over)
+			swapped["confirmation_token"] = token
+			if res = callTool(t, h, "create_k8s_nodepool", swapped); !res.IsError {
+				t.Errorf("a token previewed without this change must not create it: %s", resultText(res))
+			}
+			assertNoMutation(t, h, "create_k8s_nodepool with a swapped field")
+		})
+	}
+
+	// The unchanged configuration must still go through, or the binding is useless.
+	t.Run("the previewed configuration still executes", func(t *testing.T) {
+		h := destructiveSetup(t)
+		h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+		if _, res := previewThenExecute(t, h, "create_k8s_nodepool", args(nil)); res.IsError {
+			t.Fatalf("an unchanged replay must succeed: %s", resultText(res))
+		}
+		singleRequest(t, h, http.MethodPost)
+	})
+}
+
 // TestUpdateK8sNodepoolReplacesTaints pins the replace-or-carry-forward contract the
 // other list-valued fields follow: supplied replaces, empty clears, omitted keeps.
 func TestUpdateK8sNodepoolReplacesTaints(t *testing.T) {

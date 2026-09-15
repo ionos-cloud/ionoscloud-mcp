@@ -25,7 +25,7 @@ func RegisterNodepoolWriteTools(server *mcp.Server, client *ionos.APIClient, sco
 func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
 		Name: "create_k8s_nodepool",
-		Description: "Create one node pool of worker nodes. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same k8s_cluster_id, name, datacenter_id and taints) to create it. Creates exactly one node pool per call. " +
+		Description: "Create one node pool of worker nodes. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token and EVERY other argument unchanged to create it. The token is bound to the whole previewed configuration, so changing any field between the two calls is refused. Creates exactly one node pool per call. " +
 			"The cluster must already be ACTIVE, and datacenter_id must be in its location. The per-node hardware and datacenter_id are immutable — recreate the pool to change them." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)
@@ -85,12 +85,33 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		if msg := validatePublicIps(input.PublicIps, input.NodeCount, auto); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(req, clusterID, name, dcID, taintsText(taints))
+
+		fields := tools.Fields(
+			"k8s_cluster_id", clusterID,
+			"name", name,
+			"datacenter_id", dcID,
+			"node_count", fmt.Sprintf("%d", input.NodeCount),
+			"cores_count", fmt.Sprintf("%d", input.CoresCount),
+			"ram_size", fmt.Sprintf("%d MB", input.RamSize),
+			"storage", fmt.Sprintf("%d GB %s", input.StorageSize, storageType),
+			"availability_zone", zone,
+			"server_type", string(serverType),
+			"cpu_family", strings.TrimSpace(tools.OptStr(input.CpuFamily)),
+			"k8s_version", strings.TrimSpace(tools.OptStr(input.K8sVersion)),
+			"maintenance_window", maintenanceWindowText(window),
+			"auto_scaling", autoScalingText(auto),
+			"lans", lansText(lans),
+			"labels", mapText(input.Labels),
+			"annotations", mapText(input.Annotations),
+			"taints", taintsText(taints),
+			"public_ips", strings.Join(input.PublicIps, ", "),
+		)
+		target := tools.Target(req, tools.FieldsDigest(fields))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_k8s_nodepool", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_k8s_nodepool", "k8s_cluster_id, name, datacenter_id and taints", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_k8s_nodepool", "the same arguments you previewed", err)), nil, nil
 			}
 			props := ionos.NewKubernetesNodePoolPropertiesForPost(
 				name, dcID, input.NodeCount, input.CoresCount, input.RamSize, zone, storageType, input.StorageSize,
@@ -136,30 +157,11 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			return nil, nil, err
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to CREATE one Kubernetes node pool. The per-node hardware below is immutable afterwards:",
-			Fields: tools.Fields(
-				"k8s_cluster_id", clusterID,
-				"name", name,
-				"datacenter_id", dcID,
-				"node_count", fmt.Sprintf("%d", input.NodeCount),
-				"cores_count", fmt.Sprintf("%d", input.CoresCount),
-				"ram_size", fmt.Sprintf("%d MB", input.RamSize),
-				"storage", fmt.Sprintf("%d GB %s", input.StorageSize, storageType),
-				"availability_zone", zone,
-				"server_type", string(serverType),
-				"cpu_family", strings.TrimSpace(tools.OptStr(input.CpuFamily)),
-				"k8s_version", strings.TrimSpace(tools.OptStr(input.K8sVersion)),
-				"maintenance_window", maintenanceWindowText(window),
-				"auto_scaling", autoScalingText(auto),
-				"lans", lansText(lans),
-				"labels", mapText(input.Labels),
-				"annotations", mapText(input.Annotations),
-				"taints", taintsText(taints),
-				"public_ips", strings.Join(input.PublicIps, ", "),
-			),
+			Headline:  "About to CREATE one Kubernetes node pool. The per-node hardware below is immutable afterwards:",
+			Fields:    fields,
 			Tool:      "create_k8s_nodepool",
-			Replay:    tools.Fields("k8s_cluster_id", clusterID, "name", name, "datacenter_id", dcID, "taints", taintsText(taints)),
-			TokenNote: "This creates exactly one node pool. The token authorizes creating only this cluster+name+datacenter, with exactly the taints previewed above",
+			Replay:    fields,
+			TokenNote: "This creates exactly one node pool. The token authorizes creating only the configuration previewed above — change any of it and the token is refused",
 		}.Render(token)), nil, nil
 	})
 }
