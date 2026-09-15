@@ -33,9 +33,10 @@ func Fields(pairs ...string) []KV {
 	return out
 }
 
-// FieldsDigest is a stable digest of the fields a preview showed. Pass it to Target so
-// a token binds everything the caller was shown, not just the identifying inputs: a
-// field added to the preview is then bound automatically and the two cannot drift.
+// FieldsDigest is a stable digest of the fields a preview showed, for binding a
+// confirmation token to everything the caller was shown rather than to the identifying
+// inputs alone. Every renderer feeding it must be lossless, or two different requests
+// can render alike and share one token.
 func FieldsDigest(fields []KV) string {
 	h := sha256.New()
 	for _, f := range fields {

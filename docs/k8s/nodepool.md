@@ -95,7 +95,9 @@ Gets detailed information about a specific Kubernetes node pool, including node 
 
 Creates one node pool of worker nodes in a cluster. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`.
 
-Two-phase: call once without `confirmation_token` for a preview plus a one-time token, then again with the token and **every other argument unchanged**. The token is bound to a digest of the whole previewed configuration — node count, the immutable hardware, autoscaling, LANs, labels, annotations, taints and public IPs — so changing any of it between the two calls is refused rather than created. Order-insensitive where order carries no meaning (taints, labels, annotations); re-preview to authorize a different configuration.
+Two-phase: call once without `confirmation_token` for a preview plus a one-time token, then again with the token and **every other argument repeated unchanged**. The token is bound to a digest of the request body itself — not of the preview text, which is abbreviated for reading — so any difference in what would be sent is refused rather than created. Re-preview to authorize a different configuration. Taints are ordered canonically, so listing the same taints in a different order is not a change.
+
+> The preview's field list is written to be read, not copied: it shows `storage: 100 GB SSD` where the arguments are `storage_type` and `storage_size`, and it abbreviates `lans`, `taints` and `auto_scaling`. The **"call again with"** block is the argument list — repeat those, plus every other argument exactly as you first sent it.
 
 The cluster must already be `ACTIVE`, and `datacenter_id` must name a data center in the same location as the cluster. Provisioning is asynchronous and takes several minutes.
 

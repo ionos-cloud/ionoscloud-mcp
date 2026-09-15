@@ -467,6 +467,7 @@ func TestCreateK8sNodepoolValidation(t *testing.T) {
 			base(map[string]any{"lans": []any{map[string]any{"id": 3, "routes": []any{map[string]any{"network": "10.0.0.0/24", "gateway_ip": "nope"}}}}}),
 			"is not an IP address",
 		},
+		{"empty k8s_version", base(map[string]any{"k8s_version": " "}), "k8s_version must not be empty"},
 		{"bad taint effect", base(map[string]any{"taints": []any{map[string]any{"key": "k", "effect": "Evict"}}}), "use NoSchedule, NoExecute or PreferNoSchedule"},
 		{"empty taint key", base(map[string]any{"taints": []any{map[string]any{"key": " ", "effect": "NoSchedule"}}}), "taints[0].key is required"},
 		{
@@ -1234,6 +1235,113 @@ func TestCreateK8sNodepoolTokenIsBoundToTheWholeConfiguration(t *testing.T) {
 		}
 		singleRequest(t, h, http.MethodPost)
 	})
+}
+
+// TestCreateK8sNodepoolTokenSurvivesNoLossyRendering pins the renderers the confirmation
+// digest depends on. The token is a digest of the preview text, so a renderer that
+// abbreviates lets two different requests share one token — lansText used to summarise
+// routes as a count, which let a rerouted LAN reuse another route's token.
+func TestCreateK8sNodepoolTokenSurvivesNoLossyRendering(t *testing.T) {
+	base := func(over map[string]any) map[string]any {
+		m := map[string]any{
+			"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+			"node_count": 2, "cores_count": 4, "ram_size": 4096,
+			"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		}
+		for k, v := range over {
+			m[k] = v
+		}
+		return m
+	}
+	for _, tt := range []struct {
+		name string
+		why  string
+		a, b map[string]any
+	}{
+		{
+			"a rerouted LAN with the same route count", "lansText renders routes as a count",
+			map[string]any{"lans": []any{map[string]any{"id": 3, "routes": []any{map[string]any{"network": "10.0.0.0/24", "gateway_ip": "10.0.0.1"}}}}},
+			map[string]any{"lans": []any{map[string]any{"id": 3, "routes": []any{map[string]any{"network": "0.0.0.0/0", "gateway_ip": "192.0.2.66"}}}}},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+			res := callTool(t, h, "create_k8s_nodepool", base(tt.a))
+			if res.IsError {
+				t.Fatalf("preview failed: %s", resultText(res))
+			}
+			token := extractToken(t, resultText(res))
+			h.log.clear()
+
+			swapped := base(tt.b)
+			swapped["confirmation_token"] = token
+			if res = callTool(t, h, "create_k8s_nodepool", swapped); !res.IsError {
+				t.Errorf("token accepted a different request (%s): %s", tt.why, resultText(res))
+			}
+			assertNoMutation(t, h, "create_k8s_nodepool with a lossily-equal swap")
+		})
+	}
+}
+
+// TestCreateK8sNodepoolReplayListsOnlyRealArguments guards the replay block: it is the
+// argument list a model copies for the second call, so every name in it must exist in
+// the input schema. Display fields like "storage: 100 GB SSD" are not valid arguments.
+func TestCreateK8sNodepoolReplayListsOnlyRealArguments(t *testing.T) {
+	h := destructiveSetup(t)
+	ctx := context.Background()
+
+	var schema struct {
+		Properties map[string]any `json:"properties"`
+	}
+	for tool, err := range h.session.Tools(ctx, nil) {
+		if err != nil {
+			t.Fatalf("listing tools: %v", err)
+		}
+		if tool.Name != "create_k8s_nodepool" {
+			continue
+		}
+		raw, mErr := json.Marshal(tool.InputSchema)
+		if mErr != nil {
+			t.Fatalf("marshalling input schema: %v", mErr)
+		}
+		if err := json.Unmarshal(raw, &schema); err != nil {
+			t.Fatalf("decoding input schema: %v", err)
+		}
+	}
+	if len(schema.Properties) == 0 {
+		t.Fatal("create_k8s_nodepool has no input schema properties")
+	}
+
+	res := callTool(t, h, "create_k8s_nodepool", map[string]any{
+		"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+		"node_count": 2, "cores_count": 4, "ram_size": 4096,
+		"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		"auto_scaling": map[string]any{"min_node_count": 2, "max_node_count": 5},
+		"lans":         []any{map[string]any{"id": 3, "dhcp": true}},
+		"taints":       []any{map[string]any{"key": "dedicated", "effect": "NoSchedule"}},
+	})
+	if res.IsError {
+		t.Fatalf("preview failed: %s", resultText(res))
+	}
+
+	// Only the replay block is an instruction; the fields above it are prose.
+	text := resultText(res)
+	idx := strings.Index(text, "call create_k8s_nodepool again with:")
+	if idx < 0 {
+		t.Fatalf("preview has no replay block: %s", text)
+	}
+	for _, line := range strings.Split(text[idx:], "\n")[1:] {
+		line = strings.TrimSpace(line)
+		name, _, ok := strings.Cut(line, ":")
+		if !ok || name == "" || strings.Contains(name, " ") {
+			break // past the argument list
+		}
+		if _, exists := schema.Properties[name]; !exists {
+			t.Errorf("replay block names %q, which is not an argument of create_k8s_nodepool; a model copying this produces an invalid call", name)
+		}
+	}
 }
 
 // TestUpdateK8sNodepoolReplacesTaints pins the replace-or-carry-forward contract the

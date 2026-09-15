@@ -82,6 +82,9 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		if msg := validateCpuFamily(input.CpuFamily); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
+		if msg := validateK8sVersion(input.K8sVersion); msg != "" {
+			return tools.ErrorText(msg), nil, nil
+		}
 		if msg := validatePublicIps(input.PublicIps, input.NodeCount, auto); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
@@ -160,8 +163,8 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			Headline:  "About to CREATE one Kubernetes node pool. The per-node hardware below is immutable afterwards:",
 			Fields:    fields,
 			Tool:      "create_k8s_nodepool",
-			Replay:    fields,
-			TokenNote: "This creates exactly one node pool. The token authorizes creating only the configuration previewed above — change any of it and the token is refused",
+			Replay:    tools.Fields("k8s_cluster_id", clusterID, "name", name, "datacenter_id", dcID),
+			TokenNote: "Re-send EVERY other argument of this call unchanged as well — the fields above are shown for reading, not as the argument list. This creates exactly one node pool, and the token authorizes only the configuration previewed above, so altering any argument is refused",
 		}.Render(token)), nil, nil
 	})
 }

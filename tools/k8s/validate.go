@@ -105,6 +105,13 @@ func validateCpuFamily(v *string) string {
 	return ""
 }
 
+func validateK8sVersion(v *string) string {
+	if v != nil && strings.TrimSpace(*v) == "" {
+		return "k8s_version must not be empty; omit it to take the cluster's version"
+	}
+	return ""
+}
+
 func buildLans(in []tools.K8sNodePoolLanInput) ([]ionos.KubernetesNodePoolLan, string) {
 	if in == nil {
 		return nil, ""
@@ -165,8 +172,8 @@ func lansText(lans []ionos.KubernetesNodePoolLan) string {
 		if l.HasDhcp() {
 			desc += fmt.Sprintf(" (dhcp %t)", l.GetDhcp())
 		}
-		if n := len(l.GetRoutes()); n > 0 {
-			desc += fmt.Sprintf(" +%d routes", n)
+		for _, r := range l.GetRoutes() {
+			desc += fmt.Sprintf(" [%s via %s]", r.GetNetwork(), r.GetGatewayIp())
 		}
 		parts = append(parts, desc)
 	}
@@ -220,6 +227,17 @@ func buildTaints(in []tools.K8sNodePoolTaintInput) ([]ionos.KubernetesNodePoolTa
 		}
 		out = append(out, *taint)
 	}
+	// Taints are a set, so a canonical order keeps a reordered list from reading as a
+	// different request body when the confirmation token is checked.
+	sort.Slice(out, func(a, b int) bool {
+		if out[a].GetKey() != out[b].GetKey() {
+			return out[a].GetKey() < out[b].GetKey()
+		}
+		if out[a].GetEffect() != out[b].GetEffect() {
+			return out[a].GetEffect() < out[b].GetEffect()
+		}
+		return out[a].GetValue() < out[b].GetValue()
+	})
 	return out, ""
 }
 

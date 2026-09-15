@@ -1484,7 +1484,7 @@ type CreateK8sNodepoolInput struct {
 	Annotations       map[string]string          `json:"annotations,omitempty" jsonschema:"Kubernetes annotations to set on every node in the pool, as key-value pairs"`
 	Taints            []K8sNodePoolTaintInput    `json:"taints,omitempty" jsonschema:"Kubernetes taints to apply to every node in the pool, each repelling pods that lack a matching toleration. At most 50."`
 	PublicIps         []string                   `json:"public_ips,omitempty" jsonschema:"reserved public IPs for the worker nodes (see list_ip_blocks), all from the node pool's data center location. One more IP is needed than the maximum node count — node_count+1, or max_node_count+1 with auto_scaling — because the spare is used while a node is rebuilt."`
-	ConfirmationToken *string                    `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same k8s_cluster_id, name and datacenter_id) to actually create the node pool. The token expires after a few minutes."`
+	ConfirmationToken *string                    `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call together with EVERY other argument repeated unchanged, to actually create the node pool. The token is bound to the whole previewed configuration, so altering any argument between the two calls is refused and you must preview again. The token expires after a few minutes."`
 }
 
 // UpdateK8sNodepoolInput is the input for update_k8s_nodepool. Single call. Omitted
