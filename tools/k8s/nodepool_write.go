@@ -25,7 +25,7 @@ func RegisterNodepoolWriteTools(server *mcp.Server, client *ionos.APIClient, sco
 func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
 		Name: "create_k8s_nodepool",
-		Description: "Create one node pool of worker nodes. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same k8s_cluster_id, name and datacenter_id) to create it. Creates exactly one node pool per call. " +
+		Description: "Create one node pool of worker nodes. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same k8s_cluster_id, name, datacenter_id and taints) to create it. Creates exactly one node pool per call. " +
 			"The cluster must already be ACTIVE, and datacenter_id must be in its location. The per-node hardware and datacenter_id are immutable — recreate the pool to change them." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)
@@ -85,12 +85,12 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		if msg := validatePublicIps(input.PublicIps, input.NodeCount, auto); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(req, clusterID, name, dcID)
+		target := tools.Target(req, clusterID, name, dcID, taintsText(taints))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_k8s_nodepool", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_k8s_nodepool", "k8s_cluster_id, name and datacenter_id", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_k8s_nodepool", "k8s_cluster_id, name, datacenter_id and taints", err)), nil, nil
 			}
 			props := ionos.NewKubernetesNodePoolPropertiesForPost(
 				name, dcID, input.NodeCount, input.CoresCount, input.RamSize, zone, storageType, input.StorageSize,
@@ -158,8 +158,8 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 				"public_ips", strings.Join(input.PublicIps, ", "),
 			),
 			Tool:      "create_k8s_nodepool",
-			Replay:    tools.Fields("k8s_cluster_id", clusterID, "name", name, "datacenter_id", dcID),
-			TokenNote: "This creates exactly one node pool. The token authorizes creating only this cluster+name+datacenter",
+			Replay:    tools.Fields("k8s_cluster_id", clusterID, "name", name, "datacenter_id", dcID, "taints", taintsText(taints)),
+			TokenNote: "This creates exactly one node pool. The token authorizes creating only this cluster+name+datacenter, with exactly the taints previewed above",
 		}.Render(token)), nil, nil
 	})
 }
@@ -170,7 +170,7 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations, taints or public IPs. The pool name and the per-node hardware are immutable. " +
 			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations, taints and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
 			"An autoscaler's bounds can be changed but it cannot be removed. " +
-			"BE CAREFUL with two of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, and lowering node_count drains the removed nodes and evicts their pods. Confirm both with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
+			"BE CAREFUL with three of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, lowering node_count drains the removed nodes and evicts their pods, and a taint with the NoExecute effect evicts every pod on the pool's nodes that lacks a matching toleration. Confirm all three with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)
 		poolID := strings.TrimSpace(input.NodepoolID)

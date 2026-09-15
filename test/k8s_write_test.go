@@ -481,6 +481,21 @@ func TestCreateK8sNodepoolValidation(t *testing.T) {
 		},
 		{"more taints than the API accepts", base(map[string]any{"taints": manyTaints(51)}), "at most 50 per node pool"},
 		{
+			"taint key prefix with an empty label",
+			base(map[string]any{"taints": []any{map[string]any{"key": "a..b/k", "effect": "NoSchedule"}}}),
+			"is not a DNS subdomain",
+		},
+		{
+			"taint key prefix with a label starting on a dash",
+			base(map[string]any{"taints": []any{map[string]any{"key": "a.-b/k", "effect": "NoSchedule"}}}),
+			"is not a DNS subdomain",
+		},
+		{
+			"taint key prefix with an over-long label",
+			base(map[string]any{"taints": []any{map[string]any{"key": strings.Repeat("a", 64) + ".com/k", "effect": "NoSchedule"}}}),
+			"is not a DNS subdomain",
+		},
+		{
 			// Both route fields are optional in the spec, so an entry with neither is
 			// the only shape worth rejecting outright.
 			"empty lan route",
@@ -1097,6 +1112,58 @@ func TestCreateK8sNodepoolSendsTaints(t *testing.T) {
 	// A key-only taint must not carry an empty value, which would read back differently.
 	if strings.Contains(body, `"value":""`) {
 		t.Errorf("POST body sends an empty taint value: %s", body)
+	}
+}
+
+// TestCreateK8sNodepoolTokenIsBoundToTheTaints guards the confirmation target: taints
+// decide what the pool will accept, so a token previewed with one set must not create a
+// pool with another. Only a test that swaps them between the phases catches a narrow target.
+func TestCreateK8sNodepoolTokenIsBoundToTheTaints(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+	args := func(taints []any) map[string]any {
+		return map[string]any{
+			"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+			"node_count": 2, "cores_count": 4, "ram_size": 4096,
+			"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+			"taints": taints,
+		}
+	}
+	benign := []any{map[string]any{"key": "dedicated", "value": "gpu", "effect": "PreferNoSchedule"}}
+
+	res := callTool(t, h, "create_k8s_nodepool", args(benign))
+	if res.IsError {
+		t.Fatalf("preview failed: %s", resultText(res))
+	}
+	token := extractToken(t, resultText(res))
+	h.log.clear()
+
+	// Same pool, a harsher taint than the one previewed.
+	swapped := args([]any{map[string]any{"key": "dedicated", "value": "gpu", "effect": "NoExecute"}})
+	swapped["confirmation_token"] = token
+	if res = callTool(t, h, "create_k8s_nodepool", swapped); !res.IsError {
+		t.Error("a token previewed with PreferNoSchedule must not create a NoExecute pool")
+	}
+	assertNoMutation(t, h, "create_k8s_nodepool with swapped taints")
+
+	// Reordering the same taints is not a change, so the token must still work.
+	reordered := args([]any{
+		map[string]any{"key": "spot", "effect": "NoSchedule"},
+		map[string]any{"key": "dedicated", "value": "gpu", "effect": "PreferNoSchedule"},
+	})
+	if res = callTool(t, h, "create_k8s_nodepool", reordered); res.IsError {
+		t.Fatalf("preview failed: %s", resultText(res))
+	}
+	token = extractToken(t, resultText(res))
+	h.log.clear()
+	reordered = args([]any{
+		map[string]any{"key": "dedicated", "value": "gpu", "effect": "PreferNoSchedule"},
+		map[string]any{"key": "spot", "effect": "NoSchedule"},
+	})
+	reordered["confirmation_token"] = token
+	if res = callTool(t, h, "create_k8s_nodepool", reordered); res.IsError {
+		t.Errorf("reordering the same taints must not invalidate the token: %s", resultText(res))
 	}
 }
 

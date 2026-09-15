@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -174,9 +175,11 @@ func lansText(lans []ionos.KubernetesNodePoolLan) string {
 
 // Kubernetes label grammar, which the spec requires for taint keys and values: a
 // 63-character name, optionally prefixed on a key by a DNS subdomain and a slash.
+// The prefix pattern repeats one dot-separated label, so it rejects "a..b", "a.-b" and
+// labels past 63 characters; a flat character class over the whole string accepts them.
 var (
 	taintName   = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9._-]{0,61}[A-Za-z0-9])?$`)
-	taintPrefix = regexp.MustCompile(`^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$`)
+	taintPrefix = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
 )
 
 var taintEffects = map[string]ionos.TaintEffect{
@@ -227,7 +230,7 @@ func validateTaintKey(i int, key string) string {
 	name := key
 	if prefix, rest, hasPrefix := strings.Cut(key, "/"); hasPrefix {
 		if len(prefix) > 253 || !taintPrefix.MatchString(prefix) {
-			return fmt.Sprintf("taints[%d].key prefix %q is not a DNS subdomain", i, prefix)
+			return fmt.Sprintf("taints[%d].key prefix %q is not a DNS subdomain: dot-separated labels of up to 63 lowercase alphanumerics or dashes, each beginning and ending alphanumeric, 253 characters overall", i, prefix)
 		}
 		name = rest
 	}
@@ -237,7 +240,8 @@ func validateTaintKey(i int, key string) string {
 	return ""
 }
 
-// taintsText renders taints for a preview in kubectl's key=value:Effect notation.
+// taintsText renders taints in kubectl's key=value:Effect notation, for the preview and
+// for the confirmation target. Sorted, so neither reshuffles between the two phases.
 func taintsText(taints []ionos.KubernetesNodePoolTaint) string {
 	parts := make([]string, 0, len(taints))
 	for _, t := range taints {
@@ -247,6 +251,7 @@ func taintsText(taints []ionos.KubernetesNodePoolTaint) string {
 		}
 		parts = append(parts, entry+":"+string(t.GetEffect()))
 	}
+	sort.Strings(parts)
 	return strings.Join(parts, ", ")
 }
 
