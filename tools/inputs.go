@@ -1422,8 +1422,13 @@ type K8sNodePoolLanInput struct {
 	Routes []K8sNodePoolLanRouteInput `json:"routes,omitempty" jsonschema:"static routes to add on this LAN interface"`
 }
 
-// There is deliberately no taint input: the spec marks node pool `taints` x-internal,
-// like `vnet` and `placementGroupId`, which this repo never exposes.
+// K8sNodePoolTaintInput is one taint applied to every node in the pool. Kubernetes
+// identifies a taint by key and effect; the value is optional.
+type K8sNodePoolTaintInput struct {
+	Key    string  `json:"key" jsonschema:"the taint key in Kubernetes label key format: up to 63 alphanumerics, dashes, underscores or dots beginning and ending alphanumeric, optionally preceded by a DNS subdomain prefix and a slash (e.g. example.com/dedicated)"`
+	Value  *string `json:"value,omitempty" jsonschema:"an optional taint value in Kubernetes label value format: up to 63 alphanumerics, dashes, underscores or dots beginning and ending alphanumeric. Omit it for a key-only taint."`
+	Effect string  `json:"effect" jsonschema:"how the taint repels pods: NoSchedule (do not schedule new pods that lack a matching toleration), NoExecute (also evict running pods that already lack one) or PreferNoSchedule (avoid scheduling them where possible)"`
+}
 
 // CreateK8sClusterInput is the input for create_k8s_cluster. Two-phase confirmed.
 type CreateK8sClusterInput struct {
@@ -1477,8 +1482,9 @@ type CreateK8sNodepoolInput struct {
 	Lans              []K8sNodePoolLanInput      `json:"lans,omitempty" jsonschema:"existing private LANs to attach to the worker nodes"`
 	Labels            map[string]string          `json:"labels,omitempty" jsonschema:"Kubernetes labels to set on every node in the pool, as key-value pairs"`
 	Annotations       map[string]string          `json:"annotations,omitempty" jsonschema:"Kubernetes annotations to set on every node in the pool, as key-value pairs"`
+	Taints            []K8sNodePoolTaintInput    `json:"taints,omitempty" jsonschema:"Kubernetes taints to apply to every node in the pool, each repelling pods that lack a matching toleration. At most 50."`
 	PublicIps         []string                   `json:"public_ips,omitempty" jsonschema:"reserved public IPs for the worker nodes (see list_ip_blocks), all from the node pool's data center location. One more IP is needed than the maximum node count — node_count+1, or max_node_count+1 with auto_scaling — because the spare is used while a node is rebuilt."`
-	ConfirmationToken *string                    `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same k8s_cluster_id, name and datacenter_id) to actually create the node pool. The token expires after a few minutes."`
+	ConfirmationToken *string                    `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call together with EVERY other argument repeated unchanged, to actually create the node pool. The token is bound to the whole previewed configuration, so altering any argument between the two calls is refused and you must preview again. The token expires after a few minutes."`
 }
 
 // UpdateK8sNodepoolInput is the input for update_k8s_nodepool. Single call. Omitted
@@ -1495,6 +1501,7 @@ type UpdateK8sNodepoolInput struct {
 	Lans              []K8sNodePoolLanInput      `json:"lans,omitempty" jsonschema:"REPLACE the attached private LANs with this list. Include every LAN the pool should keep — any you leave out is detached from the worker nodes. Omit the field to keep the current LANs; pass an empty array to detach them all."`
 	Labels            map[string]string          `json:"labels,omitempty" jsonschema:"REPLACE the node labels with these key-value pairs. Omit the field to keep the current labels; pass an empty object to remove them all."`
 	Annotations       map[string]string          `json:"annotations,omitempty" jsonschema:"REPLACE the node annotations with these key-value pairs. Omit the field to keep the current annotations; pass an empty object to remove them all."`
+	Taints            []K8sNodePoolTaintInput    `json:"taints,omitempty" jsonschema:"REPLACE the node taints with this list, at most 50. Omit the field to keep the current taints; pass an empty array to remove them all."`
 	PublicIps         []string                   `json:"public_ips,omitempty" jsonschema:"REPLACE the reserved public IPs for the worker nodes. One more IP is needed than the maximum node count. Omit the field to keep the current IPs; pass an empty array to remove them all."`
 }
 

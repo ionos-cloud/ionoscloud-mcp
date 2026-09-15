@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -29,6 +31,19 @@ func Fields(pairs ...string) []KV {
 		out = append(out, KV{K: pairs[i], V: pairs[i+1]})
 	}
 	return out
+}
+
+// FieldsDigest is a stable digest of the fields a preview showed, for binding a
+// confirmation token to everything the caller was shown rather than to the identifying
+// inputs alone. Every renderer feeding it must be lossless, or two different requests
+// can render alike and share one token.
+func FieldsDigest(fields []KV) string {
+	h := sha256.New()
+	for _, f := range fields {
+		// Length-prefixed, so no pair of values can be rearranged into the same digest.
+		fmt.Fprintf(h, "%d:%s=%d:%s\n", len(f.K), f.K, len(f.V), f.V)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // LabeledCount is one line of a blast-radius preview ("3 volumes").

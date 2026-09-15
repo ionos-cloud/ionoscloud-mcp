@@ -3,6 +3,8 @@ package k8s
 import (
 	"fmt"
 	"net"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -103,6 +105,13 @@ func validateCpuFamily(v *string) string {
 	return ""
 }
 
+func validateK8sVersion(v *string) string {
+	if v != nil && strings.TrimSpace(*v) == "" {
+		return "k8s_version must not be empty; omit it to take the cluster's version"
+	}
+	return ""
+}
+
 func buildLans(in []tools.K8sNodePoolLanInput) ([]ionos.KubernetesNodePoolLan, string) {
 	if in == nil {
 		return nil, ""
@@ -163,11 +172,104 @@ func lansText(lans []ionos.KubernetesNodePoolLan) string {
 		if l.HasDhcp() {
 			desc += fmt.Sprintf(" (dhcp %t)", l.GetDhcp())
 		}
-		if n := len(l.GetRoutes()); n > 0 {
-			desc += fmt.Sprintf(" +%d routes", n)
+		for _, r := range l.GetRoutes() {
+			desc += fmt.Sprintf(" [%s via %s]", r.GetNetwork(), r.GetGatewayIp())
 		}
 		parts = append(parts, desc)
 	}
+	return strings.Join(parts, ", ")
+}
+
+// Kubernetes label grammar, which the spec requires for taint keys and values: a
+// 63-character name, optionally prefixed on a key by a DNS subdomain and a slash.
+// The prefix pattern repeats one dot-separated label, so it rejects "a..b", "a.-b" and
+// labels past 63 characters; a flat character class over the whole string accepts them.
+var (
+	taintName   = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9._-]{0,61}[A-Za-z0-9])?$`)
+	taintPrefix = regexp.MustCompile(`^([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?\.)*[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
+)
+
+var taintEffects = map[string]ionos.TaintEffect{
+	"noschedule":       ionos.NO_SCHEDULE,
+	"noexecute":        ionos.NO_EXECUTE,
+	"prefernoschedule": ionos.PREFER_NO_SCHEDULE,
+}
+
+// maxTaints is the API's documented per-pool limit.
+const maxTaints = 50
+
+func buildTaints(in []tools.K8sNodePoolTaintInput) ([]ionos.KubernetesNodePoolTaint, string) {
+	if in == nil {
+		return nil, ""
+	}
+	if len(in) > maxTaints {
+		return nil, fmt.Sprintf("taints has %d entries but the API accepts at most %d per node pool", len(in), maxTaints)
+	}
+	out := make([]ionos.KubernetesNodePoolTaint, 0, len(in))
+	for i, t := range in {
+		key := strings.TrimSpace(t.Key)
+		if msg := validateTaintKey(i, key); msg != "" {
+			return nil, msg
+		}
+		effect, ok := taintEffects[strings.ToLower(strings.TrimSpace(t.Effect))]
+		if !ok {
+			return nil, fmt.Sprintf("taints[%d].effect %q is not valid; use NoSchedule, NoExecute or PreferNoSchedule", i, t.Effect)
+		}
+		taint := ionos.NewKubernetesNodePoolTaint(key, effect)
+		// An empty value is left unset rather than sent, so it reads back the same way.
+		if t.Value != nil {
+			if value := strings.TrimSpace(*t.Value); value != "" {
+				if !taintName.MatchString(value) {
+					return nil, fmt.Sprintf("taints[%d].value %q is not a Kubernetes label value: up to 63 alphanumerics, dashes, underscores or dots, beginning and ending alphanumeric", i, *t.Value)
+				}
+				taint.SetValue(value)
+			}
+		}
+		out = append(out, *taint)
+	}
+	// Taints are a set, so a canonical order keeps a reordered list from reading as a
+	// different request body when the confirmation token is checked.
+	sort.Slice(out, func(a, b int) bool {
+		if out[a].GetKey() != out[b].GetKey() {
+			return out[a].GetKey() < out[b].GetKey()
+		}
+		if out[a].GetEffect() != out[b].GetEffect() {
+			return out[a].GetEffect() < out[b].GetEffect()
+		}
+		return out[a].GetValue() < out[b].GetValue()
+	})
+	return out, ""
+}
+
+func validateTaintKey(i int, key string) string {
+	if key == "" {
+		return fmt.Sprintf("taints[%d].key is required", i)
+	}
+	name := key
+	if prefix, rest, hasPrefix := strings.Cut(key, "/"); hasPrefix {
+		if len(prefix) > 253 || !taintPrefix.MatchString(prefix) {
+			return fmt.Sprintf("taints[%d].key prefix %q is not a DNS subdomain: dot-separated labels of up to 63 lowercase alphanumerics or dashes, each beginning and ending alphanumeric, 253 characters overall", i, prefix)
+		}
+		name = rest
+	}
+	if !taintName.MatchString(name) {
+		return fmt.Sprintf("taints[%d].key %q is not a Kubernetes label key: up to 63 alphanumerics, dashes, underscores or dots beginning and ending alphanumeric, optionally after a DNS subdomain prefix and a slash", i, key)
+	}
+	return ""
+}
+
+// taintsText renders taints in kubectl's key=value:Effect notation, for the preview and
+// for the confirmation target. Sorted, so neither reshuffles between the two phases.
+func taintsText(taints []ionos.KubernetesNodePoolTaint) string {
+	parts := make([]string, 0, len(taints))
+	for _, t := range taints {
+		entry := t.GetKey()
+		if v := t.GetValue(); v != "" {
+			entry += "=" + v
+		}
+		parts = append(parts, entry+":"+string(t.GetEffect()))
+	}
+	sort.Strings(parts)
 	return strings.Join(parts, ", ")
 }
 

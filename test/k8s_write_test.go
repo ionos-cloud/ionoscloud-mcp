@@ -392,6 +392,15 @@ func TestCreateK8sNodepoolTwoPhase(t *testing.T) {
 	}
 }
 
+// manyTaints builds n distinct taints, to push past the API's per-pool limit.
+func manyTaints(n int) []any {
+	out := make([]any, 0, n)
+	for i := range n {
+		out = append(out, map[string]any{"key": fmt.Sprintf("k%d", i), "effect": "NoSchedule"})
+	}
+	return out
+}
+
 func TestCreateK8sNodepoolValidation(t *testing.T) {
 	base := func(over map[string]any) map[string]any {
 		args := map[string]any{
@@ -458,6 +467,35 @@ func TestCreateK8sNodepoolValidation(t *testing.T) {
 			base(map[string]any{"lans": []any{map[string]any{"id": 3, "routes": []any{map[string]any{"network": "10.0.0.0/24", "gateway_ip": "nope"}}}}}),
 			"is not an IP address",
 		},
+		{"empty k8s_version", base(map[string]any{"k8s_version": " "}), "k8s_version must not be empty"},
+		{"bad taint effect", base(map[string]any{"taints": []any{map[string]any{"key": "k", "effect": "Evict"}}}), "use NoSchedule, NoExecute or PreferNoSchedule"},
+		{"empty taint key", base(map[string]any{"taints": []any{map[string]any{"key": " ", "effect": "NoSchedule"}}}), "taints[0].key is required"},
+		{
+			"bad taint key",
+			base(map[string]any{"taints": []any{map[string]any{"key": "-nope-", "effect": "NoSchedule"}}}),
+			"is not a Kubernetes label key",
+		},
+		{
+			"bad taint value",
+			base(map[string]any{"taints": []any{map[string]any{"key": "k", "value": "a b", "effect": "NoSchedule"}}}),
+			"is not a Kubernetes label value",
+		},
+		{"more taints than the API accepts", base(map[string]any{"taints": manyTaints(51)}), "at most 50 per node pool"},
+		{
+			"taint key prefix with an empty label",
+			base(map[string]any{"taints": []any{map[string]any{"key": "a..b/k", "effect": "NoSchedule"}}}),
+			"is not a DNS subdomain",
+		},
+		{
+			"taint key prefix with a label starting on a dash",
+			base(map[string]any{"taints": []any{map[string]any{"key": "a.-b/k", "effect": "NoSchedule"}}}),
+			"is not a DNS subdomain",
+		},
+		{
+			"taint key prefix with an over-long label",
+			base(map[string]any{"taints": []any{map[string]any{"key": strings.Repeat("a", 64) + ".com/k", "effect": "NoSchedule"}}}),
+			"is not a DNS subdomain",
+		},
 		{
 			// Both route fields are optional in the spec, so an entry with neither is
 			// the only shape worth rejecting outright.
@@ -514,8 +552,7 @@ func TestUpdateK8sNodepoolCarriesNodeCountForward(t *testing.T) {
 	if body["serverType"] != "VCPU" {
 		t.Errorf("serverType = %v, want the carried-forward VCPU", body["serverType"])
 	}
-	// No tool accepts taints (x-internal in the spec), but a pool may carry them from
-	// out-of-band tooling and this PUT replaces the properties, so they must survive.
+	// taints were not supplied, so the pool's own must survive the replacing PUT.
 	taints, _ := body["taints"].([]any)
 	if len(taints) != 1 {
 		t.Errorf("taints = %v, want the carried-forward taint; losing it lets pods schedule onto reserved nodes", body["taints"])
@@ -1042,53 +1079,309 @@ func TestK8sWriteToolAnnotations(t *testing.T) {
 	}
 }
 
-// TestK8sNodepoolToolsDoNotExposeTaints pins the deliberate omission: the spec marks
-// node pool `taints` x-internal, so no tool accepts it even though the generated SDK
-// models it.
-func TestK8sNodepoolToolsDoNotExposeTaints(t *testing.T) {
+// TestCreateK8sNodepoolSendsTaints covers the taint input the API exposed alongside
+// SDK compute v2.0.7; before that the field was x-internal and no tool accepted it.
+func TestCreateK8sNodepoolSendsTaints(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+	preview, res := previewThenExecute(t, h, "create_k8s_nodepool", map[string]any{
+		"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+		"node_count": 2, "cores_count": 4, "ram_size": 4096,
+		"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		"taints": []any{
+			map[string]any{"key": "dedicated", "value": "gpu", "effect": "noschedule"},
+			map[string]any{"key": "example.com/drain", "effect": "NoExecute"},
+		},
+	})
+	// kubectl notation in the preview, so what is authorized reads like what is applied.
+	for _, want := range []string{"dedicated=gpu:NoSchedule", "example.com/drain:NoExecute"} {
+		if !strings.Contains(preview, want) {
+			t.Errorf("preview missing taint %q:\n%s", want, preview)
+		}
+	}
+	if res.IsError {
+		t.Fatalf("execute must succeed: %s", resultText(res))
+	}
+	body := singleRequest(t, h, http.MethodPost).Body
+	// The effect enum is case-sensitive on the wire; the handler normalises it.
+	for _, want := range []string{`"key":"dedicated"`, `"value":"gpu"`, `"effect":"NoSchedule"`, `"effect":"NoExecute"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("POST body missing %s: %s", want, body)
+		}
+	}
+	// A key-only taint must not carry an empty value, which would read back differently.
+	if strings.Contains(body, `"value":""`) {
+		t.Errorf("POST body sends an empty taint value: %s", body)
+	}
+}
+
+// TestCreateK8sNodepoolTokenIsBoundToTheTaints guards the confirmation target: taints
+// decide what the pool will accept, so a token previewed with one set must not create a
+// pool with another. Only a test that swaps them between the phases catches a narrow target.
+func TestCreateK8sNodepoolTokenIsBoundToTheTaints(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+	args := func(taints []any) map[string]any {
+		return map[string]any{
+			"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+			"node_count": 2, "cores_count": 4, "ram_size": 4096,
+			"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+			"taints": taints,
+		}
+	}
+	benign := []any{map[string]any{"key": "dedicated", "value": "gpu", "effect": "PreferNoSchedule"}}
+
+	res := callTool(t, h, "create_k8s_nodepool", args(benign))
+	if res.IsError {
+		t.Fatalf("preview failed: %s", resultText(res))
+	}
+	token := extractToken(t, resultText(res))
+	h.log.clear()
+
+	// Same pool, a harsher taint than the one previewed.
+	swapped := args([]any{map[string]any{"key": "dedicated", "value": "gpu", "effect": "NoExecute"}})
+	swapped["confirmation_token"] = token
+	if res = callTool(t, h, "create_k8s_nodepool", swapped); !res.IsError {
+		t.Error("a token previewed with PreferNoSchedule must not create a NoExecute pool")
+	}
+	assertNoMutation(t, h, "create_k8s_nodepool with swapped taints")
+
+	// Reordering the same taints is not a change, so the token must still work.
+	reordered := args([]any{
+		map[string]any{"key": "spot", "effect": "NoSchedule"},
+		map[string]any{"key": "dedicated", "value": "gpu", "effect": "PreferNoSchedule"},
+	})
+	if res = callTool(t, h, "create_k8s_nodepool", reordered); res.IsError {
+		t.Fatalf("preview failed: %s", resultText(res))
+	}
+	token = extractToken(t, resultText(res))
+	h.log.clear()
+	reordered = args([]any{
+		map[string]any{"key": "dedicated", "value": "gpu", "effect": "PreferNoSchedule"},
+		map[string]any{"key": "spot", "effect": "NoSchedule"},
+	})
+	reordered["confirmation_token"] = token
+	if res = callTool(t, h, "create_k8s_nodepool", reordered); res.IsError {
+		t.Errorf("reordering the same taints must not invalidate the token: %s", resultText(res))
+	}
+}
+
+// TestCreateK8sNodepoolTokenIsBoundToTheWholeConfiguration covers the rest of the
+// payload: every field in the preview costs money, is immutable, or decides what the
+// pool accepts, so none of them may change between the two phases.
+func TestCreateK8sNodepoolTokenIsBoundToTheWholeConfiguration(t *testing.T) {
+	base := map[string]any{
+		"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+		"node_count": 2, "cores_count": 4, "ram_size": 4096,
+		"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		"labels": map[string]any{"tier": "app"},
+		"lans":   []any{map[string]any{"id": 3, "dhcp": true}},
+	}
+	args := func(over map[string]any) map[string]any {
+		out := map[string]any{}
+		for k, v := range base {
+			out[k] = v
+		}
+		for k, v := range over {
+			out[k] = v
+		}
+		return out
+	}
+
+	for _, tt := range []struct {
+		name string
+		over map[string]any
+	}{
+		{"more nodes than previewed", map[string]any{"node_count": 20}},
+		{"bigger cores", map[string]any{"cores_count": 32}},
+		{"more RAM", map[string]any{"ram_size": 65536}},
+		{"bigger storage", map[string]any{"storage_size": 2000}},
+		{"a different availability zone", map[string]any{"availability_zone": "ZONE_2"}},
+		{"a different storage type", map[string]any{"storage_type": "HDD"}},
+		{"a different server type", map[string]any{"server_type": "VCPU"}},
+		{"different labels", map[string]any{"labels": map[string]any{"tier": "db"}}},
+		{"a rerouted LAN", map[string]any{"lans": []any{map[string]any{"id": 9, "dhcp": true}}}},
+		{"public IPs that were not previewed", map[string]any{"public_ips": []any{"203.0.113.1", "203.0.113.2", "203.0.113.3"}}},
+		{"an autoscaler that was not previewed", map[string]any{"auto_scaling": map[string]any{"min_node_count": 2, "max_node_count": 40}}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+			res := callTool(t, h, "create_k8s_nodepool", args(nil))
+			if res.IsError {
+				t.Fatalf("preview failed: %s", resultText(res))
+			}
+			token := extractToken(t, resultText(res))
+			h.log.clear()
+
+			swapped := args(tt.over)
+			swapped["confirmation_token"] = token
+			if res = callTool(t, h, "create_k8s_nodepool", swapped); !res.IsError {
+				t.Errorf("a token previewed without this change must not create it: %s", resultText(res))
+			}
+			assertNoMutation(t, h, "create_k8s_nodepool with a swapped field")
+		})
+	}
+
+	// The unchanged configuration must still go through, or the binding is useless.
+	t.Run("the previewed configuration still executes", func(t *testing.T) {
+		h := destructiveSetup(t)
+		h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+		if _, res := previewThenExecute(t, h, "create_k8s_nodepool", args(nil)); res.IsError {
+			t.Fatalf("an unchanged replay must succeed: %s", resultText(res))
+		}
+		singleRequest(t, h, http.MethodPost)
+	})
+}
+
+// TestCreateK8sNodepoolTokenSurvivesNoLossyRendering pins the renderers the confirmation
+// digest depends on. The token is a digest of the preview text, so a renderer that
+// abbreviates lets two different requests share one token — lansText used to summarise
+// routes as a count, which let a rerouted LAN reuse another route's token.
+func TestCreateK8sNodepoolTokenSurvivesNoLossyRendering(t *testing.T) {
+	base := func(over map[string]any) map[string]any {
+		m := map[string]any{
+			"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+			"node_count": 2, "cores_count": 4, "ram_size": 4096,
+			"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		}
+		for k, v := range over {
+			m[k] = v
+		}
+		return m
+	}
+	for _, tt := range []struct {
+		name string
+		why  string
+		a, b map[string]any
+	}{
+		{
+			"a rerouted LAN with the same route count", "lansText renders routes as a count",
+			map[string]any{"lans": []any{map[string]any{"id": 3, "routes": []any{map[string]any{"network": "10.0.0.0/24", "gateway_ip": "10.0.0.1"}}}}},
+			map[string]any{"lans": []any{map[string]any{"id": 3, "routes": []any{map[string]any{"network": "0.0.0.0/0", "gateway_ip": "192.0.2.66"}}}}},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+
+			res := callTool(t, h, "create_k8s_nodepool", base(tt.a))
+			if res.IsError {
+				t.Fatalf("preview failed: %s", resultText(res))
+			}
+			token := extractToken(t, resultText(res))
+			h.log.clear()
+
+			swapped := base(tt.b)
+			swapped["confirmation_token"] = token
+			if res = callTool(t, h, "create_k8s_nodepool", swapped); !res.IsError {
+				t.Errorf("token accepted a different request (%s): %s", tt.why, resultText(res))
+			}
+			assertNoMutation(t, h, "create_k8s_nodepool with a lossily-equal swap")
+		})
+	}
+}
+
+// TestCreateK8sNodepoolReplayListsOnlyRealArguments guards the replay block: it is the
+// argument list a model copies for the second call, so every name in it must exist in
+// the input schema. Display fields like "storage: 100 GB SSD" are not valid arguments.
+func TestCreateK8sNodepoolReplayListsOnlyRealArguments(t *testing.T) {
 	h := destructiveSetup(t)
 	ctx := context.Background()
 
+	var schema struct {
+		Properties map[string]any `json:"properties"`
+	}
 	for tool, err := range h.session.Tools(ctx, nil) {
 		if err != nil {
 			t.Fatalf("listing tools: %v", err)
 		}
-		if tool.Name != "create_k8s_nodepool" && tool.Name != "update_k8s_nodepool" {
+		if tool.Name != "create_k8s_nodepool" {
 			continue
 		}
-		if tool.InputSchema == nil {
-			t.Fatalf("%s has no input schema", tool.Name)
-		}
-		// InputSchema is an untyped any, so the property set is read back through JSON.
-		raw, err := json.Marshal(tool.InputSchema)
-		if err != nil {
-			t.Fatalf("marshalling %s input schema: %v", tool.Name, err)
-		}
-		var schema struct {
-			Properties map[string]any `json:"properties"`
+		raw, mErr := json.Marshal(tool.InputSchema)
+		if mErr != nil {
+			t.Fatalf("marshalling input schema: %v", mErr)
 		}
 		if err := json.Unmarshal(raw, &schema); err != nil {
-			t.Fatalf("decoding %s input schema: %v", tool.Name, err)
-		}
-		if len(schema.Properties) == 0 {
-			t.Fatalf("%s input schema has no properties: %s", tool.Name, raw)
-		}
-		if _, ok := schema.Properties["taints"]; ok {
-			t.Errorf("%s exposes a taints parameter; the spec marks taints x-internal, so it must not be a tool input", tool.Name)
+			t.Fatalf("decoding input schema: %v", err)
 		}
 	}
+	if len(schema.Properties) == 0 {
+		t.Fatal("create_k8s_nodepool has no input schema properties")
+	}
 
-	// And the request must be rejected outright rather than silently ignored.
 	res := callTool(t, h, "create_k8s_nodepool", map[string]any{
 		"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
 		"node_count": 2, "cores_count": 4, "ram_size": 4096,
 		"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
-		"taints": []any{map[string]any{"key": "k", "effect": "NoSchedule"}},
+		"auto_scaling": map[string]any{"min_node_count": 2, "max_node_count": 5},
+		"lans":         []any{map[string]any{"id": 3, "dhcp": true}},
+		"taints":       []any{map[string]any{"key": "dedicated", "effect": "NoSchedule"}},
 	})
-	if !res.IsError {
-		t.Errorf("passing taints must be rejected, got: %s", resultText(res))
+	if res.IsError {
+		t.Fatalf("preview failed: %s", resultText(res))
 	}
-	assertNoMutation(t, h, "create_k8s_nodepool with taints")
+
+	// Only the replay block is an instruction; the fields above it are prose.
+	text := resultText(res)
+	idx := strings.Index(text, "call create_k8s_nodepool again with:")
+	if idx < 0 {
+		t.Fatalf("preview has no replay block: %s", text)
+	}
+	for _, line := range strings.Split(text[idx:], "\n")[1:] {
+		line = strings.TrimSpace(line)
+		name, _, ok := strings.Cut(line, ":")
+		if !ok || name == "" || strings.Contains(name, " ") {
+			break // past the argument list
+		}
+		if _, exists := schema.Properties[name]; !exists {
+			t.Errorf("replay block names %q, which is not an argument of create_k8s_nodepool; a model copying this produces an invalid call", name)
+		}
+	}
+}
+
+// TestUpdateK8sNodepoolReplacesTaints pins the replace-or-carry-forward contract the
+// other list-valued fields follow: supplied replaces, empty clears, omitted keeps.
+func TestUpdateK8sNodepoolReplacesTaints(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		input any
+		want  int
+	}{
+		{"supplied taints replace the current ones", []any{
+			map[string]any{"key": "batch", "effect": "PreferNoSchedule"},
+			map[string]any{"key": "spot", "effect": "NoExecute"},
+		}, 2},
+		{"an empty array removes them all", []any{}, 0},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolPath(), poolFixture)
+
+			res := callTool(t, h, "update_k8s_nodepool", map[string]any{
+				"k8s_cluster_id": k8sClusterID, "nodepool_id": k8sPoolID, "taints": tt.input,
+			})
+			if res.IsError {
+				t.Fatalf("update failed: %s", resultText(res))
+			}
+			body := putBody(t, h)
+			taints, ok := body["taints"].([]any)
+			if !ok {
+				t.Fatalf("PUT body has no taints array; an omitted field would keep the fixture's taint: %v", body)
+			}
+			if len(taints) != tt.want {
+				t.Fatalf("taints = %v, want %d entries", taints, tt.want)
+			}
+			// nodeCount must still be carried forward alongside the taint change.
+			if body["nodeCount"] != float64(4) {
+				t.Errorf("nodeCount = %v, want the carried-forward 4", body["nodeCount"])
+			}
+		})
+	}
 }
 
 // TestK8sWriteToolsDeclareAsyncBehaviour guards the async contract: every mutating

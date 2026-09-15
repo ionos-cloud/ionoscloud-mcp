@@ -25,7 +25,7 @@ func RegisterNodepoolWriteTools(server *mcp.Server, client *ionos.APIClient, sco
 func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
 		Name: "create_k8s_nodepool",
-		Description: "Create one node pool of worker nodes. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same k8s_cluster_id, name and datacenter_id) to create it. Creates exactly one node pool per call. " +
+		Description: "Create one node pool of worker nodes. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token and EVERY other argument unchanged to create it. The token is bound to the whole previewed configuration, so changing any field between the two calls is refused. Creates exactly one node pool per call. " +
 			"The cluster must already be ACTIVE, and datacenter_id must be in its location. The per-node hardware and datacenter_id are immutable — recreate the pool to change them." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)
@@ -75,18 +75,46 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		if msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
+		taints, msg := buildTaints(input.Taints)
+		if msg != "" {
+			return tools.ErrorText(msg), nil, nil
+		}
 		if msg := validateCpuFamily(input.CpuFamily); msg != "" {
+			return tools.ErrorText(msg), nil, nil
+		}
+		if msg := validateK8sVersion(input.K8sVersion); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
 		if msg := validatePublicIps(input.PublicIps, input.NodeCount, auto); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
-		target := tools.Target(req, clusterID, name, dcID)
+
+		fields := tools.Fields(
+			"k8s_cluster_id", clusterID,
+			"name", name,
+			"datacenter_id", dcID,
+			"node_count", fmt.Sprintf("%d", input.NodeCount),
+			"cores_count", fmt.Sprintf("%d", input.CoresCount),
+			"ram_size", fmt.Sprintf("%d MB", input.RamSize),
+			"storage", fmt.Sprintf("%d GB %s", input.StorageSize, storageType),
+			"availability_zone", zone,
+			"server_type", string(serverType),
+			"cpu_family", strings.TrimSpace(tools.OptStr(input.CpuFamily)),
+			"k8s_version", strings.TrimSpace(tools.OptStr(input.K8sVersion)),
+			"maintenance_window", maintenanceWindowText(window),
+			"auto_scaling", autoScalingText(auto),
+			"lans", lansText(lans),
+			"labels", mapText(input.Labels),
+			"annotations", mapText(input.Annotations),
+			"taints", taintsText(taints),
+			"public_ips", strings.Join(input.PublicIps, ", "),
+		)
+		target := tools.Target(req, tools.FieldsDigest(fields))
 
 		// Phase 2: token present -> validate and execute.
 		if tools.HasToken(input.ConfirmationToken) {
 			if err := confirm.Consume(*input.ConfirmationToken, "create_k8s_nodepool", target); err != nil {
-				return tools.ErrorText(tools.ConfirmErrorText("create_k8s_nodepool", "k8s_cluster_id, name and datacenter_id", err)), nil, nil
+				return tools.ErrorText(tools.ConfirmErrorText("create_k8s_nodepool", "the same arguments you previewed", err)), nil, nil
 			}
 			props := ionos.NewKubernetesNodePoolPropertiesForPost(
 				name, dcID, input.NodeCount, input.CoresCount, input.RamSize, zone, storageType, input.StorageSize,
@@ -115,6 +143,9 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			if len(input.Annotations) > 0 {
 				props.SetAnnotations(input.Annotations)
 			}
+			if len(taints) > 0 {
+				props.SetTaints(taints)
+			}
 			if len(input.PublicIps) > 0 {
 				props.SetPublicIps(input.PublicIps)
 			}
@@ -129,29 +160,11 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			return nil, nil, err
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to CREATE one Kubernetes node pool. The per-node hardware below is immutable afterwards:",
-			Fields: tools.Fields(
-				"k8s_cluster_id", clusterID,
-				"name", name,
-				"datacenter_id", dcID,
-				"node_count", fmt.Sprintf("%d", input.NodeCount),
-				"cores_count", fmt.Sprintf("%d", input.CoresCount),
-				"ram_size", fmt.Sprintf("%d MB", input.RamSize),
-				"storage", fmt.Sprintf("%d GB %s", input.StorageSize, storageType),
-				"availability_zone", zone,
-				"server_type", string(serverType),
-				"cpu_family", strings.TrimSpace(tools.OptStr(input.CpuFamily)),
-				"k8s_version", strings.TrimSpace(tools.OptStr(input.K8sVersion)),
-				"maintenance_window", maintenanceWindowText(window),
-				"auto_scaling", autoScalingText(auto),
-				"lans", lansText(lans),
-				"labels", mapText(input.Labels),
-				"annotations", mapText(input.Annotations),
-				"public_ips", strings.Join(input.PublicIps, ", "),
-			),
+			Headline:  "About to CREATE one Kubernetes node pool. The per-node hardware below is immutable afterwards:",
+			Fields:    fields,
 			Tool:      "create_k8s_nodepool",
 			Replay:    tools.Fields("k8s_cluster_id", clusterID, "name", name, "datacenter_id", dcID),
-			TokenNote: "This creates exactly one node pool. The token authorizes creating only this cluster+name+datacenter",
+			TokenNote: "Re-send EVERY other argument of this call unchanged as well — the fields above are shown for reading, not as the argument list. This creates exactly one node pool, and the token authorizes only the configuration previewed above, so altering any argument is refused",
 		}.Render(token)), nil, nil
 	})
 }
@@ -159,10 +172,10 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
 	tools.RegisterTool(server, scope, tools.MethodPut, &mcp.Tool{
 		Name: "update_k8s_nodepool",
-		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations or public IPs. The pool name and the per-node hardware are immutable. " +
-			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
+		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations, taints or public IPs. The pool name and the per-node hardware are immutable. " +
+			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations, taints and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
 			"An autoscaler's bounds can be changed but it cannot be removed. " +
-			"BE CAREFUL with two of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, and lowering node_count drains the removed nodes and evicts their pods. Confirm both with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
+			"BE CAREFUL with three of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, lowering node_count drains the removed nodes and evicts their pods, and a taint with the NoExecute effect evicts every pod on the pool's nodes that lacks a matching toleration. Confirm all three with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)
 		poolID := strings.TrimSpace(input.NodepoolID)
@@ -174,8 +187,8 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		}
 		if input.NodeCount == nil && input.ServerType == nil && input.K8sVersion == nil &&
 			input.MaintenanceWindow == nil && input.AutoScaling == nil && input.Lans == nil &&
-			input.Labels == nil && input.Annotations == nil && input.PublicIps == nil {
-			return tools.ErrorText("nothing to update: provide at least one of node_count, server_type, k8s_version, maintenance_window, auto_scaling, lans, labels, annotations, public_ips"), nil, nil
+			input.Labels == nil && input.Annotations == nil && input.Taints == nil && input.PublicIps == nil {
+			return tools.ErrorText("nothing to update: provide at least one of node_count, server_type, k8s_version, maintenance_window, auto_scaling, lans, labels, annotations, taints, public_ips"), nil, nil
 		}
 		if input.NodeCount != nil && *input.NodeCount < 1 {
 			return tools.ErrorText(fmt.Sprintf("node_count must be at least 1, got %d", *input.NodeCount)), nil, nil
@@ -196,6 +209,10 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			return tools.ErrorText(msg), nil, nil
 		}
 		lans, msg := buildLans(input.Lans)
+		if msg != "" {
+			return tools.ErrorText(msg), nil, nil
+		}
+		taints, msg := buildTaints(input.Taints)
 		if msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
@@ -269,9 +286,10 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		case len(cp.GetAnnotations()) > 0:
 			props.SetAnnotations(cp.GetAnnotations())
 		}
-		// taints has no input (x-internal in the spec) but is still carried forward, so a
-		// replacing PUT cannot drop taints applied out of band.
-		if len(cp.GetTaints()) > 0 {
+		switch {
+		case taints != nil:
+			props.SetTaints(taints)
+		case len(cp.GetTaints()) > 0:
 			props.SetTaints(cp.GetTaints())
 		}
 		switch {
