@@ -245,7 +245,7 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Networking | IP blocks (reserve and release only), security groups + rules, firewall rules, private cross connects |
 | Load balancing | classic, network and application load balancers + forwarding rules, target groups, NAT gateways + rules |
 | Images | snapshot and image update/delete |
-| Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations), single nodes (recreate, delete) |
+| Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations, taints), single nodes (recreate, delete) |
 | DNS | primary zones (+ BIND zone-file import), records, secondary zones (+ zone transfer), reverse records, DNSSEC enable/disable |
 | Certificate Manager | auto-certificates, ACME providers, certificate rename/delete — renames only change the name, the rest is immutable. Uploading certificate material is deliberately **not** offered: it would require passing a private key as a tool argument. |
 

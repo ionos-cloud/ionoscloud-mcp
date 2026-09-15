@@ -75,6 +75,10 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		if msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
+		taints, msg := buildTaints(input.Taints)
+		if msg != "" {
+			return tools.ErrorText(msg), nil, nil
+		}
 		if msg := validateCpuFamily(input.CpuFamily); msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
@@ -115,6 +119,9 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			if len(input.Annotations) > 0 {
 				props.SetAnnotations(input.Annotations)
 			}
+			if len(taints) > 0 {
+				props.SetTaints(taints)
+			}
 			if len(input.PublicIps) > 0 {
 				props.SetPublicIps(input.PublicIps)
 			}
@@ -147,6 +154,7 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 				"lans", lansText(lans),
 				"labels", mapText(input.Labels),
 				"annotations", mapText(input.Annotations),
+				"taints", taintsText(taints),
 				"public_ips", strings.Join(input.PublicIps, ", "),
 			),
 			Tool:      "create_k8s_nodepool",
@@ -159,8 +167,8 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
 	tools.RegisterTool(server, scope, tools.MethodPut, &mcp.Tool{
 		Name: "update_k8s_nodepool",
-		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations or public IPs. The pool name and the per-node hardware are immutable. " +
-			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
+		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations, taints or public IPs. The pool name and the per-node hardware are immutable. " +
+			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations, taints and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
 			"An autoscaler's bounds can be changed but it cannot be removed. " +
 			"BE CAREFUL with two of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, and lowering node_count drains the removed nodes and evicts their pods. Confirm both with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
@@ -174,8 +182,8 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		}
 		if input.NodeCount == nil && input.ServerType == nil && input.K8sVersion == nil &&
 			input.MaintenanceWindow == nil && input.AutoScaling == nil && input.Lans == nil &&
-			input.Labels == nil && input.Annotations == nil && input.PublicIps == nil {
-			return tools.ErrorText("nothing to update: provide at least one of node_count, server_type, k8s_version, maintenance_window, auto_scaling, lans, labels, annotations, public_ips"), nil, nil
+			input.Labels == nil && input.Annotations == nil && input.Taints == nil && input.PublicIps == nil {
+			return tools.ErrorText("nothing to update: provide at least one of node_count, server_type, k8s_version, maintenance_window, auto_scaling, lans, labels, annotations, taints, public_ips"), nil, nil
 		}
 		if input.NodeCount != nil && *input.NodeCount < 1 {
 			return tools.ErrorText(fmt.Sprintf("node_count must be at least 1, got %d", *input.NodeCount)), nil, nil
@@ -196,6 +204,10 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			return tools.ErrorText(msg), nil, nil
 		}
 		lans, msg := buildLans(input.Lans)
+		if msg != "" {
+			return tools.ErrorText(msg), nil, nil
+		}
+		taints, msg := buildTaints(input.Taints)
 		if msg != "" {
 			return tools.ErrorText(msg), nil, nil
 		}
@@ -269,9 +281,10 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		case len(cp.GetAnnotations()) > 0:
 			props.SetAnnotations(cp.GetAnnotations())
 		}
-		// taints has no input (x-internal in the spec) but is still carried forward, so a
-		// replacing PUT cannot drop taints applied out of band.
-		if len(cp.GetTaints()) > 0 {
+		switch {
+		case taints != nil:
+			props.SetTaints(taints)
+		case len(cp.GetTaints()) > 0:
 			props.SetTaints(cp.GetTaints())
 		}
 		switch {
