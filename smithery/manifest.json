@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "ionoscloud-mcp",
   "display_name": "IONOS CLOUD MCP Server",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Inspect IONOS CLOUD infrastructure via MCP",
   "author": {
     "name": "IONOS CLOUD",
