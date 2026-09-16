@@ -3,7 +3,7 @@
   "name": "ionoscloud-mcp",
   "display_name": "IONOS CLOUD MCP Server",
   "version": "1.1.1",
-  "description": "Inspect IONOS CLOUD infrastructure via MCP",
+  "description": "Inspect and manage IONOS CLOUD infrastructure via MCP. Writes are opt-in and off by default.",
   "author": {
     "name": "IONOS CLOUD",
     "url": "https://github.com/ionos-cloud/ionoscloud-mcp"
@@ -22,7 +22,8 @@
         "IONOS_TOKEN": "${user_config.ionos_token}",
         "IONOS_S3_ACCESS_KEY": "${user_config.ionos_s3_access_key}",
         "IONOS_S3_SECRET_KEY": "${user_config.ionos_s3_secret_key}",
-        "IONOS_MCP_LOAD_MODE": "${user_config.ionos_mcp_load_mode}"
+        "IONOS_MCP_LOAD_MODE": "${user_config.ionos_mcp_load_mode}",
+        "IONOS_MCP_TOOL_SCOPE": "${user_config.ionos_mcp_tool_scope}"
       },
       "platform_overrides": {
         "win32": {
@@ -32,7 +33,8 @@
             "IONOS_TOKEN": "${user_config.ionos_token}",
             "IONOS_S3_ACCESS_KEY": "${user_config.ionos_s3_access_key}",
             "IONOS_S3_SECRET_KEY": "${user_config.ionos_s3_secret_key}",
-            "IONOS_MCP_LOAD_MODE": "${user_config.ionos_mcp_load_mode}"
+            "IONOS_MCP_LOAD_MODE": "${user_config.ionos_mcp_load_mode}",
+            "IONOS_MCP_TOOL_SCOPE": "${user_config.ionos_mcp_tool_scope}"
           }
         }
       }
@@ -70,6 +72,13 @@
       "required": false,
       "sensitive": false,
       "default": "eager"
+    },
+    "ionos_mcp_tool_scope": {
+      "type": "string",
+      "title": "Tool Scope (write access)",
+      "description": "Opt in to write operations. Leave empty (default) to keep the server read-only: only list_/get_/head_ tools are registered. 'write' additionally registers create_/update_ tools and the non-disruptive actions (start_, resume_, attach_, assign_); 'destructive' also registers delete_ and the disruptive actions (stop_, reboot_, suspend_, upgrade_, restore_, detach_, recreate_, import_) and implies 'write'. Comma-separated, case-insensitive, hierarchical; unrecognised values stay read-only. WARNING: enabling this lets an AI model provision, modify and delete billable resources in a live IONOS CLOUD account. Every create and delete requires a two-phase confirmation, but that cannot stop a client configured to approve tool calls automatically. Leave empty unless writes are needed.",
+      "required": false,
+      "sensitive": false
     }
   },
   "compatibility": {

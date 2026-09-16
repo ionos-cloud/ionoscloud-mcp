@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.ionos-cloud/ionoscloud-mcp",
   "title": "IONOS CLOUD MCP Server",
-  "description": "Inspect IONOS CLOUD infrastructure via MCP",
+  "description": "Inspect and manage IONOS CLOUD infrastructure via MCP. Writes are opt-in and off by default.",
   "version": "1.1.1",
   "repository": {
     "url": "https://github.com/ionos-cloud/ionoscloud-mcp",
