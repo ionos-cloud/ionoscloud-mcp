@@ -65,13 +65,15 @@ var storageTypes = map[string]string{
 	"essential": tools.StorageEssential, "performance": tools.StoragePerformance,
 }
 
+// Verified live: the API answers 422 naming [HDD, SSD, ESSENTIAL, PERFORMANCE], so
+// SSD Premium stays refused here even though the published spec lists it.
 func normalizeStorageType(v string) (string, string) {
 	key := strings.ToLower(strings.TrimSpace(v))
 	switch key {
 	case "balanced":
-		return "", fmt.Sprintf("storage_type %q is not offered for Kubernetes node pools; use PERFORMANCE, or ESSENTIAL for the cheaper class. BALANCED exists only for standalone volumes.", v)
+		return "", fmt.Sprintf("storage_type %q is not accepted for Kubernetes node pools; use PERFORMANCE, or ESSENTIAL for the cheaper class. BALANCED is a Compute Engine volume type — it is valid on create_volume and on a server's inline boot_volume.", v)
 	case "ssd premium", "ssd_premium", "ssdpremium":
-		return "", fmt.Sprintf("storage_type %q is rejected by the node pool API with a 422 even though the published spec lists it; use PERFORMANCE instead.", v)
+		return "", fmt.Sprintf("storage_type %q is not accepted for Kubernetes node pools; use PERFORMANCE instead. SSD Premium is a Compute Engine volume type — it is valid on create_volume and on a server's inline boot_volume.", v)
 	}
 	st, ok := storageTypes[key]
 	if !ok {
