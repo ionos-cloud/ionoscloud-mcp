@@ -65,7 +65,7 @@ type HotPlugFlags struct {
 // same request. Required for CUBE/GPU servers (storage only via composite create)
 // and Confidential Computing (core count/CPU family derive from the image).
 type BootVolumeInput struct {
-	Type          *string  `json:"type,omitempty" jsonschema:"storage type of the boot volume. Must be DAS for a CUBE server, whose storage exists only as part of the server. Required and must NOT be DAS for ENTERPRISE and VCPU servers: use HDD, SSD, SSD Standard or SSD Premium. Optional for a GPU server — omit it to let the API choose, or pass SSD Premium."`
+	Type          *string  `json:"type,omitempty" jsonschema:"storage type of the boot volume. Must be DAS for a CUBE server, whose storage exists only as part of the server. Required and must NOT be DAS for ENTERPRISE and VCPU servers: use ESSENTIAL, BALANCED or PERFORMANCE (the current performance classes), or the legacy HDD, SSD, SSD Standard, SSD Premium. Optional for a GPU server — omit it to let the API choose, or pass SSD Premium."`
 	Name          *string  `json:"name,omitempty" jsonschema:"the name of the boot volume"`
 	Size          *float32 `json:"size,omitempty" jsonschema:"size in GB. Required for ENTERPRISE and VCPU servers. Must be OMITTED for CUBE and GPU servers, whose storage size is fixed by template_uuid."`
 	Image         *string  `json:"image,omitempty" jsonschema:"ID of an image or snapshot to install. Provide exactly one of image, image_alias or licence_type; without one of the first two the volume has no operating system. See list_images."`
@@ -134,7 +134,7 @@ type CreateVolumeInput struct {
 	DatacenterID     string   `json:"datacenter_id" jsonschema:"the ID of the data center to create the volume in"`
 	Name             string   `json:"name" jsonschema:"the name of the new volume"`
 	Size             float32  `json:"size" jsonschema:"the size of the volume in GB"`
-	Type             string   `json:"type" jsonschema:"storage type: HDD, SSD, SSD Standard, SSD Premium, or DAS. DAS (Direct Attached Storage) works only inline with a CUBE server and ignores size."`
+	Type             string   `json:"type" jsonschema:"storage type: ESSENTIAL, BALANCED or PERFORMANCE (the current performance classes), or the legacy HDD, SSD, SSD Standard, SSD Premium, which still work but are deprecated for new volumes. ESSENTIAL replaces HDD, BALANCED replaces SSD Standard and PERFORMANCE replaces SSD Premium. DAS (Direct Attached Storage) works only inline with a CUBE server and ignores size."`
 	Image            *string  `json:"image,omitempty" jsonschema:"ID of an image or snapshot to use as the template for this volume. Provide exactly one of image, image_alias or licence_type; without one of the first two the volume is created empty and has no operating system. Find IDs with list_images or list_snapshots."`
 	ImageAlias       *string  `json:"image_alias,omitempty" jsonschema:"alias of an image to use as the template, e.g. ubuntu:latest. An alternative to image."`
 	ImagePassword    *string  `json:"image_password,omitempty" jsonschema:"initial root/administrator password for the installed OS; works with public images only. Allowed characters are a-z, A-Z and 0-9, minimum 8 characters. Cannot be changed later. Prefer ssh_keys for Linux images."`
@@ -1472,8 +1472,8 @@ type CreateK8sNodepoolInput struct {
 	CoresCount        int32                      `json:"cores_count" jsonschema:"CPU cores per worker node. Immutable after creation."`
 	RamSize           int32                      `json:"ram_size" jsonschema:"RAM per worker node in MB. Must be a multiple of 1024 and at least 2048. Immutable after creation."`
 	AvailabilityZone  string                     `json:"availability_zone" jsonschema:"the availability zone for the worker nodes: AUTO, ZONE_1 or ZONE_2. Immutable after creation."`
-	StorageType       string                     `json:"storage_type" jsonschema:"the storage type for the worker nodes: HDD or SSD. Immutable after creation."`
-	StorageSize       int32                      `json:"storage_size" jsonschema:"the volume size per worker node in GB. More than 100 GB is recommended for SSD. Immutable after creation."`
+	StorageType       string                     `json:"storage_type" jsonschema:"the storage type for the worker nodes: ESSENTIAL or PERFORMANCE (the current performance classes), or the legacy HDD, SSD. ESSENTIAL replaces HDD and PERFORMANCE replaces SSD. BALANCED and SSD Premium are NOT accepted here — BALANCED exists only for standalone volumes, and SSD Premium is rejected with a 422 despite appearing in the published spec. Immutable after creation."`
+	StorageSize       int32                      `json:"storage_size" jsonschema:"the volume size per worker node in GB. More than 100 GB is recommended for the SSD-backed types (PERFORMANCE, SSD). Immutable after creation."`
 	CpuFamily         *string                    `json:"cpu_family,omitempty" jsonschema:"DEPRECATED by IONOS — use server_type instead. The CPU family for the worker nodes, e.g. INTEL_ICELAKE. Omit to let IONOS pick one available at the location. An empty string is not accepted. Immutable after creation."`
 	ServerType        *string                    `json:"server_type,omitempty" jsonschema:"whether the nodes get dedicated or shared CPU cores: DedicatedCore or VCPU. Defaults to DedicatedCore. Prefer this over the deprecated cpu_family."`
 	K8sVersion        *string                    `json:"k8s_version,omitempty" jsonschema:"the Kubernetes version the worker nodes run, e.g. 1.31.2. Omit to take the cluster's version. Must be one of the cluster's viableNodePoolVersions (see get_k8s_cluster)."`

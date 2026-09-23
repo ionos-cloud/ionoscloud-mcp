@@ -36,7 +36,7 @@ func registerCreateVolume(server *mcp.Server, client *ionos.APIClient, scope too
 			return tools.ErrorText("name is required to create a volume"), nil, nil
 		}
 		if volType == "" {
-			return tools.ErrorText("type is required to create a volume (HDD, SSD, SSD Standard, SSD Premium, or DAS)"), nil, nil
+			return tools.ErrorText("type is required to create a volume: " + tools.VolumeStorageTypeList + ", or DAS for a CUBE server's inline volume"), nil, nil
 		}
 		if input.Size <= 0 {
 			return tools.ErrorText("size must be greater than 0 GB"), nil, nil

@@ -60,12 +60,22 @@ func normalizeServerType(v string) (ionos.KubernetesNodePoolServerType, string) 
 	return st, ""
 }
 
-var storageTypes = map[string]string{"hdd": "HDD", "ssd": "SSD"}
+var storageTypes = map[string]string{
+	"hdd": "HDD", "ssd": "SSD",
+	"essential": tools.StorageEssential, "performance": tools.StoragePerformance,
+}
 
 func normalizeStorageType(v string) (string, string) {
-	st, ok := storageTypes[strings.ToLower(strings.TrimSpace(v))]
+	key := strings.ToLower(strings.TrimSpace(v))
+	switch key {
+	case "balanced":
+		return "", fmt.Sprintf("storage_type %q is not offered for Kubernetes node pools; use PERFORMANCE, or ESSENTIAL for the cheaper class. BALANCED exists only for standalone volumes.", v)
+	case "ssd premium", "ssd_premium", "ssdpremium":
+		return "", fmt.Sprintf("storage_type %q is rejected by the node pool API with a 422 even though the published spec lists it; use PERFORMANCE instead.", v)
+	}
+	st, ok := storageTypes[key]
 	if !ok {
-		return "", fmt.Sprintf("storage_type %q is not valid; use HDD or SSD", v)
+		return "", fmt.Sprintf("storage_type %q is not valid; use %s", v, tools.K8sStorageTypeList)
 	}
 	return st, ""
 }
