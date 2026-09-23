@@ -333,10 +333,10 @@ func bootVolumeWarnings(serverType string, bv *tools.BootVolumeInput) []string {
 
 	var out []string
 	if strings.EqualFold(volType, dasVolumeType) {
-		out = append(out, fmt.Sprintf("boot_volume.type is DAS on a server of type %s. DAS storage is documented for template-sized CUBE servers, so the API may reject this; HDD, SSD, SSD Standard and SSD Premium are the usual types here.", shown))
+		out = append(out, fmt.Sprintf("boot_volume.type is DAS on a server of type %s. DAS storage is documented for template-sized CUBE servers, so the API may reject this; use %s here.", shown, tools.VolumeStorageTypeList))
 	}
 	if volType == "" {
-		out = append(out, fmt.Sprintf("boot_volume.type is not set on a server of type %s. Only template-sized CUBE and GPU servers are known to let the API choose, so consider naming a type (HDD, SSD, SSD Standard, SSD Premium).", shown))
+		out = append(out, fmt.Sprintf("boot_volume.type is not set on a server of type %s. Only template-sized CUBE and GPU servers are known to let the API choose, so consider naming a type: %s.", shown, tools.VolumeStorageTypeList))
 	}
 	if bv.Size == nil || *bv.Size <= 0 {
 		out = append(out, fmt.Sprintf("boot_volume.size is not set on a server of type %s. Only template-sized CUBE and GPU servers take their size from the template, so the API may require one here.", shown))

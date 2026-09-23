@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Storage performance classes** on `create_volume`, `create_server`'s inline `boot_volume` and `create_k8s_nodepool`. IONOS renamed the block-storage tiers: `ESSENTIAL`, `BALANCED` and `PERFORMANCE` are the current names for `HDD`, `SSD Standard` and `SSD Premium`. The legacy names still work but are deprecated for new volumes, so every tool that takes a storage type now lists the classes first and names the legacy value each one replaces. A model asked for a `BALANCED` volume no longer has to guess.
+
 ## 1.1.1
 
 ### Added

@@ -60,12 +60,24 @@ func normalizeServerType(v string) (ionos.KubernetesNodePoolServerType, string) 
 	return st, ""
 }
 
-var storageTypes = map[string]string{"hdd": "HDD", "ssd": "SSD"}
+var storageTypes = map[string]string{
+	"hdd": "HDD", "ssd": "SSD",
+	"essential": tools.StorageEssential, "performance": tools.StoragePerformance,
+}
 
+// Verified live: the API answers 422 naming [HDD, SSD, ESSENTIAL, PERFORMANCE], so
+// SSD Premium stays refused here even though the published spec lists it.
 func normalizeStorageType(v string) (string, string) {
-	st, ok := storageTypes[strings.ToLower(strings.TrimSpace(v))]
+	key := strings.ToLower(strings.TrimSpace(v))
+	switch key {
+	case "balanced":
+		return "", fmt.Sprintf("storage_type %q is not accepted for Kubernetes node pools; use PERFORMANCE, or ESSENTIAL for the cheaper class. BALANCED is a Compute Engine volume type — it is valid on create_volume and on a server's inline boot_volume.", v)
+	case "ssd premium", "ssd_premium", "ssdpremium":
+		return "", fmt.Sprintf("storage_type %q is not accepted for Kubernetes node pools; use PERFORMANCE instead. SSD Premium is a Compute Engine volume type — it is valid on create_volume and on a server's inline boot_volume.", v)
+	}
+	st, ok := storageTypes[key]
 	if !ok {
-		return "", fmt.Sprintf("storage_type %q is not valid; use HDD or SSD", v)
+		return "", fmt.Sprintf("storage_type %q is not valid; use %s", v, tools.K8sStorageTypeList)
 	}
 	return st, ""
 }

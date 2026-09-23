@@ -114,8 +114,8 @@ The cluster must already be `ACTIVE`, and `datacenter_id` must name a data cente
 | `cores_count` | integer | Yes | CPU cores per node. Immutable |
 | `ram_size` | integer | Yes | RAM per node in MB: a multiple of 1024, at least 2048. Immutable |
 | `availability_zone` | string | Yes | `AUTO`, `ZONE_1` or `ZONE_2`. Immutable |
-| `storage_type` | string | Yes | `HDD` or `SSD`. Immutable |
-| `storage_size` | integer | Yes | Volume size per node in GB (>100 GB recommended for SSD). Immutable |
+| `storage_type` | string | Yes | `ESSENTIAL` or `PERFORMANCE` (the performance classes), or the legacy `HDD`, `SSD`. `BALANCED` and `SSD Premium` are Compute Engine volume types and are **not** accepted here, despite `SSD Premium` appearing in the published spec. Immutable |
+| `storage_size` | integer | Yes | Volume size per node in GB (>100 GB recommended for the SSD-backed types). Immutable |
 | `cpu_family` | string | No | **Deprecated by IONOS — use `server_type` instead.** e.g. `INTEL_ICELAKE`; IONOS picks one available at the location if omitted. An empty string is rejected. Immutable |
 | `server_type` | string | No | `DedicatedCore` (default) or `VCPU` |
 | `k8s_version` | string | No | Worker node version; defaults to the cluster's. Must be one of the cluster's `viableNodePoolVersions` |

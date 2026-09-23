@@ -78,7 +78,7 @@ Pass `boot_volume` to create the server's disk **in the same request**. For the 
 |---|---|---|---|
 | CUBE | **required** | **required**, must be `DAS` | must be **omitted** (fixed by `template_uuid`) |
 | GPU | **required** | *optional* — omit to let the API choose, or `SSD Premium` | must be **omitted** (fixed by `template_uuid`) |
-| ENTERPRISE, VCPU | optional (recommended) | usually `HDD`, `SSD`, `SSD Standard`, `SSD Premium` | usually required |
+| ENTERPRISE, VCPU | optional (recommended) | usually `ESSENTIAL`, `BALANCED` or `PERFORMANCE` (or the legacy `HDD`, `SSD`, `SSD Standard`, `SSD Premium`) | usually required |
 
 Only the CUBE and GPU rules above are enforced, because they are documented and a
 server created the wrong way cannot be repaired by attaching a volume afterwards.

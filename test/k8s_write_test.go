@@ -392,6 +392,34 @@ func TestCreateK8sNodepoolTwoPhase(t *testing.T) {
 	}
 }
 
+// Every value the node pool API accepts reaches it in the spec's spelling.
+func TestCreateK8sNodepoolStorageTypes(t *testing.T) {
+	for _, tc := range []struct{ in, want string }{
+		{"ESSENTIAL", "ESSENTIAL"},
+		{"essential", "ESSENTIAL"},
+		{"PERFORMANCE", "PERFORMANCE"},
+		{"HDD", "HDD"},
+		{"ssd", "SSD"},
+	} {
+		t.Run(tc.in, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+			_, res := previewThenExecute(t, h, "create_k8s_nodepool", map[string]any{
+				"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+				"node_count": 2, "cores_count": 4, "ram_size": 4096,
+				"availability_zone": "AUTO", "storage_type": tc.in, "storage_size": 100,
+			})
+			if res.IsError {
+				t.Fatalf("execute must succeed: %s", resultText(res))
+			}
+			want := fmt.Sprintf(`"storageType":%q`, tc.want)
+			if body := singleRequest(t, h, http.MethodPost).Body; !strings.Contains(body, want) {
+				t.Errorf("POST body missing %s: %s", want, body)
+			}
+		})
+	}
+}
+
 // manyTaints builds n distinct taints, to push past the API's per-pool limit.
 func manyTaints(n int) []any {
 	out := make([]any, 0, n)
@@ -428,7 +456,9 @@ func TestCreateK8sNodepoolValidation(t *testing.T) {
 		{"ram not a multiple of 1024", base(map[string]any{"ram_size": 3000}), "multiple of 1024"},
 		{"ram below the minimum", base(map[string]any{"ram_size": 1024}), "at least 2048"},
 		{"zero cores", base(map[string]any{"cores_count": 0}), "cores_count must be at least 1"},
-		{"bad storage type", base(map[string]any{"storage_type": "nvme"}), "use HDD or SSD"},
+		{"bad storage type", base(map[string]any{"storage_type": "nvme"}), "ESSENTIAL or PERFORMANCE"},
+		{"BALANCED is a Compute Engine volume type", base(map[string]any{"storage_type": "BALANCED"}), "Compute Engine volume type"},
+		{"SSD Premium is a Compute Engine volume type", base(map[string]any{"storage_type": "SSD Premium"}), "Compute Engine volume type"},
 		{"bad availability zone", base(map[string]any{"availability_zone": "ZONE_9"}), "use AUTO, ZONE_1 or ZONE_2"},
 		{"bad server type", base(map[string]any{"server_type": "shared"}), "use DedicatedCore"},
 		{"zero node count", base(map[string]any{"node_count": 0}), "node_count must be at least 1"},

@@ -81,7 +81,7 @@ The new volume is **not attached to any server** — use `attach_server_volume` 
 | `datacenter_id` | string | Yes | The ID of the data center to create the volume in. |
 | `name` | string | Yes | The name of the new volume. |
 | `size` | number | Yes | Size in GB. |
-| `type` | string | Yes | `HDD`, `SSD`, `SSD Standard`, `SSD Premium` or `DAS`. `DAS` works only inline with a CUBE server and ignores `size`. |
+| `type` | string | Yes | `ESSENTIAL`, `BALANCED` or `PERFORMANCE` (the performance classes), or the legacy `HDD`, `SSD`, `SSD Standard`, `SSD Premium`. `DAS` works only inline with a CUBE server and ignores `size`. |
 | `image` | string | No | Image or snapshot ID to use as the template. See `list_images`, `list_snapshots`. |
 | `image_alias` | string | No | Image alias, e.g. `ubuntu:latest`. An alternative to `image`. |
 | `image_password` | string | No | Initial root/administrator password; public images only. Characters `a-z`, `A-Z`, `0-9`, minimum 8. **Cannot be changed later.** |
