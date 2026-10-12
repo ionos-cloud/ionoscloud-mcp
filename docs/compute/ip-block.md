@@ -2,12 +2,12 @@
 subcategory: "Compute Engine"
 page_title: "IP Block"
 description: |-
-  Tools for listing, inspecting, and (opt-in) reserving and releasing public IP blocks in IONOS CLOUD.
+  Tools for listing, inspecting, and (opt-in) reserving, renaming and releasing public IP blocks in IONOS CLOUD.
 ---
 
 # IP Blocks
 
-The `list_*` and `get_*` tools are always available. The write tools register only when `IONOS_MCP_TOOL_SCOPE` opts in (`write` enables create; `destructive` also enables delete). `create_*` and `delete_*` use a two-phase confirmation: call once **without** `confirmation_token` to get a preview plus a one-time token, then call again **with** that token to execute.
+The `list_*` and `get_*` tools are always available. The write tools register only when `IONOS_MCP_TOOL_SCOPE` opts in (`write` enables create and update; `destructive` also enables delete). `create_*` and `delete_*` use a two-phase confirmation: call once **without** `confirmation_token` to get a preview plus a one-time token, then call again **with** that token to execute.
 
 ## list_ip_blocks
 
@@ -71,11 +71,40 @@ An IP block belongs to the **account**, not to a data center — but its `locati
 |------|------|----------|-------------|
 | `location` | string | Yes | Where to reserve the addresses, e.g. `de/fra`. Must match the data center that will use them. Immutable. |
 | `size` | integer | Yes | How many addresses to reserve. Immutable. |
-| `name` | string | No | A name for the block — the only property you can change later. |
+| `name` | string | No | A name for the block — the only property you can change later, with `update_ip_block`. |
 | `confirmation_token` | string | No | Omit on the first call for a preview + token; pass it (with the same `location` and `size`) on the second call. |
 
 **API Reference:** [ipblocksPost](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksPost)
 
+
+---
+
+## update_ip_block
+
+Renames a reserved IP block. Requires `IONOS_MCP_TOOL_SCOPE` to include `write`. Single call — no confirmation token.
+
+The name is the only property that can change: the API disallows `location` in update requests, so the request carries the name alone, and `size` is fixed once reserved. Renaming does not touch the addresses or the resources using them.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `ipblock_id` | string | Yes | The ID of the block to rename. |
+| `name` | string | Yes | The new name. Cannot be blank. |
+
+**Example:**
+
+```json
+{
+  "name": "update_ip_block",
+  "arguments": {
+    "ipblock_id": "12345678-1234-1234-1234-123456789012",
+    "name": "web-ips"
+  }
+}
+```
+
+**API Reference:** [ipblocksPatch](https://api.ionos.com/docs/cloud/v6/#tag/IP-Blocks/operation/ipblocksPatch)
 
 ---
 

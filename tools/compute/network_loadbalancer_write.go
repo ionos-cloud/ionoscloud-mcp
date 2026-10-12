@@ -26,7 +26,7 @@ func RegisterNetworkLoadBalancerWriteTools(server *mcp.Server, client *ionos.API
 }
 
 // nlbState is the subset of the load balancer's state the write tools need:
-// enough for update to carry values forward and for delete to size its blast radius.
+// enough for update to check a LAN change and for delete to size its blast radius.
 type nlbState struct {
 	Name        string
 	ListenerLan int32
@@ -53,10 +53,8 @@ func readNlb(ctx context.Context, client *ionos.APIClient, dcID, id string) (nlb
 	return st, nil
 }
 
-// buildNlbProperties builds the properties body. name, listenerLan and targetLan are
-// serialized unconditionally, so every caller must pass the values it wants kept —
-// an update that omitted them would move the balancer off both its networks.
-func buildNlbProperties(name string, listenerLan, targetLan int32, f tools.ManagedLoadBalancerFields) *ionos.NetworkLoadBalancerProperties {
+// buildNlbProperties builds the properties body; a nil name or LAN is left out of it.
+func buildNlbProperties(name *string, listenerLan, targetLan *int32, f tools.ManagedLoadBalancerFields) *ionos.NetworkLoadBalancerProperties {
 	props := &ionos.NetworkLoadBalancerProperties{Name: name, ListenerLan: listenerLan, TargetLan: targetLan}
 	if len(f.Ips) > 0 {
 		props.SetIps(f.Ips)
@@ -77,7 +75,7 @@ func registerNlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
 		Name: "create_network_loadbalancer",
 		Description: "Create one network load balancer. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same datacenter_id and name) to create it. It forwards traffic at the transport layer (TCP/UDP) to a list of IP targets defined in its forwarding rules. " +
-			"listener_lan is the LAN clients connect on (usually public) and target_lan the LAN holding the backends (usually private); they must differ. " +
+			"listener_lan is the LAN clients connect on (usually public) and target_lan the LAN holding the backends (usually private); they must differ, and a public listener_lan needs at least one reserved public IP in ips. " +
 			"The new load balancer carries no traffic until you add a forwarding rule to it. Creates exactly one per call.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -97,7 +95,7 @@ func registerNlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 			if err := confirm.Consume(*input.ConfirmationToken, "create_network_loadbalancer", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("create_network_loadbalancer", "datacenter_id and name", err)), nil, nil
 			}
-			props := buildNlbProperties(name, input.ListenerLan, input.TargetLan, input.ManagedLoadBalancerFields)
+			props := buildNlbProperties(&name, &input.ListenerLan, &input.TargetLan, input.ManagedLoadBalancerFields)
 			body := ionos.NewNetworkLoadBalancer(*props)
 			created, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersPost(ctx, dcID).NetworkLoadBalancer(*body).Execute()
 			return tools.ToResult(created, err)
@@ -129,9 +127,8 @@ func registerNlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 func registerNlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
 		Name: "update_network_loadbalancer",
-		Description: "Update a network load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide). " +
-			"Omit name, listener_lan or target_lan to keep the current value — each is read and sent back unchanged, because the API always receives all three and empty values would move the load balancer off both of its networks. " +
-			"Changing listener_lan moves where clients connect; changing target_lan repoints it at a different backend network. Its forwarding rules are managed separately.",
+		Description: "Update a network load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide); anything you omit keeps its current value. " +
+			"Changing listener_lan moves where clients connect; changing target_lan repoints it at a different backend network, and the two must stay different. Its forwarding rules are managed separately.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
 		id := strings.TrimSpace(input.LoadBalancerID)
@@ -146,34 +143,32 @@ func registerNlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.
 			input.CentralLogging == nil && input.LoggingFormat == nil {
 			return tools.ErrorText("nothing to update: provide at least one of name, listener_lan, target_lan, ips, lb_private_ips, central_logging, logging_format"), nil, nil
 		}
-
-		// name, listenerLan and targetLan are serialized unconditionally, so read
-		// the current values and let the caller's input override only what it set.
-		current, err := readNlb(ctx, client, dcID, id)
-		if err != nil {
-			if tools.IsNotFound(err) {
-				return tools.ErrorText(fmt.Sprintf("network load balancer %s does not exist in data center %s; nothing to update", id, dcID)), nil, nil
-			}
-			return tools.ToResult(nil, err)
-		}
-		name, listenerLan, targetLan := current.Name, current.ListenerLan, current.TargetLan
-		if input.Name != nil {
-			if strings.TrimSpace(*input.Name) == "" {
-				return tools.ErrorText("name must not be empty; omit it entirely to keep the current name"), nil, nil
-			}
-			name = *input.Name
-		}
-		if input.ListenerLan != nil {
-			listenerLan = *input.ListenerLan
-		}
-		if input.TargetLan != nil {
-			targetLan = *input.TargetLan
-		}
-		if msg := validateListenerAndTargetLan(listenerLan, targetLan); msg != "" {
-			return tools.ErrorText(msg), nil, nil
+		if input.Name != nil && strings.TrimSpace(*input.Name) == "" {
+			return tools.ErrorText("name must not be empty; omit it entirely to keep the current name"), nil, nil
 		}
 
-		props := buildNlbProperties(name, listenerLan, targetLan, input.ManagedLoadBalancerFields)
+		// A LAN change is checked against the current other side, since the two must differ.
+		if input.ListenerLan != nil || input.TargetLan != nil {
+			current, err := readNlb(ctx, client, dcID, id)
+			if err != nil {
+				if tools.IsNotFound(err) {
+					return tools.ErrorText(fmt.Sprintf("network load balancer %s does not exist in data center %s; nothing to update", id, dcID)), nil, nil
+				}
+				return tools.ToResult(nil, err)
+			}
+			listenerLan, targetLan := current.ListenerLan, current.TargetLan
+			if input.ListenerLan != nil {
+				listenerLan = *input.ListenerLan
+			}
+			if input.TargetLan != nil {
+				targetLan = *input.TargetLan
+			}
+			if msg := validateListenerAndTargetLan(listenerLan, targetLan); msg != "" {
+				return tools.ErrorText(msg), nil, nil
+			}
+		}
+
+		props := buildNlbProperties(input.Name, input.ListenerLan, input.TargetLan, input.ManagedLoadBalancerFields)
 		updated, _, err := client.NetworkLoadBalancersApi.DatacentersNetworkloadbalancersPatch(ctx, dcID, id).NetworkLoadBalancerProperties(*props).Execute()
 		return tools.ToResult(updated, err)
 	})

@@ -169,8 +169,6 @@ The per-node hardware and `datacenter_id` are immutable and therefore not accept
 
 > **`NoExecute` evicts pods that are already running.** Of the three taint effects only `NoSchedule` (block new pods without a matching toleration) and `PreferNoSchedule` (avoid them where possible) are limited to scheduling decisions — `NoExecute` also removes pods already on the pool's nodes. Adding one to a running pool takes effect as soon as the update is applied, so confirm it with the user first.
 
-> **An autoscaler cannot be switched off.** Its bounds can be changed, but there is no request that removes one from an existing pool — the API answers `422` for zero bounds and silently ignores an omitted `autoScaling`, both verified against a live account. Passing zero bounds is therefore rejected with an explanation rather than accepted as a no-op. To end up with a fixed-size pool, delete this one and create a new pool without `auto_scaling`. This is an IONOS API limitation; `ionosctl` has the same gap.
-
 Call `get_k8s_nodepool` first if you intend to supply any of the list-valued fields — each **replaces** the current value rather than adding to it.
 
 **Parameters:**
@@ -183,7 +181,7 @@ Call `get_k8s_nodepool` first if you intend to supply any of the list-valued fie
 | `server_type` | string | No | `DedicatedCore` or `VCPU`. Omit to keep the current one |
 | `k8s_version` | string | No | Version to upgrade the nodes to. Only values from the pool's `availableUpgradeVersions` are accepted; the upgrade replaces every node and is not reversible |
 | `maintenance_window` | object | No | New window. Omit to keep the current one |
-| `auto_scaling` | object | No | New bounds, both at least 1. Omit to keep the current setting. **An existing autoscaler cannot be removed** — see below |
+| `auto_scaling` | object | No | New bounds, both at least 1. Send `{}`, or both bounds `null`, to turn the autoscaler off. Omit to keep the current setting |
 | `lans` | object[] | No | **Replaces** the attached LANs. Omit to keep them; pass `[]` to detach them all |
 | `labels` | object | No | **Replaces** the node labels. Omit to keep them; pass `{}` to remove them all |
 | `annotations` | object | No | **Replaces** the node annotations. Omit to keep them; pass `{}` to remove them all |

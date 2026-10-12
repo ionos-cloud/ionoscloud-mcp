@@ -6,6 +6,20 @@
 
 - **Storage performance classes** on `create_volume`, `create_server`'s inline `boot_volume` and `create_k8s_nodepool`. IONOS renamed the block-storage tiers: `ESSENTIAL`, `BALANCED` and `PERFORMANCE` are the current names for `HDD`, `SSD Standard` and `SSD Premium`. The legacy names still work but are deprecated for new volumes, so every tool that takes a storage type now lists the classes first and names the legacy value each one replaces. A model asked for a `BALANCED` volume no longer has to guess.
 
+- **`update_ip_block`** renames a reserved IP block. The name is the only property it can change — `location` is disallowed in update requests and `size` is fixed once reserved — so the PATCH carries the name alone. Until compute SDK v2.0.9 made `location` and `size` optional, every body the SDK could build carried both, so the tool was deliberately absent.
+
+- **Turning a node pool's autoscaler off** with `update_k8s_nodepool`: send `auto_scaling` as an empty object, or with both bounds `null`, as the API itself expects. Both bounds go out as `null`, which switches the autoscaler off, and the pool stays at `node_count`; zero bounds are rejected, as the API rejects them. Until compute SDK v2.0.8 made the bounds nullable, the SDK always serialized both, so no request could remove an autoscaler.
+
+### Changed
+
+- **Compute SDK v2.0.9.** `update_network_loadbalancer` and `update_application_loadbalancer` now send only the fields you supply. They used to read the balancer and send its name and both LANs back on every update, because the SDK always serialized them; a LAN change still reads it first, to check the listener and target LANs stay different.
+
+### Fixed
+
+- **Application load balancer `SOURCE_IP` conditions.** `create_alb_forwarding_rule` and `update_alb_forwarding_rule` now accept a `SOURCE_IP` condition, which matches `value` as a CIDR and takes no `condition`; every other type still requires one. Updating a rule that already had a `SOURCE_IP` condition used to send it back with `"condition": ""`, which the API rejects. The `condition` description now lists the values the API accepts: `EXISTS` was missing, and `LESS_THAN` and `GREATER_THAN` are not valid.
+
+- **Load balancer `ips` description.** `create_network_loadbalancer` and `create_application_loadbalancer` described `ips` as "Omit to have addresses assigned automatically", but a load balancer on a public listener LAN needs customer-reserved public IPs, and the API rejects it without them (`422`, "Attribute 'ips' is required"). The description now says `ips` is required on a public listener LAN and optional on a private one, and what omitting it means on an update.
+
 ## 1.1.1
 
 ### Added

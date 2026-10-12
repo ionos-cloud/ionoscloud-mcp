@@ -332,24 +332,29 @@ func s3BucketNames(buckets []ionos.S3Bucket) string {
 	return strings.Join(names, ", ")
 }
 
-// Verified live: the API answers 422 for zero bounds and ignores an omitted
-// autoScaling, so nothing removes an autoscaler. Rejected rather than silently no-op'd.
-const disableAutoScalingUnsupported = "auto_scaling cannot be turned off here: the API rejects zero bounds and ignores an omitted autoScaling, so no request removes an autoscaler. " +
-	"For fixed-size behaviour set both bounds to the same value, or recreate the node pool without auto_scaling."
+const noAutoScalerHint = "send both bounds as null, or auto_scaling as {}, for no autoscaler"
 
 func buildAutoScaling(in *tools.K8sAutoScalingInput) (*ionos.KubernetesAutoScaling, string) {
 	if in == nil {
 		return nil, ""
 	}
+	auto := ionos.NewKubernetesAutoScaling()
 	switch {
-	case in.MinNodeCount == 0 && in.MaxNodeCount == 0:
-		return nil, disableAutoScalingUnsupported
-	case in.MinNodeCount < 1:
-		return nil, fmt.Sprintf("auto_scaling.min_node_count must be at least 1, got %d. %s", in.MinNodeCount, disableAutoScalingUnsupported)
-	case in.MaxNodeCount < in.MinNodeCount:
-		return nil, fmt.Sprintf("auto_scaling.max_node_count (%d) must be >= min_node_count (%d)", in.MaxNodeCount, in.MinNodeCount)
+	// Null bounds are what switch an autoscaler off; the API rejects zero bounds.
+	case in.MinNodeCount == nil && in.MaxNodeCount == nil:
+		auto.SetMinNodeCountNil()
+		auto.SetMaxNodeCountNil()
+		return auto, ""
+	case in.MinNodeCount == nil || in.MaxNodeCount == nil:
+		return nil, "auto_scaling needs both min_node_count and max_node_count; " + noAutoScalerHint
+	case *in.MinNodeCount < 1:
+		return nil, fmt.Sprintf("auto_scaling.min_node_count must be at least 1, got %d; %s", *in.MinNodeCount, noAutoScalerHint)
+	case *in.MaxNodeCount < *in.MinNodeCount:
+		return nil, fmt.Sprintf("auto_scaling.max_node_count (%d) must be >= min_node_count (%d)", *in.MaxNodeCount, *in.MinNodeCount)
 	}
-	return ionos.NewKubernetesAutoScaling(in.MinNodeCount, in.MaxNodeCount), ""
+	auto.SetMinNodeCount(*in.MinNodeCount)
+	auto.SetMaxNodeCount(*in.MaxNodeCount)
+	return auto, ""
 }
 
 // autoScalingActive distinguishes a live autoscaler from the {0,0} the API returns for

@@ -441,8 +441,15 @@ type NatGatewayIDInput struct {
 type CreateIpBlockInput struct {
 	Location          string  `json:"location" jsonschema:"the physical location to reserve the addresses in, e.g. de/fra, de/txl, us/las, us/ewr, gb/lhr, es/vit, fr/par. Must match the location of the data center whose resources will use them, and cannot be changed afterwards."`
 	Size              int32   `json:"size" jsonschema:"how many public IPv4 addresses to reserve. Cannot be changed afterwards — reserve a new block if you need more."`
-	Name              *string `json:"name,omitempty" jsonschema:"a name for the block, which is the only property you can change later"`
+	Name              *string `json:"name,omitempty" jsonschema:"a name for the block, which is the only property you can change later (with update_ip_block)"`
 	ConfirmationToken *string `json:"confirmation_token,omitempty" jsonschema:"leave empty on the FIRST call to receive a preview plus a one-time token; pass that token on the SECOND call (with the same location and size) to actually reserve the block. The token expires after a few minutes."`
+}
+
+// UpdateIpBlockInput is the input for update_ip_block. Only the name can change:
+// location is disallowed in update requests and size is fixed once reserved.
+type UpdateIpBlockInput struct {
+	IpBlockID string `json:"ipblock_id" jsonschema:"the ID of the IP block to rename"`
+	Name      string `json:"name" jsonschema:"the new name for the block"`
 }
 
 // DeleteIpBlockInput is the input for delete_ip_block. Two-phase confirmed; the
@@ -586,7 +593,7 @@ type DeletePccInput struct {
 // ManagedLoadBalancerFields are the properties shared by network and application
 // load balancers, whose API models are field-for-field identical.
 type ManagedLoadBalancerFields struct {
-	Ips            []string `json:"ips,omitempty" jsonschema:"public IPv4 addresses the load balancer listens on. They must come from a reserved IP block in the same location (see list_ip_blocks and create_ip_block). Omit to have addresses assigned automatically."`
+	Ips            []string `json:"ips,omitempty" jsonschema:"the IPs the load balancer listens on, on listener_lan. Required when listener_lan is a public LAN: give reserved public IPs from an IP block in the same location (see list_ip_blocks and create_ip_block). Optional on a private listener_lan, where any IPs given must be private. On an update, supplying this replaces the list and omitting it keeps the current one."`
 	LbPrivateIps   []string `json:"lb_private_ips,omitempty" jsonschema:"private IPs the load balancer uses to reach its targets on the target LAN, in CIDR form. Omit to have them assigned automatically."`
 	CentralLogging *bool    `json:"central_logging,omitempty" jsonschema:"send the load balancer's logs to the central logging service"`
 	LoggingFormat  *string  `json:"logging_format,omitempty" jsonschema:"the log line format to use when central_logging is on"`
@@ -604,12 +611,11 @@ type CreateManagedLoadBalancerInput struct {
 }
 
 // UpdateManagedLoadBalancerInput is the input for update_network_loadbalancer and
-// update_application_loadbalancer. Partial update: name, listener_lan and target_lan
-// are read from the current resource and carried forward when omitted.
+// update_application_loadbalancer. Partial update: only the supplied fields are sent.
 type UpdateManagedLoadBalancerInput struct {
 	DatacenterID   string  `json:"datacenter_id" jsonschema:"the ID of the data center the load balancer is in"`
 	LoadBalancerID string  `json:"loadbalancer_id" jsonschema:"the ID of the load balancer to update"`
-	Name           *string `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one — it is read and sent back unchanged."`
+	Name           *string `json:"name,omitempty" jsonschema:"a new name. Omit to keep the current one."`
 	ListenerLan    *int32  `json:"listener_lan,omitempty" jsonschema:"move the listener to this LAN ID. Omit to keep the current LAN; changing it moves where clients connect."`
 	TargetLan      *int32  `json:"target_lan,omitempty" jsonschema:"move the target side to this LAN ID. Omit to keep the current LAN; changing it repoints the load balancer at a different backend network."`
 	ManagedLoadBalancerFields
@@ -717,10 +723,10 @@ type DeleteNlbForwardingRuleInput struct {
 // applies to a request.
 type AlbHttpRuleConditionInput struct {
 	Type      string  `json:"type" jsonschema:"what to match on: HEADER, PATH, QUERY, METHOD, HOST, COOKIE or SOURCE_IP"`
-	Condition string  `json:"condition" jsonschema:"how to match: EQUALS, LESS_THAN, GREATER_THAN, STARTS_WITH, ENDS_WITH, CONTAINS or MATCHES"`
+	Condition *string `json:"condition,omitempty" jsonschema:"how to match: EXISTS, CONTAINS, EQUALS, MATCHES, STARTS_WITH or ENDS_WITH. Required for every type except SOURCE_IP, where it must be omitted."`
 	Negate    *bool   `json:"negate,omitempty" jsonschema:"invert the match, so the rule applies when the condition does NOT hold"`
 	Key       *string `json:"key,omitempty" jsonschema:"the name to match against, e.g. the header or cookie name. Not used for PATH, METHOD, HOST or SOURCE_IP."`
-	Value     *string `json:"value,omitempty" jsonschema:"the value to match against"`
+	Value     *string `json:"value,omitempty" jsonschema:"the value to match against; for SOURCE_IP, the CIDR to match"`
 }
 
 // AlbHttpRuleInput is one HTTP routing rule on an application load balancer
@@ -1403,10 +1409,10 @@ type K8sMaintenanceWindowInput struct {
 	Time         string `json:"time" jsonschema:"the time the window opens, as HH:mm:ss (e.g. 03:30:00), optionally suffixed with Z. The actual start may vary by up to 15 minutes."`
 }
 
-// K8sAutoScalingInput turns the cluster autoscaler on. Once set it owns the node count.
+// K8sAutoScalingInput bounds the cluster autoscaler; both null, or an empty object, means no autoscaler.
 type K8sAutoScalingInput struct {
-	MinNodeCount int32 `json:"min_node_count" jsonschema:"the fewest worker nodes the autoscaler may scale down to. Must be at least 1."`
-	MaxNodeCount int32 `json:"max_node_count" jsonschema:"the most worker nodes the autoscaler may scale up to. Must be greater than or equal to min_node_count."`
+	MinNodeCount *int32 `json:"min_node_count,omitempty" jsonschema:"the fewest worker nodes the autoscaler may scale down to. Must be at least 1. Null, together with max_node_count, means no autoscaler."`
+	MaxNodeCount *int32 `json:"max_node_count,omitempty" jsonschema:"the most worker nodes the autoscaler may scale up to. Must be greater than or equal to min_node_count. Null, together with min_node_count, means no autoscaler."`
 }
 
 // K8sNodePoolLanRouteInput is one static route. Both fields are optional per the spec.
@@ -1497,7 +1503,7 @@ type UpdateK8sNodepoolInput struct {
 	ServerType        *string                    `json:"server_type,omitempty" jsonschema:"a new server type: DedicatedCore or VCPU. Omit to keep the current one."`
 	K8sVersion        *string                    `json:"k8s_version,omitempty" jsonschema:"a Kubernetes version to upgrade the worker nodes to. Omit to keep the current one. Only the versions in the pool's availableUpgradeVersions (see get_k8s_nodepool) are accepted; upgrading replaces every node and is not reversible."`
 	MaintenanceWindow *K8sMaintenanceWindowInput `json:"maintenance_window,omitempty" jsonschema:"a new maintenance window. Omit to keep the current one."`
-	AutoScaling       *K8sAutoScalingInput       `json:"auto_scaling,omitempty" jsonschema:"new autoscaler bounds, both at least 1. Omit to keep the current setting. An existing autoscaler CANNOT be turned off through this endpoint — the API rejects zero bounds and ignores an omitted field — so recreate the node pool without auto_scaling if you need it gone."`
+	AutoScaling       *K8sAutoScalingInput       `json:"auto_scaling,omitempty" jsonschema:"new autoscaler bounds, both at least 1. Send an empty object, or both bounds null, to turn the autoscaler off and keep the pool at node_count. Omit to keep the current setting."`
 	Lans              []K8sNodePoolLanInput      `json:"lans,omitempty" jsonschema:"REPLACE the attached private LANs with this list. Include every LAN the pool should keep — any you leave out is detached from the worker nodes. Omit the field to keep the current LANs; pass an empty array to detach them all."`
 	Labels            map[string]string          `json:"labels,omitempty" jsonschema:"REPLACE the node labels with these key-value pairs. Omit the field to keep the current labels; pass an empty object to remove them all."`
 	Annotations       map[string]string          `json:"annotations,omitempty" jsonschema:"REPLACE the node annotations with these key-value pairs. Omit the field to keep the current annotations; pass an empty object to remove them all."`

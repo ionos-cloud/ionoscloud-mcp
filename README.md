@@ -242,14 +242,14 @@ Unrecognised values fall back to read-only, and the effective scope is logged to
 | Area | Resources |
 |------|-----------|
 | Compute | data centers, servers (+ start/stop/reboot/suspend/resume/upgrade), volumes (+ snapshot & restore, attach/detach), NICs, LANs |
-| Networking | IP blocks (reserve and release only), security groups + rules, firewall rules, private cross connects |
+| Networking | IP blocks (reserve, rename and release), security groups + rules, firewall rules, private cross connects |
 | Load balancing | classic, network and application load balancers + forwarding rules, target groups, NAT gateways + rules |
 | Images | snapshot and image update/delete |
 | Kubernetes | clusters, node pools (scale, upgrade, autoscaling, LANs, labels, annotations, taints), single nodes (recreate, delete) |
 | DNS | primary zones (+ BIND zone-file import), records, secondary zones (+ zone transfer), reverse records, DNSSEC enable/disable |
 | Certificate Manager | auto-certificates, ACME providers, certificate rename/delete — renames only change the name, the rest is immutable. Uploading certificate material is deliberately **not** offered: it would require passing a private key as a tool argument. |
 
-101 tools in total. The server exposes 118 at the default read-only scope, 180 with `write`, and 219 with `destructive`. Reads are unaffected and always available.
+102 tools in total. The server exposes 118 at the default read-only scope, 181 with `write`, and 220 with `destructive`. Reads are unaffected and always available.
 
 **Two-phase confirmation.** Every `create_*` and `delete_*`, plus the disruptive actions (`stop_`, `reboot_`, `suspend_`, `upgrade_`, `restore_`, `detach_`, `recreate_`), is confirmation-gated, along with the DNS zone-file import. The first call performs no mutation: it returns a preview — for a delete, a blast-radius summary of what will be destroyed — plus a single-use `confirmation_token` (5-minute TTL, bound to that exact target and operation). Only a second call carrying that token executes. This keeps a human in the loop and limits the agent to one resource per call. Reversible single-field changes (`update_*`, `start_`, `attach_`, `assign_`) are a single call.
 
