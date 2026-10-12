@@ -593,7 +593,7 @@ type DeletePccInput struct {
 // ManagedLoadBalancerFields are the properties shared by network and application
 // load balancers, whose API models are field-for-field identical.
 type ManagedLoadBalancerFields struct {
-	Ips            []string `json:"ips,omitempty" jsonschema:"the IPs the load balancer listens on, on listener_lan. Required when listener_lan is a public LAN: give reserved public IPs from an IP block in the same location (see list_ip_blocks and create_ip_block). Optional on a private listener_lan, where any IPs given must be private. On an update, supplying this replaces the list and omitting it keeps the current one."`
+	Ips            []string `json:"ips,omitempty" jsonschema:"the IPs the load balancer listens on, on listener_lan. Required when listener_lan is a public LAN: give reserved public IPs from an IP block in the same location (see list_ip_blocks and create_ip_block). Optional on a private listener_lan, where any IPs given must be private. On an update, a non-empty list replaces the current one; omitting it, or sending an empty list, keeps the current one."`
 	LbPrivateIps   []string `json:"lb_private_ips,omitempty" jsonschema:"private IPs the load balancer uses to reach its targets on the target LAN, in CIDR form. Omit to have them assigned automatically."`
 	CentralLogging *bool    `json:"central_logging,omitempty" jsonschema:"send the load balancer's logs to the central logging service"`
 	LoggingFormat  *string  `json:"logging_format,omitempty" jsonschema:"the log line format to use when central_logging is on"`

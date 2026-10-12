@@ -127,7 +127,7 @@ func registerAlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 func registerAlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
 		Name: "update_application_loadbalancer",
-		Description: "Update a application load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide); anything you omit keeps its current value. " +
+		Description: "Update an application load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide); anything you omit keeps its current value. " +
 			"Changing listener_lan moves where clients connect; changing target_lan repoints it at a different backend network, and the two must stay different. Its forwarding rules are managed separately.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -177,7 +177,7 @@ func registerAlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.
 func registerAlbDelete(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodDelete, &mcp.Tool{
 		Name: "delete_application_loadbalancer",
-		Description: "Delete a application load balancer and all of its forwarding rules. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview and a one-time token, then call again WITH the token to delete. " +
+		Description: "Delete an application load balancer and all of its forwarding rules. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview and a one-time token, then call again WITH the token to delete. " +
 			"Clients connecting to its listener addresses stop reaching the backends, so this takes the service behind it offline. The backend servers themselves are not deleted. This is irreversible.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -214,7 +214,7 @@ func registerAlbDelete(server *mcp.Server, client *ionos.APIClient, scope tools.
 			return nil, nil, mErr
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to DELETE a application load balancer. This is IRREVERSIBLE.\n" +
+			Headline: "About to DELETE an application load balancer. This is IRREVERSIBLE.\n" +
 				"Clients connecting to the listener addresses below stop reaching the backends, so the service behind it goes offline. The backend servers themselves are not deleted.",
 			Fields: tools.Fields(
 				"datacenter_id", dcID,

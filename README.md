@@ -74,7 +74,7 @@ Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are 
 | [Certificate Manager](docs/cert/) | 6 + 8 write | Certificates, auto-certificates, providers |
 | [Activity Log](docs/activitylog/) | 2 | Contracts, events |
 
-**118 read-only tools**, plus **101 opt-in write tools** on Compute Engine, Kubernetes, DNS and Certificate Manager — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
+**118 read-only tools**, plus **102 opt-in write tools** on Compute Engine, Kubernetes, DNS and Certificate Manager — see [Write operations](#write-operations). For per-tool input/output schemas, see the [per-product docs](docs/) or the full [Tool Reference](https://docs.ionos.com/cloud/ai/mcp-server/tool-reference) at docs.ionos.com.
 
 ## Installation
 
