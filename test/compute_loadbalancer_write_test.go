@@ -99,9 +99,9 @@ func TestManagedLoadBalancerLanValidation(t *testing.T) {
 	}
 }
 
-// TestUpdateManagedLoadBalancerCarriesRequiredFields checks that a PATCH omitting
-// name/listenerLan/targetLan doesn't zero them out and move the LB off its networks.
-func TestUpdateManagedLoadBalancerCarriesRequiredFields(t *testing.T) {
+// TestUpdateManagedLoadBalancerSendsOnlySuppliedLan checks a LAN move reads the current
+// state only to compare the two LANs, and PATCHes the moved LAN alone.
+func TestUpdateManagedLoadBalancerSendsOnlySuppliedLan(t *testing.T) {
 	for _, f := range managedLbFlavours {
 		t.Run(f.tool, func(t *testing.T) {
 			h := destructiveSetup(t)
@@ -109,30 +109,22 @@ func TestUpdateManagedLoadBalancerCarriesRequiredFields(t *testing.T) {
 				"name":"edge-lb","listenerLan":7,"targetLan":9,"ips":["1.2.3.4"]}}`)
 
 			res := callTool(t, h, "update_"+f.tool, map[string]any{
-				"datacenter_id": dcID, "loadbalancer_id": "lb-1", "central_logging": true,
+				"datacenter_id": dcID, "loadbalancer_id": "lb-1", "listener_lan": 5,
 			})
 			if res.IsError {
 				t.Fatalf("update failed: %s", resultText(res))
 			}
 
 			reqs := h.log.allRequests()
-			if len(reqs) != 2 || reqs[0].Method != http.MethodGet {
-				t.Fatalf("expected a GET (to read the required fields) then a PATCH, got %+v", reqs)
+			if len(reqs) != 2 || reqs[0].Method != http.MethodGet || reqs[1].Method != http.MethodPatch {
+				t.Fatalf("expected a GET (to compare the LANs) then a PATCH, got %+v", reqs)
 			}
-			patch := reqs[1]
-			if patch.Method != http.MethodPatch {
-				t.Fatalf("second request should be the PATCH, got %s", patch.Method)
+			var body map[string]any
+			if err := json.Unmarshal([]byte(reqs[1].Body), &body); err != nil {
+				t.Fatalf("PATCH body is not JSON (%v): %s", err, reqs[1].Body)
 			}
-			for _, want := range []string{`"name":"edge-lb"`, `"listenerLan":7`, `"targetLan":9`, `"centralLogging":true`} {
-				if !strings.Contains(patch.Body, want) {
-					t.Errorf("PATCH must carry %s:\n%s", want, patch.Body)
-				}
-			}
-			// The corruption this guards against.
-			for _, bad := range []string{`"listenerLan":0`, `"targetLan":0`, `"name":""`} {
-				if strings.Contains(patch.Body, bad) {
-					t.Errorf("PATCH must never send %s — it would move the load balancer off its networks:\n%s", bad, patch.Body)
-				}
+			if len(body) != 1 || body["listenerLan"] != float64(5) {
+				t.Errorf("PATCH should contain only listenerLan 5, got %s", reqs[1].Body)
 			}
 		})
 	}
@@ -163,7 +155,6 @@ func TestUpdateManagedLoadBalancerRejectsSameLanAfterMerge(t *testing.T) {
 
 func TestUpdateManagedLoadBalancerRejectsBlankName(t *testing.T) {
 	h := destructiveSetup(t)
-	h.resp.serve(nlbAPI+"/lb-1", `{"id":"lb-1","properties":{"name":"edge","listenerLan":1,"targetLan":2}}`)
 	res := callTool(t, h, "update_network_loadbalancer", map[string]any{
 		"datacenter_id": dcID, "loadbalancer_id": "lb-1", "name": "  ",
 	})
@@ -185,7 +176,7 @@ func TestUpdateManagedLoadBalancerRejectsEmptyUpdate(t *testing.T) {
 			if !res.IsError {
 				t.Fatal("an update with no fields should be rejected")
 			}
-			// Rejected before the carry-forward read, so nothing is fetched either.
+			// Rejected before any request, so nothing is fetched either.
 			if len(h.log.allRequests()) != 0 {
 				t.Error("an empty update must not reach the API")
 			}
@@ -241,6 +232,7 @@ func TestDeleteManagedLoadBalancerNotFound(t *testing.T) {
 // flavours must hit their own endpoints, not share one by accident.
 func TestManagedLoadBalancerToolsAreDistinct(t *testing.T) {
 	h := destructiveSetup(t)
+	// No ips: they are optional on a private listener LAN, so the tool must not demand them.
 	_, res := previewThenExecute(t, h, "create_network_loadbalancer", map[string]any{
 		"datacenter_id": dcID, "name": "n", "listener_lan": 1, "target_lan": 2,
 	})
@@ -521,6 +513,27 @@ func TestCreateAlbForwardingRuleTwoPhase(t *testing.T) {
 	}
 }
 
+// TestCreateAlbForwardingRuleSourceIpCondition checks a SOURCE_IP condition goes out with
+// no condition field, which the API requires to be null for that type.
+func TestCreateAlbForwardingRuleSourceIpCondition(t *testing.T) {
+	h := destructiveSetup(t)
+	_, res := previewThenExecute(t, h, "create_alb_forwarding_rule", map[string]any{
+		"datacenter_id": dcID, "loadbalancer_id": "lb-1", "name": "web",
+		"protocol": "HTTP", "listener_ip": "1.2.3.4", "listener_port": 80,
+		"http_rules": []map[string]any{
+			{"name": "internal", "type": "FORWARD", "target_group": "tg-1",
+				"conditions": []map[string]any{{"type": "SOURCE_IP", "value": "10.0.0.0/8"}}},
+		},
+	})
+	if res.IsError {
+		t.Fatalf("execute failed: %s", resultText(res))
+	}
+	req := singleRequest(t, h, http.MethodPost)
+	if !strings.Contains(req.Body, `"type":"SOURCE_IP"`) || strings.Contains(req.Body, `"condition"`) {
+		t.Errorf("POST body must carry the SOURCE_IP condition without a condition field:\n%s", req.Body)
+	}
+}
+
 // TestCreateAlbForwardingRuleWarnsOnMissingPieces covers the two configurations that
 // are accepted but useless: HTTPS with no certificate, and a listener with no rules.
 func TestCreateAlbForwardingRuleWarnsOnMissingPieces(t *testing.T) {
@@ -552,6 +565,10 @@ func TestAlbHttpRuleValidation(t *testing.T) {
 		{map[string]any{"name": "r", "type": "STATIC"}, "status_code is required"},
 		{map[string]any{"name": "r", "type": "WAT"}, "must be FORWARD, REDIRECT or STATIC"},
 		{map[string]any{"name": "", "type": "FORWARD", "target_group": "tg"}, "name is required"},
+		{map[string]any{"name": "r", "type": "FORWARD", "target_group": "tg",
+			"conditions": []map[string]any{{"type": "PATH", "value": "/api"}}}, "needs both type and condition"},
+		{map[string]any{"name": "r", "type": "FORWARD", "target_group": "tg",
+			"conditions": []map[string]any{{"type": "SOURCE_IP", "condition": "EQUALS", "value": "10.0.0.0/8"}}}, "condition must be omitted"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.wantMsg, func(t *testing.T) {
@@ -582,7 +599,8 @@ func TestUpdateAlbForwardingRuleCarriesRequiredFields(t *testing.T) {
 	h.resp.serve(albRulesAPI+"/r-1", `{"id":"r-1","properties":{
 		"name":"web","protocol":"HTTPS","listenerIp":"1.2.3.4","listenerPort":443,
 		"serverCertificates":["cert-1"],
-		"httpRules":[{"name":"to-app","type":"FORWARD","targetGroup":"tg-1"}]}}`)
+		"httpRules":[{"name":"to-app","type":"FORWARD","targetGroup":"tg-1",
+			"conditions":[{"type":"SOURCE_IP","value":"10.0.0.0/8"}]}]}}`)
 
 	res := callTool(t, h, "update_alb_forwarding_rule", map[string]any{
 		"datacenter_id": dcID, "loadbalancer_id": "lb-1", "rule_id": "r-1", "client_timeout": 5000,
@@ -602,10 +620,14 @@ func TestUpdateAlbForwardingRuleCarriesRequiredFields(t *testing.T) {
 	}
 	// Omitted lists are preserved, not cleared — losing them would stop the
 	// listener routing or serving TLS.
-	for _, want := range []string{`"cert-1"`, `"targetGroup":"tg-1"`} {
+	for _, want := range []string{`"cert-1"`, `"targetGroup":"tg-1"`, `"type":"SOURCE_IP"`} {
 		if !strings.Contains(patch.Body, want) {
 			t.Errorf("PATCH must preserve the omitted list containing %s:\n%s", want, patch.Body)
 		}
+	}
+	// A carried-forward SOURCE_IP condition must keep its condition null, as the API requires.
+	if strings.Contains(patch.Body, `"condition"`) {
+		t.Errorf("PATCH must not give the SOURCE_IP condition a condition field:\n%s", patch.Body)
 	}
 }
 

@@ -12,11 +12,10 @@ import (
 	"github.com/ionos-cloud/ionoscloud-mcp/tools"
 )
 
-// RegisterIpBlockWriteTools registers the create and delete IP block tools.
-// There is no update: the API forbids location in update requests, but the
-// SDK always serializes it, so no typed call can produce an acceptable body.
+// RegisterIpBlockWriteTools registers the create, update and delete IP block tools.
 func RegisterIpBlockWriteTools(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	registerCreateIpBlock(server, client, scope, confirm)
+	registerUpdateIpBlock(server, client, scope)
 	registerDeleteIpBlock(server, client, scope, confirm)
 }
 
@@ -41,7 +40,9 @@ func registerCreateIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 			if err := confirm.Consume(*input.ConfirmationToken, "create_ip_block", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("create_ip_block", "location and size", err)), nil, nil
 			}
-			props := ionos.NewIpBlockProperties(location, input.Size)
+			props := &ionos.IpBlockProperties{}
+			props.SetLocation(location)
+			props.SetSize(input.Size)
 			if input.Name != nil {
 				props.SetName(*input.Name)
 			}
@@ -66,6 +67,28 @@ func registerCreateIpBlock(server *mcp.Server, client *ionos.APIClient, scope to
 			Replay:    tools.Fields("location", location, "size", strconv.FormatInt(int64(input.Size), 10)),
 			TokenNote: "The block is billed from creation even while its addresses are unused, and neither location nor size can be changed afterwards. The token authorizes reserving only this location+size",
 		}.Render(token)), nil, nil
+	})
+}
+
+func registerUpdateIpBlock(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
+	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
+		Name: "update_ip_block",
+		Description: "Rename a reserved IP block. Only the name can be changed: location and size are fixed once reserved — to change either, reserve a new block and release this one. " +
+			"Renaming does not touch the addresses or the resources using them.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateIpBlockInput) (*mcp.CallToolResult, any, error) {
+		id := strings.TrimSpace(input.IpBlockID)
+		if id == "" {
+			return tools.ErrorText("ipblock_id is required"), nil, nil
+		}
+		name := strings.TrimSpace(input.Name)
+		if name == "" {
+			return tools.ErrorText("name is required and cannot be blank; it is the only property of an IP block that can change"), nil, nil
+		}
+		// The API disallows location in update requests, so the body carries the name alone.
+		props := &ionos.IpBlockProperties{}
+		props.SetName(name)
+		updated, _, err := client.IPBlocksApi.IpblocksPatch(ctx, id).Ipblock(*props).Execute()
+		return tools.ToResult(updated, err)
 	})
 }
 

@@ -78,19 +78,35 @@ func TestCreateIpBlockValidation(t *testing.T) {
 	}
 }
 
-// TestUpdateIpBlockIsNotRegistered documents that update_ip_block is absent: the API
-// disallows location in update requests, so no correct PATCH body exists — see
-// ip_block_write.go.
-func TestUpdateIpBlockIsNotRegistered(t *testing.T) {
-	names := toolNames(t, context.Background(), setupWithScope(t, tools.Scope{Write: true, Destructive: true}))
-	if names["update_ip_block"] {
-		t.Error("update_ip_block is registered, but the smallest PATCH the SDK can build carries location and size, which the API rejects as immutable — see ip_block_write.go")
+// TestUpdateIpBlockSendsOnlyTheName checks the PATCH carries the name alone: the API
+// disallows location in update requests.
+func TestUpdateIpBlockSendsOnlyTheName(t *testing.T) {
+	h := destructiveSetup(t)
+	res := callTool(t, h, "update_ip_block", map[string]any{"ipblock_id": "ip-1", "name": " web-ips "})
+	if res.IsError {
+		t.Fatalf("update failed: %s", resultText(res))
 	}
-	// The reserve/release pair must survive: only the update is impossible.
-	for _, want := range []string{"create_ip_block", "delete_ip_block"} {
-		if !names[want] {
-			t.Errorf("%q should still be registered", want)
-		}
+	req := singleRequest(t, h, http.MethodPatch)
+	if req.Path != ipBlocksAPI+"/ip-1" {
+		t.Errorf("PATCH path = %s, want %s", req.Path, ipBlocksAPI+"/ip-1")
+	}
+	var body map[string]any
+	if err := json.Unmarshal([]byte(req.Body), &body); err != nil {
+		t.Fatalf("PATCH body is not JSON (%v): %s", err, req.Body)
+	}
+	if len(body) != 1 || body["name"] != "web-ips" {
+		t.Errorf("PATCH should contain only the trimmed name, got %s", req.Body)
+	}
+}
+
+func TestUpdateIpBlockRejectsBlankName(t *testing.T) {
+	h := destructiveSetup(t)
+	res := callTool(t, h, "update_ip_block", map[string]any{"ipblock_id": "ip-1", "name": "  "})
+	if !res.IsError {
+		t.Fatal("a blank name should be rejected rather than clearing the name")
+	}
+	if len(h.log.allRequests()) != 0 {
+		t.Error("validation failure must not reach the API")
 	}
 }
 
@@ -600,7 +616,7 @@ func TestUpdatePcc(t *testing.T) {
 func TestNetworkingWriteToolsScopeGating(t *testing.T) {
 	ctx := context.Background()
 	writeClass := []string{
-		"create_ip_block",
+		"create_ip_block", "update_ip_block",
 		"create_security_group", "update_security_group",
 		"create_firewall_rule", "update_firewall_rule",
 		"create_security_group_rule", "update_security_group_rule",

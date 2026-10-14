@@ -1523,6 +1523,21 @@ func TestUpdateBodiesContainOnlyRequestedFields(t *testing.T) {
 			args:     map[string]any{"datacenter_id": dcID, "loadbalancer_id": "lb-1", "name": "renamed"},
 			wantKeys: []string{"name"},
 		},
+		{
+			tool:     "update_network_loadbalancer",
+			args:     map[string]any{"datacenter_id": dcID, "loadbalancer_id": "lb-1", "name": "renamed"},
+			wantKeys: []string{"name"},
+		},
+		{
+			tool:     "update_application_loadbalancer",
+			args:     map[string]any{"datacenter_id": dcID, "loadbalancer_id": "lb-1", "name": "renamed"},
+			wantKeys: []string{"name"},
+		},
+		{
+			tool:     "update_ip_block",
+			args:     map[string]any{"ipblock_id": "ip-1", "name": "renamed"},
+			wantKeys: []string{"name"},
+		},
 	}
 
 	for _, tt := range tests {

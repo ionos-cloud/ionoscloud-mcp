@@ -26,7 +26,7 @@ func RegisterApplicationLoadBalancerWriteTools(server *mcp.Server, client *ionos
 }
 
 // albState is the subset of the load balancer's state the write tools need:
-// enough for update to carry values forward and for delete to size its blast radius.
+// enough for update to check a LAN change and for delete to size its blast radius.
 type albState struct {
 	Name        string
 	ListenerLan int32
@@ -53,10 +53,8 @@ func readAlb(ctx context.Context, client *ionos.APIClient, dcID, id string) (alb
 	return st, nil
 }
 
-// buildAlbProperties builds the properties body. name, listenerLan and targetLan are
-// serialized unconditionally, so every caller must pass the values it wants kept —
-// an update that omitted them would move the balancer off both its networks.
-func buildAlbProperties(name string, listenerLan, targetLan int32, f tools.ManagedLoadBalancerFields) *ionos.ApplicationLoadBalancerProperties {
+// buildAlbProperties builds the properties body; a nil name or LAN is left out of it.
+func buildAlbProperties(name *string, listenerLan, targetLan *int32, f tools.ManagedLoadBalancerFields) *ionos.ApplicationLoadBalancerProperties {
 	props := &ionos.ApplicationLoadBalancerProperties{Name: name, ListenerLan: listenerLan, TargetLan: targetLan}
 	if len(f.Ips) > 0 {
 		props.SetIps(f.Ips)
@@ -77,7 +75,7 @@ func registerAlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 	tools.RegisterTool(server, scope, tools.MethodPost, &mcp.Tool{
 		Name: "create_application_loadbalancer",
 		Description: "Create one application load balancer. Two-phase: call first WITHOUT confirmation_token to get a preview and a one-time token, then call again WITH the token (and the same datacenter_id and name) to create it. It forwards traffic at the HTTP layer, and its rules route to target groups (see create_target_group) rather than to raw IP targets. " +
-			"listener_lan is the LAN clients connect on (usually public) and target_lan the LAN holding the backends (usually private); they must differ. " +
+			"listener_lan is the LAN clients connect on (usually public) and target_lan the LAN holding the backends (usually private); they must differ, and a public listener_lan needs at least one reserved public IP in ips. " +
 			"The new load balancer carries no traffic until you add a forwarding rule to it. Creates exactly one per call.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.CreateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -97,7 +95,7 @@ func registerAlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 			if err := confirm.Consume(*input.ConfirmationToken, "create_application_loadbalancer", target); err != nil {
 				return tools.ErrorText(tools.ConfirmErrorText("create_application_loadbalancer", "datacenter_id and name", err)), nil, nil
 			}
-			props := buildAlbProperties(name, input.ListenerLan, input.TargetLan, input.ManagedLoadBalancerFields)
+			props := buildAlbProperties(&name, &input.ListenerLan, &input.TargetLan, input.ManagedLoadBalancerFields)
 			body := ionos.NewApplicationLoadBalancer(*props)
 			created, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersPost(ctx, dcID).ApplicationLoadBalancer(*body).Execute()
 			return tools.ToResult(created, err)
@@ -129,9 +127,8 @@ func registerAlbCreate(server *mcp.Server, client *ionos.APIClient, scope tools.
 func registerAlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.Scope) {
 	tools.RegisterTool(server, scope, tools.MethodPatch, &mcp.Tool{
 		Name: "update_application_loadbalancer",
-		Description: "Update a application load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide). " +
-			"Omit name, listener_lan or target_lan to keep the current value — each is read and sent back unchanged, because the API always receives all three and empty values would move the load balancer off both of its networks. " +
-			"Changing listener_lan moves where clients connect; changing target_lan repoints it at a different backend network. Its forwarding rules are managed separately.",
+		Description: "Update an application load balancer's name, listener LAN, target LAN, addresses or logging. Applies a partial update (only the fields you provide); anything you omit keeps its current value. " +
+			"Changing listener_lan moves where clients connect; changing target_lan repoints it at a different backend network, and the two must stay different. Its forwarding rules are managed separately.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
 		id := strings.TrimSpace(input.LoadBalancerID)
@@ -146,34 +143,32 @@ func registerAlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.
 			input.CentralLogging == nil && input.LoggingFormat == nil {
 			return tools.ErrorText("nothing to update: provide at least one of name, listener_lan, target_lan, ips, lb_private_ips, central_logging, logging_format"), nil, nil
 		}
-
-		// name, listenerLan and targetLan are serialized unconditionally, so read
-		// the current values and let the caller's input override only what it set.
-		current, err := readAlb(ctx, client, dcID, id)
-		if err != nil {
-			if tools.IsNotFound(err) {
-				return tools.ErrorText(fmt.Sprintf("application load balancer %s does not exist in data center %s; nothing to update", id, dcID)), nil, nil
-			}
-			return tools.ToResult(nil, err)
-		}
-		name, listenerLan, targetLan := current.Name, current.ListenerLan, current.TargetLan
-		if input.Name != nil {
-			if strings.TrimSpace(*input.Name) == "" {
-				return tools.ErrorText("name must not be empty; omit it entirely to keep the current name"), nil, nil
-			}
-			name = *input.Name
-		}
-		if input.ListenerLan != nil {
-			listenerLan = *input.ListenerLan
-		}
-		if input.TargetLan != nil {
-			targetLan = *input.TargetLan
-		}
-		if msg := validateListenerAndTargetLan(listenerLan, targetLan); msg != "" {
-			return tools.ErrorText(msg), nil, nil
+		if input.Name != nil && strings.TrimSpace(*input.Name) == "" {
+			return tools.ErrorText("name must not be empty; omit it entirely to keep the current name"), nil, nil
 		}
 
-		props := buildAlbProperties(name, listenerLan, targetLan, input.ManagedLoadBalancerFields)
+		// A LAN change is checked against the current other side, since the two must differ.
+		if input.ListenerLan != nil || input.TargetLan != nil {
+			current, err := readAlb(ctx, client, dcID, id)
+			if err != nil {
+				if tools.IsNotFound(err) {
+					return tools.ErrorText(fmt.Sprintf("application load balancer %s does not exist in data center %s; nothing to update", id, dcID)), nil, nil
+				}
+				return tools.ToResult(nil, err)
+			}
+			listenerLan, targetLan := current.ListenerLan, current.TargetLan
+			if input.ListenerLan != nil {
+				listenerLan = *input.ListenerLan
+			}
+			if input.TargetLan != nil {
+				targetLan = *input.TargetLan
+			}
+			if msg := validateListenerAndTargetLan(listenerLan, targetLan); msg != "" {
+				return tools.ErrorText(msg), nil, nil
+			}
+		}
+
+		props := buildAlbProperties(input.Name, input.ListenerLan, input.TargetLan, input.ManagedLoadBalancerFields)
 		updated, _, err := client.ApplicationLoadBalancersApi.DatacentersApplicationloadbalancersPatch(ctx, dcID, id).ApplicationLoadBalancerProperties(*props).Execute()
 		return tools.ToResult(updated, err)
 	})
@@ -182,7 +177,7 @@ func registerAlbUpdate(server *mcp.Server, client *ionos.APIClient, scope tools.
 func registerAlbDelete(server *mcp.Server, client *ionos.APIClient, scope tools.Scope, confirm *tools.ConfirmationStore) {
 	tools.RegisterTool(server, scope, tools.MethodDelete, &mcp.Tool{
 		Name: "delete_application_loadbalancer",
-		Description: "Delete a application load balancer and all of its forwarding rules. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview and a one-time token, then call again WITH the token to delete. " +
+		Description: "Delete an application load balancer and all of its forwarding rules. Two-phase: call first WITHOUT confirmation_token to get a blast-radius preview and a one-time token, then call again WITH the token to delete. " +
 			"Clients connecting to its listener addresses stop reaching the backends, so this takes the service behind it offline. The backend servers themselves are not deleted. This is irreversible.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.DeleteManagedLoadBalancerInput) (*mcp.CallToolResult, any, error) {
 		dcID := strings.TrimSpace(input.DatacenterID)
@@ -219,7 +214,7 @@ func registerAlbDelete(server *mcp.Server, client *ionos.APIClient, scope tools.
 			return nil, nil, mErr
 		}
 		return tools.TextResult(tools.Preview{
-			Headline: "About to DELETE a application load balancer. This is IRREVERSIBLE.\n" +
+			Headline: "About to DELETE an application load balancer. This is IRREVERSIBLE.\n" +
 				"Clients connecting to the listener addresses below stop reaching the backends, so the service behind it goes offline. The backend servers themselves are not deleted.",
 			Fields: tools.Fields(
 				"datacenter_id", dcID,
@@ -475,7 +470,12 @@ func validateAlbHttpRules(rules []tools.AlbHttpRuleInput) string {
 			return fmt.Sprintf("http_rules[%d].type must be FORWARD, REDIRECT or STATIC, got %q", i, r.Type)
 		}
 		for j, c := range r.Conditions {
-			if strings.TrimSpace(c.Type) == "" || strings.TrimSpace(c.Condition) == "" {
+			// SOURCE_IP matches value as a CIDR, and the API requires its condition to be null.
+			sourceIP := strings.EqualFold(strings.TrimSpace(c.Type), "SOURCE_IP")
+			switch {
+			case sourceIP && c.Condition != nil:
+				return fmt.Sprintf("http_rules[%d].conditions[%d] is type SOURCE_IP, so condition must be omitted; give the CIDR to match as value", i, j)
+			case !sourceIP && (strings.TrimSpace(c.Type) == "" || strings.TrimSpace(tools.OptStr(c.Condition)) == ""):
 				return fmt.Sprintf("http_rules[%d].conditions[%d] needs both type and condition", i, j)
 			}
 		}
@@ -508,8 +508,10 @@ func buildAlbHttpRules(in []tools.AlbHttpRuleInput) []ionos.ApplicationLoadBalan
 		if len(r.Conditions) > 0 {
 			conds := make([]ionos.ApplicationLoadBalancerHttpRuleCondition, 0, len(r.Conditions))
 			for _, c := range r.Conditions {
-				cond := ionos.NewApplicationLoadBalancerHttpRuleCondition(
-					strings.ToUpper(strings.TrimSpace(c.Type)), strings.ToUpper(strings.TrimSpace(c.Condition)))
+				cond := ionos.NewApplicationLoadBalancerHttpRuleCondition(strings.ToUpper(strings.TrimSpace(c.Type)))
+				if c.Condition != nil {
+					cond.SetCondition(strings.ToUpper(strings.TrimSpace(*c.Condition)))
+				}
 				if c.Negate != nil {
 					cond.SetNegate(*c.Negate)
 				}

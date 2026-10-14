@@ -131,7 +131,7 @@ func registerCreateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 			if window != nil {
 				props.SetMaintenanceWindow(*window)
 			}
-			if auto != nil {
+			if autoScalingActive(auto) {
 				props.SetAutoScaling(*auto)
 			}
 			if len(lans) > 0 {
@@ -174,7 +174,7 @@ func registerUpdateNodepool(server *mcp.Server, client *ionos.APIClient, scope t
 		Name: "update_k8s_nodepool",
 		Description: "Update a node pool: scale it, upgrade it, or change its maintenance window, autoscaling, LANs, labels, annotations, taints or public IPs. The pool name and the per-node hardware are immutable. " +
 			"This endpoint replaces the pool's properties, so fields you omit are read and sent back unchanged. lans, labels, annotations, taints and public_ips replace the current value when supplied — read get_k8s_nodepool first. " +
-			"An autoscaler's bounds can be changed but it cannot be removed. " +
+			"To turn an autoscaler off, send auto_scaling as an empty object or with both bounds null; the pool then stays at node_count. " +
 			"BE CAREFUL with three of these: k8s_version replaces EVERY node in the pool one at a time and cannot be undone, lowering node_count drains the removed nodes and evicts their pods, and a taint with the NoExecute effect evicts every pod on the pool's nodes that lacks a matching toleration. Confirm all three with the user before sending them, and check the pool's availableUpgradeVersions first." + asyncResourceNote,
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input tools.UpdateK8sNodepoolInput) (*mcp.CallToolResult, any, error) {
 		clusterID := strings.TrimSpace(input.K8sClusterID)

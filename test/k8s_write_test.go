@@ -392,6 +392,25 @@ func TestCreateK8sNodepoolTwoPhase(t *testing.T) {
 	}
 }
 
+// TestCreateK8sNodepoolOmitsAutoScalingWhenOff checks a create asked for no autoscaler sends
+// no autoScaling at all, rather than null bounds for an autoscaler that does not exist.
+func TestCreateK8sNodepoolOmitsAutoScalingWhenOff(t *testing.T) {
+	h := destructiveSetup(t)
+	h.resp.serve(k8sPoolsPath(), `{"id":"np-new"}`)
+	_, res := previewThenExecute(t, h, "create_k8s_nodepool", map[string]any{
+		"k8s_cluster_id": k8sClusterID, "name": "workers", "datacenter_id": "dc-1",
+		"node_count": 2, "cores_count": 4, "ram_size": 4096,
+		"availability_zone": "AUTO", "storage_type": "SSD", "storage_size": 100,
+		"auto_scaling": map[string]any{},
+	})
+	if res.IsError {
+		t.Fatalf("execute must succeed: %s", resultText(res))
+	}
+	if req := singleRequest(t, h, http.MethodPost); strings.Contains(req.Body, "autoScaling") {
+		t.Errorf("POST body must omit autoScaling when no autoscaler was asked for: %s", req.Body)
+	}
+}
+
 // Every value the node pool API accepts reaches it in the spec's spelling.
 func TestCreateK8sNodepoolStorageTypes(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
@@ -466,6 +485,22 @@ func TestCreateK8sNodepoolValidation(t *testing.T) {
 			"autoscaling bounds inverted",
 			base(map[string]any{"auto_scaling": map[string]any{"min_node_count": 5, "max_node_count": 2}}),
 			">= min_node_count",
+		},
+		{
+			"autoscaling minimum of zero",
+			base(map[string]any{"auto_scaling": map[string]any{"min_node_count": 0, "max_node_count": 3}}),
+			"min_node_count must be at least 1",
+		},
+		{
+			// The API rejects zero bounds; null bounds are what mean no autoscaler.
+			"autoscaling zero bounds",
+			base(map[string]any{"auto_scaling": map[string]any{"min_node_count": 0, "max_node_count": 0}}),
+			"send both bounds as null",
+		},
+		{
+			"autoscaling with one bound",
+			base(map[string]any{"auto_scaling": map[string]any{"min_node_count": 2}}),
+			"needs both min_node_count and max_node_count",
 		},
 		{
 			"node count outside the autoscaling bounds",
@@ -669,38 +704,45 @@ func TestDeleteK8sNodePreviewFailsOnUnreadablePool(t *testing.T) {
 	}
 }
 
-// TestUpdateK8sNodepoolRejectsAutoScalingDisable pins a capability that doesn't ship:
-// turning an autoscaler off has no valid request body (the API rejects zero bounds
-// and ignores an omitted field), so the input is rejected rather than silently no-op'd.
-func TestUpdateK8sNodepoolRejectsAutoScalingDisable(t *testing.T) {
-	h := destructiveSetup(t)
-	// A pool with a live autoscaler, so there would be something to switch off.
-	h.resp.serve(k8sPoolPath(), `{
-	  "id": "np-1",
-	  "properties": {
-	    "name": "workers", "datacenterId": "dc-1", "nodeCount": 2,
-	    "coresCount": 4, "ramSize": 4096, "availabilityZone": "AUTO",
-	    "storageType": "SSD", "storageSize": 100,
-	    "autoScaling": {"minNodeCount": 1, "maxNodeCount": 3}
-	  }
-	}`)
+// TestUpdateK8sNodepoolTurnsAutoScalingOff checks an empty auto_scaling, or one with both
+// bounds null, goes out as null bounds, which switches the autoscaler off.
+func TestUpdateK8sNodepoolTurnsAutoScalingOff(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		off  map[string]any
+	}{
+		{"empty object", map[string]any{}},
+		{"null bounds", map[string]any{"min_node_count": nil, "max_node_count": nil}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := destructiveSetup(t)
+			h.resp.serve(k8sPoolPath(), `{
+			  "id": "np-1",
+			  "properties": {
+			    "name": "workers", "datacenterId": "dc-1", "nodeCount": 2,
+			    "coresCount": 4, "ramSize": 4096, "availabilityZone": "AUTO",
+			    "storageType": "SSD", "storageSize": 100,
+			    "autoScaling": {"minNodeCount": 1, "maxNodeCount": 3}
+			  }
+			}`)
 
-	res := callTool(t, h, "update_k8s_nodepool", map[string]any{
-		"k8s_cluster_id": k8sClusterID,
-		"nodepool_id":    k8sPoolID,
-		"auto_scaling":   map[string]any{"min_node_count": 0, "max_node_count": 0},
-	})
-	if !res.IsError {
-		t.Fatal("zero autoscaler bounds must be rejected, not accepted as a silent no-op")
-	}
-	if !strings.Contains(resultText(res), "cannot be turned off here") {
-		t.Errorf("error must explain why disabling is impossible: %s", resultText(res))
-	}
-	// Rejected before any request goes out, so nothing is touched.
-	for _, r := range h.log.allRequests() {
-		if r.Method == http.MethodPut {
-			t.Fatal("a rejected update must not issue a PUT")
-		}
+			res := callTool(t, h, "update_k8s_nodepool", map[string]any{
+				"k8s_cluster_id": k8sClusterID,
+				"nodepool_id":    k8sPoolID,
+				"auto_scaling":   tt.off,
+			})
+			if res.IsError {
+				t.Fatalf("update failed: %s", resultText(res))
+			}
+			body := putBody(t, h)
+			auto, ok := body["autoScaling"].(map[string]any)
+			if !ok || len(auto) != 2 || auto["minNodeCount"] != nil || auto["maxNodeCount"] != nil {
+				t.Errorf("autoScaling = %v, want both bounds null; that is the body that switches an autoscaler off", body["autoScaling"])
+			}
+			if body["nodeCount"] != float64(2) {
+				t.Errorf("nodeCount = %v, want the carried-forward 2", body["nodeCount"])
+			}
+		})
 	}
 }
 
