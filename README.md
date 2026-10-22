@@ -66,7 +66,7 @@ Read tools are named `list_*`, `get_*` and `head_*`; the opt-in write tools are 
 
 | Product | Tools | Capabilities |
 |---|---|---|
-| [Compute Engine](docs/compute/) | 50 + 69 write | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
+| [Compute Engine](docs/compute/) | 50 + 70 write | Data centers, servers, volumes, NICs, LANs, firewall rules, IP blocks, load balancers (basic / network / application), NAT gateways, security groups, private cross-connects, snapshots, images, templates, locations, requests, contract |
 | [Kubernetes](docs/k8s/) | 8 + 8 write | Clusters, node pools, nodes, available versions |
 | [Object Storage](docs/objectstorage/) | 23 | Buckets, bucket configuration (CORS, encryption, lifecycle, policy, public access block, replication, tagging, versioning, Object Lock), objects, access keys, regions |
 | [DNS](docs/dns/) | 14 + 16 write | Zones, zone files (+ BIND import), records, reverse records, secondary zones (+ zone transfer), DNSSEC, quota |

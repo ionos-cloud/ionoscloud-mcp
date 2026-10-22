@@ -3,7 +3,7 @@
   "name": "io.github.ionos-cloud/ionoscloud-mcp",
   "title": "IONOS CLOUD MCP Server",
   "description": "Inspect and manage IONOS CLOUD infrastructure via MCP. Writes are opt-in and off by default.",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "repository": {
     "url": "https://github.com/ionos-cloud/ionoscloud-mcp",
     "source": "github"
