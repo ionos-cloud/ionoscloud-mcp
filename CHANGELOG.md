@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+
+- **Smithery publishing.** Smithery stopped accepting server updates (publishing 1.1.2 failed with `Updating servers has been removed`) and shuts down its API, CLI and accounts on 2026-10-31. Releases no longer build the MCPB bundle that was published there, and the README no longer offers `npx @smithery/cli install`, which stops working with the shutdown. Smithery never received 1.1.2. Install with Homebrew, Docker, a release binary or `go install` and add the server to your client's MCP config instead.
+
 ## 1.1.2
 
 ### Added
