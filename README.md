@@ -51,7 +51,6 @@ This server is published across multiple MCP registries and IDE marketplaces:
 | Registry | Link |
 |----------|------|
 | Official MCP Registry | [io.github.ionos-cloud/ionoscloud-mcp](https://registry.modelcontextprotocol.io/v0/servers?cursor=io.github.ionos-cloud) |
-| Smithery | [ionos-cloud/ionoscloud-mcp](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) |
 | mcp.so | [ionos-cloud-mcp-server](https://mcp.so/server/ionos-cloud-mcp-server/ionos-cloud) |
 | Glama | [ionoscloud-mcp](https://glama.ai/mcp/servers/ionos-cloud/ionoscloud-mcp) |
 | Cursor | [ionoscloud-mcp](https://cursor.directory/plugins/ionoscloud-mcp) |
@@ -107,14 +106,6 @@ docker run --rm -p 8080:8080 \
   -e IONOS_TOKEN="$IONOS_TOKEN" \
   ghcr.io/ionos-cloud/ionoscloud-mcp --transport http --http-addr :8080
 ```
-
-### Smithery
-
-```bash
-npx -y @smithery/cli install @ionos-cloud/ionoscloud-mcp --client claude-desktop
-```
-
-Supported `--client` values: `claude-desktop`, `claude-code`, `cursor`, `vscode`, `windsurf`, `cline`, `continue`, `gemini-cli`, `kiro`, and others. See the [Smithery listing](https://smithery.ai/servers/ionos-cloud/ionoscloud-mcp) for the current list.
 
 ### Pre-built binary
 
@@ -184,7 +175,7 @@ Per-client setup guides for the 12 supported AI clients: [Connect to an AI Clien
 
 The load mode selects how tools are exposed. Set it with either the `--load-mode` flag or the `IONOS_MCP_LOAD_MODE` environment variable; **the flag wins if both are set**, and otherwise the default is `eager`. Parsing is case-insensitive.
 
-- **`eager`** (default): all tools register at startup. Recommended for Claude Code (which defers full schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and the only working mode for clients that ignore `notifications/tools/list_changed` (Claude Desktop, claude.ai connectors, Claude in Chrome, Smithery scanner).
+- **`eager`** (default): all tools register at startup. Recommended for Claude Code (which defers full schemas client-side via ToolSearch, paying ~1–3k tokens for names only) and the only working mode for clients that ignore `notifications/tools/list_changed` (Claude Desktop, claude.ai connectors, Claude in Chrome).
 
 - **`lazy`**: Compute and Object Storage register only on demand. Two sentinel tools (`ionos_load_compute_tools`, `ionos_load_objectstorage_tools`) appear at startup; calling either registers the full product set and emits `notifications/tools/list_changed`. Use only if your MCP client honours that notification AND lacks client-side schema deferral — otherwise eager mode is cheaper.
 

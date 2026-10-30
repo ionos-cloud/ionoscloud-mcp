@@ -76,7 +76,7 @@ Environment variables (read from the MCP server process — typically inherited 
 
 The server supports three tool-registration strategies, selectable via the `--load-mode` flag or the `IONOS_MCP_LOAD_MODE` env var. Precedence: flag > env > default (`eager`). Resolution is a pure function `resolveLoadMode(flagVal, envVal)` in `server_config.go` (returns the mode + its source); `main.go` resolves once at startup and logs `load mode: <mode> (source: ...)` to stderr.
 
-- **`eager`** (default): all tools register at startup. Optimal for Claude Code (ToolSearch defers schemas client-side, ~1–3k tokens for names only) and required for clients without `notifications/tools/list_changed` support (Claude Desktop, claude.ai connectors, Claude in Chrome, Smithery scanner).
+- **`eager`** (default): all tools register at startup. Optimal for Claude Code (ToolSearch defers schemas client-side, ~1–3k tokens for names only) and required for clients without `notifications/tools/list_changed` support (Claude Desktop, claude.ai connectors, Claude in Chrome).
 
 - **`lazy`**: defer Compute and Object Storage behind `ionos_load_compute_tools` / `ionos_load_objectstorage_tools` sentinel tools. Calling either registers the full product set and emits `notifications/tools/list_changed`. Only useful for clients that honour the notification AND lack client-side schema deferral. (Note: this runtime list-mutation pattern is the one the GitHub MCP server retired in 2026; `dynamic` is generally preferable for cap-limited clients.)
 
